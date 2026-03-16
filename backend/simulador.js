@@ -1,8 +1,6 @@
 const axios = require('axios');
 
 const API_URL = 'http://localhost:3001/api';
-
-// Credenciais que o simulador usará para alterar o status do motor
 const LOGIN_SIMULADOR = { usuario: 'admin', senha: 'admin123' };
 let tokenAtivo = '';
 
@@ -36,27 +34,57 @@ async function executarSimulacao() {
 
         const eq = equipamentos[Math.floor(Math.random() * equipamentos.length)];
 
-        // --- SIMULAÇÃO 1: MOTOR PAROU (Aumentei a chance para 10% para você testar mais rápido) ---
-        if (eq.motor_ligado && Math.random() < 0.10) {
-            console.log(`\n🚨 [ALERTA CRÍTICO] O motor do equipamento "${eq.nome}" PAROU!`);
-            console.log(`   -> Enviando notificação para o painel do sistema...\n`);
+        // --- SIMULAÇÃO: INICIAR DEGELO (5% de chance) ---
+        if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
+            console.log(`\n❄️ [SISTEMA] Iniciando ciclo de DEGELO programado no equipamento "${eq.nome}"...`);
             
-            // Quando enviamos 'motor_ligado: false', o Backend intercepta isso e gera a notificação na tela!
-            await axios.put(`${API_URL}/equipamentos/${eq.id}`, {
-                temp_min: eq.temp_min,
-                temp_max: eq.temp_max,
-                motor_ligado: false 
+            // Ativa a flag de degelo
+            await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: true }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+            
+            // Desliga o motor
+            await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+            return; 
+        }
+
+        // --- SIMULAÇÃO: FALHA NO MOTOR (5% de chance) ---
+        if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
+            console.log(`\n🚨 [ALERTA CRÍTICO] O motor do equipamento "${eq.nome}" PAROU (FALHA INESPERADA)!`);
+            await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+            return; 
+        }
+
+        // --- NOVA SIMULAÇÃO: RECUPERAÇÃO (Técnico religou ou Degelo acabou) ---
+        // Se o motor estiver desligado ou em degelo, há 15% de chance de voltar ao normal
+        if ((!eq.motor_ligado || eq.em_degelo) && Math.random() < 0.15) {
+            
+            if (eq.em_degelo) {
+                console.log(`\n✅ [SISTEMA] O ciclo de DEGELO do "${eq.nome}" terminou. Motor religado!`);
+                // Desativa a flag de degelo
+                await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+            } else {
+                console.log(`\n🔧 [MANUTENÇÃO] O técnico consertou e RELIGOU o motor do "${eq.nome}"!`);
+            }
+
+            // Religa o motor
+            await axios.put(`${API_URL}/equipamentos/${eq.id}`, { 
+                temp_min: eq.temp_min, 
+                temp_max: eq.temp_max, 
+                motor_ligado: true 
             }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             
             return; 
         }
 
-        // --- SIMULAÇÃO 2: LEITURA DE TEMPERATURAS ---
+        // --- SIMULAÇÃO: LEITURAS ---
         let tempAtual;
         
         if (!eq.motor_ligado) {
             tempAtual = gerarTemperatura(parseFloat(eq.temp_max) + 2, parseFloat(eq.temp_max) + 12);
-            console.log(`[CRÍTICO] ${eq.nome} | MOTOR DESLIGADO! Temperatura disparou para: ${tempAtual}°C`);
+            if (eq.em_degelo) {
+                console.log(`[DEGELO]  ${eq.nome} | Motor parado, derretendo gelo. Temp subindo: ${tempAtual}°C`);
+            } else {
+                console.log(`[CRÍTICO] ${eq.nome} | MOTOR DESLIGADO! Temperatura disparou para: ${tempAtual}°C`);
+            }
         } 
         else {
             if (Math.random() < 0.15) {
@@ -68,10 +96,7 @@ async function executarSimulacao() {
             }
         }
 
-        await axios.post(`${API_URL}/leituras`, {
-            equipamento_id: eq.id,
-            temperatura: parseFloat(tempAtual)
-        });
+        await axios.post(`${API_URL}/leituras`, { equipamento_id: eq.id, temperatura: parseFloat(tempAtual) });
 
     } catch (error) {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {

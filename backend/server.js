@@ -55,11 +55,11 @@ app.get('/api/equipamentos', verificarToken, async (req, res) => {
 });
 
 app.post('/api/equipamentos', verificarToken, async (req, res) => {
-    const { nome, tipo, temp_min, temp_max } = req.body;
+    const { nome, tipo, temp_min, temp_max, intervalo_degelo, duracao_degelo } = req.body;
     const connection = await mysql.createConnection(dbConfig);
     await connection.execute(
-        'INSERT INTO equipamentos (nome, tipo, temp_min, temp_max, motor_ligado) VALUES (?, ?, ?, ?, TRUE)',
-        [nome, tipo, temp_min, temp_max]
+        'INSERT INTO equipamentos (nome, tipo, temp_min, temp_max, motor_ligado, intervalo_degelo, duracao_degelo, em_degelo) VALUES (?, ?, ?, ?, TRUE, ?, ?, FALSE)',
+        [nome, tipo, temp_min, temp_max, intervalo_degelo || 6, duracao_degelo || 30]
     );
     await connection.end();
     res.status(201).json({ message: 'Equipamento adicionado com sucesso' });
@@ -85,28 +85,32 @@ app.put('/api/equipamentos/:id/edit', verificarToken, async (req, res) => {
     res.json({ message: 'Equipamento atualizado com sucesso' });
 });
 
-// AQUI ESTÁ A MUDANÇA (REGISTRAR MOTOR PARADO COMO NOTIFICAÇÃO)
+// NOVA ROTA: Atualizar apenas o status do Degelo
+app.put('/api/equipamentos/:id/degelo', verificarToken, async (req, res) => {
+    const { id } = req.params;
+    const { em_degelo } = req.body;
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE equipamentos SET em_degelo = ? WHERE id = ?', [em_degelo, id]);
+    await connection.end();
+    res.json({ message: 'Status de degelo atualizado' });
+});
+
 app.put('/api/equipamentos/:id', verificarToken, async (req, res) => {
     const { id } = req.params;
     const { temp_min, temp_max, motor_ligado } = req.body;
     const connection = await mysql.createConnection(dbConfig);
     
-    // Verifica o estado atual antes de atualizar
-    const [equipAtual] = await connection.execute('SELECT motor_ligado, nome FROM equipamentos WHERE id = ?', [id]);
+    const [equipAtual] = await connection.execute('SELECT motor_ligado, nome, em_degelo FROM equipamentos WHERE id = ?', [id]);
     
     await connection.execute(
         'UPDATE equipamentos SET temp_min = ?, temp_max = ?, motor_ligado = ? WHERE id = ?',
         [temp_min, temp_max, motor_ligado, id]
     );
 
-    // Se o motor estava ligado (1 ou true) e agora está sendo desligado (0 ou false)
-    // Se o motor estava ligado e agora está sendo desligado
-    if (equipAtual.length > 0 && equipAtual[0].motor_ligado == true && motor_ligado == false) {
-        const msg = `O motor do equipamento "${equipAtual[0].nome}" parou de funcionar!`;
-        await connection.execute(
-            'INSERT INTO notificacoes (equipamento_id, mensagem) VALUES (?, ?)',
-            [id, msg]
-        );
+    // Só envia notificação de "Motor Parou" se não estiver em degelo
+    if (equipAtual.length > 0 && equipAtual[0].motor_ligado == true && motor_ligado == false && equipAtual[0].em_degelo == false) {
+        const msg = `O motor do equipamento "${equipAtual[0].nome}" parou de funcionar inesperadamente!`;
+        await connection.execute('INSERT INTO notificacoes (equipamento_id, mensagem) VALUES (?, ?)', [id, msg]);
     }
 
     await connection.end();
@@ -137,16 +141,22 @@ app.get('/api/relatorios', verificarToken, async (req, res) => {
     res.json(rows);
 });
 
-// Receber leituras do simulador/sensor
+// Receber leituras e validar degelo
 app.post('/api/leituras', async (req, res) => {
     const { equipamento_id, temperatura } = req.body;
     const connection = await mysql.createConnection(dbConfig);
     await connection.execute('INSERT INTO leituras (equipamento_id, temperatura) VALUES (?, ?)', [equipamento_id, temperatura]);
-    const [equip] = await connection.execute('SELECT temp_max, nome FROM equipamentos WHERE id = ?', [equipamento_id]);
     
-    // Regra da temperatura alta
-    if (equip.length > 0 && temperatura > equip[0].temp_max) {
-        await connection.execute('INSERT INTO notificacoes (equipamento_id, mensagem) VALUES (?, ?)', [equipamento_id, `A temperatura do ${equip[0].nome} (${temperatura}°C) excedeu o limite máximo.`]);
+    const [equip] = await connection.execute('SELECT temp_max, nome, em_degelo FROM equipamentos WHERE id = ?', [equipamento_id]);
+    
+    // Regra da temperatura alta: SÓ ALERTA SE NÃO ESTIVER EM DEGELO!
+    if (equip.length > 0 && temperatura > equip[0].temp_max && equip[0].em_degelo == false) {
+        
+        // Evita flood: só insere se já não houver alerta ativo
+        const [alertasAtivos] = await connection.execute('SELECT id FROM notificacoes WHERE equipamento_id = ? AND resolvido = FALSE', [equipamento_id]);
+        if (alertasAtivos.length === 0) {
+            await connection.execute('INSERT INTO notificacoes (equipamento_id, mensagem) VALUES (?, ?)', [equipamento_id, `A temperatura do ${equip[0].nome} (${temperatura}°C) excedeu o limite máximo.`]);
+        }
     }
     await connection.end();
     res.status(201).send();
