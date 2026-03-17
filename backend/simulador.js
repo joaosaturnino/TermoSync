@@ -21,7 +21,7 @@ function gerarTemperatura(min, max) {
 async function executarSimulacao() {
     if (!tokenAtivo) {
         await autenticar();
-        if (!tokenAtivo) return; 
+        if (!tokenAtivo) return;
     }
 
     try {
@@ -37,47 +37,32 @@ async function executarSimulacao() {
         // --- SIMULAÇÃO: INICIAR DEGELO (5% de chance) ---
         if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
             console.log(`\n❄️ [SISTEMA] Iniciando ciclo de DEGELO programado no equipamento "${eq.nome}"...`);
-            
-            // Ativa a flag de degelo
             await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: true }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
-            
-            // Desliga o motor
             await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
-            return; 
+            return;
         }
 
         // --- SIMULAÇÃO: FALHA NO MOTOR (5% de chance) ---
         if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
             console.log(`\n🚨 [ALERTA CRÍTICO] O motor do equipamento "${eq.nome}" PAROU (FALHA INESPERADA)!`);
             await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
-            return; 
+            return;
         }
 
-        // --- NOVA SIMULAÇÃO: RECUPERAÇÃO (Técnico religou ou Degelo acabou) ---
-        // Se o motor estiver desligado ou em degelo, há 15% de chance de voltar ao normal
+        // --- SIMULAÇÃO: RECUPERAÇÃO (Técnico religou ou Degelo acabou) (15% de chance) ---
         if ((!eq.motor_ligado || eq.em_degelo) && Math.random() < 0.15) {
-            
             if (eq.em_degelo) {
                 console.log(`\n✅ [SISTEMA] O ciclo de DEGELO do "${eq.nome}" terminou. Motor religado!`);
-                // Desativa a flag de degelo
                 await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             } else {
                 console.log(`\n🔧 [MANUTENÇÃO] O técnico consertou e RELIGOU o motor do "${eq.nome}"!`);
             }
-
-            // Religa o motor
-            await axios.put(`${API_URL}/equipamentos/${eq.id}`, { 
-                temp_min: eq.temp_min, 
-                temp_max: eq.temp_max, 
-                motor_ligado: true 
-            }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
-            
-            return; 
+            await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: true }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+            return;
         }
 
         // --- SIMULAÇÃO: LEITURAS ---
         let tempAtual;
-        
         if (!eq.motor_ligado) {
             tempAtual = gerarTemperatura(parseFloat(eq.temp_max) + 2, parseFloat(eq.temp_max) + 12);
             if (eq.em_degelo) {
@@ -85,8 +70,7 @@ async function executarSimulacao() {
             } else {
                 console.log(`[CRÍTICO] ${eq.nome} | MOTOR DESLIGADO! Temperatura disparou para: ${tempAtual}°C`);
             }
-        } 
-        else {
+        } else {
             if (Math.random() < 0.15) {
                 tempAtual = gerarTemperatura(parseFloat(eq.temp_max) + 0.1, parseFloat(eq.temp_max) + 3);
                 console.log(`[AVISO]   ${eq.nome} | Porta Aberta? Temp. alta: ${tempAtual}°C`);
@@ -101,7 +85,7 @@ async function executarSimulacao() {
     } catch (error) {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
             console.log('[SISTEMA] Token expirado, reconectando...');
-            tokenAtivo = ''; 
+            tokenAtivo = '';
         } else {
             console.error("Erro no ciclo de simulação:", error.message);
         }
