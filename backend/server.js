@@ -47,9 +47,15 @@ const verificarToken = (req, res, next) => {
 };
 
 // --- ROTAS DA API ---
+
+// Lista equipamentos E traz a ÚLTIMA TEMPERATURA registada
 app.get('/api/equipamentos', verificarToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT * FROM equipamentos');
+    const [rows] = await connection.execute(`
+        SELECT e.*, 
+        (SELECT temperatura FROM leituras WHERE equipamento_id = e.id ORDER BY data_hora DESC LIMIT 1) AS ultima_temp
+        FROM equipamentos e
+    `);
     await connection.end();
     res.json(rows);
 });
@@ -115,7 +121,6 @@ app.put('/api/equipamentos/:id', verificarToken, async (req, res) => {
     res.json({ message: 'Equipamento atualizado' });
 });
 
-// Alertas ATIVOS
 app.get('/api/notificacoes', verificarToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(`
@@ -129,7 +134,6 @@ app.get('/api/notificacoes', verificarToken, async (req, res) => {
     res.json(rows);
 });
 
-// NOVA ROTA: Histórico de Alertas RESOLVIDOS
 app.get('/api/notificacoes/historico', verificarToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(`

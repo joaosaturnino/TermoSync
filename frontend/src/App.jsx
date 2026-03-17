@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
-import { Thermometer, AlertTriangle, Settings, Activity, Power, LogOut, Menu, X, CheckCircle, Edit, Download, Moon, Sun, Bell, BellOff, History, Search, Info } from 'lucide-react';
+import { Thermometer, AlertTriangle, Settings, Activity, Power, LogOut, Menu, X, CheckCircle, Edit, Download, Moon, Sun, Bell, BellOff, History, Search, Info, Printer } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 const API_URL = 'http://localhost:3001/api';
 
 export default function App() {
-  // Autenticação e Navegação
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -16,23 +15,19 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [somAtivo, setSomAtivo] = useState(true);
 
-  // Dados
   const [equipamentos, setEquipamentos] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
   const [historicoAlertas, setHistoricoAlertas] = useState([]);
   const [relatorios, setRelatorios] = useState([]);
   
-  // Filtros e Pesquisa
   const [periodoRelatorio, setPeriodoRelatorio] = useState('diario');
   const [equipamentoFiltro, setEquipamentoFiltro] = useState('');
   const [setorFiltroMotores, setSetorFiltroMotores] = useState('');
   const [termoPesquisa, setTermoPesquisa] = useState('');
 
-  // Formulário CRUD
   const [formEquip, setFormEquip] = useState({ nome: '', tipo: '', temp_min: '', temp_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' });
   const [equipEditando, setEquipEditando] = useState(null);
 
-  // Custom UI States (Toasts e Modais)
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', onConfirm: null });
 
@@ -59,9 +54,9 @@ export default function App() {
       const res = await axios.post(`${API_URL}/login`, { usuario, senha });
       setToken(res.data.token);
       localStorage.setItem('token', res.data.token);
-      showToast('Login efetuado com sucesso!', 'success');
+      showToast('Acesso Autorizado.', 'success');
     } catch (error) {
-      showToast('Utilizador ou palavra-passe incorretos.', 'error');
+      showToast('Credenciais incorretas.', 'error');
     }
   };
 
@@ -95,7 +90,7 @@ export default function App() {
 
   const tocarAlarme = () => {
     const audio = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
-    audio.play().catch(() => console.log('Áudio bloqueado pelo navegador.'));
+    audio.play().catch(() => console.log('Áudio bloqueado.'));
   };
 
   const carregarRelatorios = async () => {
@@ -113,16 +108,16 @@ export default function App() {
     try {
       if (equipEditando) {
         await api.put(`/equipamentos/${equipEditando}/edit`, formEquip);
-        showToast('Equipamento atualizado com sucesso!', 'success');
+        showToast('Configurações guardadas com sucesso!', 'success');
       } else {
         await api.post('/equipamentos', formEquip);
-        showToast('Novo equipamento adicionado!', 'success');
+        showToast('Novo equipamento inserido na base de dados.', 'success');
       }
       setFormEquip({ nome: '', tipo: '', temp_min: '', temp_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' });
       setEquipEditando(null);
       carregarDados();
     } catch (error) {
-      showToast('Erro ao guardar equipamento.', 'error');
+      showToast('Erro ao gravar dados no servidor.', 'error');
     }
   };
 
@@ -143,16 +138,16 @@ export default function App() {
   const pedirExclusao = (id, nome) => {
     setModalConfig({
       isOpen: true,
-      title: 'Confirmar Exclusão',
-      message: `Tem a certeza de que deseja eliminar definitivamente o equipamento "${nome}"?`,
+      title: 'Aviso de Segurança',
+      message: `Isto irá remover o equipamento "${nome}" e o seu histórico permanentemente. Deseja prosseguir?`,
       isPrompt: false,
       onConfirm: async () => {
         try {
           await api.delete(`/equipamentos/${id}`);
-          showToast('Equipamento excluído.', 'success');
+          showToast('Equipamento removido do sistema.', 'success');
           carregarDados();
         } catch (error) {
-          showToast('Erro ao excluir.', 'error');
+          showToast('Falha ao remover.', 'error');
         }
       }
     });
@@ -161,18 +156,18 @@ export default function App() {
   const pedirNotaResolucao = (id) => {
     setModalConfig({
       isOpen: true,
-      title: 'Registar Resolução',
-      message: 'Descreva a intervenção técnica realizada para resolver este alerta:',
+      title: 'Registo de Manutenção',
+      message: 'Descreva resumidamente a ação técnica que resolveu esta falha térmica:',
       isPrompt: true,
       promptValue: '',
       onConfirm: async (nota) => {
-        const notaFinal = nota.trim() === '' ? 'Sem observações' : nota;
+        const notaFinal = nota.trim() === '' ? 'Anomalia resolvida sem observações' : nota;
         try {
           await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: notaFinal });
-          showToast('Alerta resolvido e registado.', 'success');
+          showToast('Relatório arquivado com sucesso.', 'success');
           carregarDados();
         } catch (error) {
-          showToast('Erro ao resolver notificação.', 'error');
+          showToast('Erro ao processar auditoria.', 'error');
         }
       }
     });
@@ -181,16 +176,16 @@ export default function App() {
   const resolverTodasNotificacoes = () => {
     setModalConfig({
       isOpen: true,
-      title: 'Resolver Todos',
-      message: 'Tem a certeza de que deseja marcar TODOS os alertas ativos como resolvidos pelo sistema?',
+      title: 'Ação em Massa',
+      message: 'Confirma o encerramento de todos os alarmes críticos ativos no ecrã?',
       isPrompt: false,
       onConfirm: async () => {
         try {
           await api.put(`/notificacoes/resolver-todas`);
-          showToast('Todos os alertas foram limpos.', 'success');
+          showToast('Ação em massa executada.', 'success');
           carregarDados();
         } catch (error) {
-          showToast('Erro ao limpar alertas.', 'error');
+          showToast('Falha na comunicação com servidor.', 'error');
         }
       }
     });
@@ -198,7 +193,7 @@ export default function App() {
 
   const exportarCSV = () => {
     const dadosFiltrados = equipamentoFiltro ? relatorios.filter(r => r.nome === equipamentoFiltro) : relatorios;
-    if (dadosFiltrados.length === 0) return showToast("Nenhum dado para exportar.", "warning");
+    if (dadosFiltrados.length === 0) return showToast("Filtro vazio. Não há dados para exportar.", "warning");
 
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "Data/Hora,Equipamento,Setor,Temperatura (°C)\n";
@@ -211,10 +206,14 @@ export default function App() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_${periodoRelatorio}.csv`);
+    link.setAttribute("download", `telemetria_${periodoRelatorio}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const imprimirRelatorio = () => {
+    window.print();
   };
 
   useEffect(() => {
@@ -263,17 +262,17 @@ export default function App() {
       <div className="login-container">
         <div className="login-box">
           <h2>FrioMonitor</h2>
-          <p>Acesso ao Sistema de Monitorização</p>
+          <p>IoT Telemetry Server</p>
           <form onSubmit={fazerLogin}>
             <div className="login-input-group">
-              <label>ID de Utilizador</label>
+              <label>Credencial de Acesso</label>
               <input type="text" placeholder="admin" value={usuario} onChange={(e) => setUsuario(e.target.value)} required />
             </div>
             <div className="login-input-group">
-              <label>Palavra-passe de Acesso</label>
+              <label>Palavra-passe</label>
               <input type="password" placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required />
             </div>
-            <button type="submit" className="btn btn-primary w-100 login-btn">Entrar Seguramente</button>
+            <button type="submit" className="btn btn-primary w-100 login-btn">Entrar no Sistema</button>
           </form>
         </div>
         
@@ -292,7 +291,6 @@ export default function App() {
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : ''}`}>
       
-      {/* TOAST DE NOTIFICAÇÃO GLOBAL */}
       {toast.show && (
         <div className="toast-container">
           <div className={`toast ${toast.type}`}>
@@ -302,7 +300,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL GLOBAL */}
       {modalConfig.isOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -311,7 +308,7 @@ export default function App() {
             {modalConfig.isPrompt && (
               <input 
                 type="text" 
-                placeholder="Escreva aqui a intervenção..." 
+                placeholder="Insira detalhes da ação aqui..." 
                 value={modalConfig.promptValue} 
                 onChange={(e) => setModalConfig({...modalConfig, promptValue: e.target.value})}
                 autoFocus
@@ -335,25 +332,25 @@ export default function App() {
         </div>
         <nav className="sidebar-nav">
           <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}>
-            <Activity size={20} /> Dashboard Operacional
+            <Activity size={20} /> Visão Global
             {notificacoes.length > 0 && <span className="badge">{notificacoes.length}</span>}
           </button>
           <button className={`nav-item ${abaAtiva === 'motores' ? 'active' : ''}`} onClick={() => { setAbaAtiva('motores'); setMenuAberto(false); }}>
             <Power size={20} /> Painel de Motores
           </button>
           <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}>
-            <Settings size={20} /> Gestão de Frota
+            <Settings size={20} /> Base de Dados
           </button>
           <button className={`nav-item ${abaAtiva === 'relatorios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('relatorios'); setMenuAberto(false); }}>
             <Thermometer size={20} /> Gráficos de Temperatura
           </button>
           <button className={`nav-item ${abaAtiva === 'historico' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico'); setMenuAberto(false); }}>
-            <History size={20} /> Auditoria e Histórico
+            <History size={20} /> Auditoria
           </button>
         </nav>
         <div style={{ marginTop: 'auto', padding: '1.5rem 1rem' }}>
           <button className="btn btn-outline w-100" style={{ color: '#cbd5e1', borderColor: 'rgba(255,255,255,0.2)' }} onClick={fazerLogout}>
-            <LogOut size={18} style={{ marginRight: '8px' }} /> Terminar Sessão
+            <LogOut size={18} style={{ marginRight: '8px' }} /> Sair
           </button>
         </div>
       </div>
@@ -364,11 +361,11 @@ export default function App() {
         <header className="header">
           <button className="menu-btn" onClick={() => setMenuAberto(true)}><Menu size={24} /></button>
           <h2 className="page-title">
-            {abaAtiva === 'dashboard' && 'Dashboard e Alertas'}
-            {abaAtiva === 'motores' && 'Acompanhamento de Motores'}
-            {abaAtiva === 'equipamentos' && 'Inventário de Equipamentos'}
-            {abaAtiva === 'relatorios' && 'Monitorização Analítica'}
-            {abaAtiva === 'historico' && 'Diário de Intervenções'}
+            {abaAtiva === 'dashboard' && 'Monitorização Geral'}
+            {abaAtiva === 'motores' && 'Telemetria em Tempo Real'}
+            {abaAtiva === 'equipamentos' && 'Configuração de Equipamentos'}
+            {abaAtiva === 'relatorios' && 'Análise de Relatórios'}
+            {abaAtiva === 'historico' && 'Registo de Manutenções'}
           </h2>
           <div className="user-info">
             <button className="btn-icon" onClick={() => setSomAtivo(!somAtivo)} title={somAtivo ? "Silenciar Alarmes" : "Ativar Alarmes"} style={{ color: somAtivo ? 'var(--primary)' : 'var(--danger)' }}>
@@ -377,7 +374,7 @@ export default function App() {
             <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Alternar Tema">
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <span className="status-dot"></span> <span style={{display: 'none', '@media(minWidth: 600px)': {display: 'inline'}}}>Sistema Operacional</span>
+            <span className="status-dot"></span> <span className="status-text">IoT Conectado</span>
           </div>
         </header>
 
@@ -390,33 +387,35 @@ export default function App() {
                   <span className="summary-value">{qtdTotal}</span>
                 </div>
                 <div className="summary-card">
-                  <span className="summary-title">A Operar Normalmente</span>
+                  <span className="summary-title">Dentro dos Parâmetros</span>
                   <span className="summary-value val-green">{qtdOperando}</span>
                 </div>
                 <div className="summary-card">
-                  <span className="summary-title">Em Ciclo de Degelo</span>
+                  <span className="summary-title">Ciclo de Degelo</span>
                   <span className="summary-value val-blue">{qtdDegelo}</span>
                 </div>
                 <div className="summary-card">
-                  <span className="summary-title">Falha Crítica (Ação Necessária)</span>
+                  <span className="summary-title">Anomalias Ativas</span>
                   <span className="summary-value val-red">{qtdFalha}</span>
                 </div>
               </div>
 
               <div className="flex-header">
-                <h3>Incidentes Ativos</h3>
+                <h3>Central de Alertas Críticos</h3>
                 {notificacoes.length > 0 && (
-                  <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={resolverTodasNotificacoes}>
-                    Resolver Todos os Alarmes
-                  </button>
+                  <div className="action-group">
+                    <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={resolverTodasNotificacoes}>
+                      <CheckCircle size={18}/> Limpar Falsos Alarmes
+                    </button>
+                  </div>
                 )}
               </div>
               
               {notificacoes.length === 0 ? (
                 <div className="empty-state">
                   <CheckCircle size={56} color="var(--success)" style={{ marginBottom: '1rem' }} />
-                  <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Nenhuma anomalia detetada</h3>
-                  <p>Todos os equipamentos encontram-se dentro dos parâmetros estipulados.</p>
+                  <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Sistema Estabilizado</h3>
+                  <p>A temperatura de todos os equipamentos está sob controlo rigoroso.</p>
                 </div>
               ) : (
                 <div className="grid-cards">
@@ -432,7 +431,7 @@ export default function App() {
                       <span className="badge-setor">{notif.setor}</span>
                       <p className="alert-msg">{notif.mensagem}</p>
                       <button className="btn btn-primary w-100" onClick={() => pedirNotaResolucao(notif.id)}>
-                        Assumir Intervenção
+                        Arquivar Resolução
                       </button>
                     </div>
                   ))}
@@ -444,36 +443,53 @@ export default function App() {
           {abaAtiva === 'motores' && (
             <div className="anim-fade-in">
               <div className="flex-header">
-                <h3 style={{ margin: 0 }}>Vista de Planta por Setor</h3>
-                <select className="select-input" value={setorFiltroMotores} onChange={(e) => setSetorFiltroMotores(e.target.value)} style={{ width: '250px' }}>
-                  <option value="">Ver Toda a Loja</option>
-                  <option value="Açougue">Açougue</option>
-                  <option value="Padaria">Padaria</option>
-                  <option value="Rotisseria">Rotisseria</option>
-                  <option value="Frios">Frios</option>
-                  <option value="Cooler">Cooler</option>
-                  <option value="FLV">FLV</option>
-                </select>
+                <h3 style={{ margin: 0 }}>Termómetros Digitais</h3>
+                <div className="action-group">
+                  <select className="select-input" value={setorFiltroMotores} onChange={(e) => setSetorFiltroMotores(e.target.value)}>
+                    <option value="">Filtro: Todos os Setores</option>
+                    <option value="Açougue">Açougue</option>
+                    <option value="Padaria">Padaria</option>
+                    <option value="Rotisseria">Rotisseria</option>
+                    <option value="Frios">Frios</option>
+                    <option value="Cooler">Cooler</option>
+                    <option value="FLV">FLV</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid-cards">
-                {equipamentosFiltradosMotores.map(eq => (
+                {equipamentosFiltradosMotores.map(eq => {
+                  const isTempAlta = eq.ultima_temp > eq.temp_max && !eq.em_degelo;
+                  return (
                   <div key={eq.id} className={`card ${eq.em_degelo ? 'card-info-border' : (eq.motor_ligado ? 'card-success-border' : 'card-danger-border')}`}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem' }}>{eq.nome}</h3>
                     </div>
                     <span className="badge-setor">{eq.setor}</span>
+                    
                     <div className={`status-box ${eq.em_degelo ? 'status-defrost' : (eq.motor_ligado ? 'status-on' : 'status-off')}`} style={{ marginTop: '15px' }}>
-                      <Power size={36} />
-                      <span style={{ fontSize: '1.1rem', fontWeight: '800', letterSpacing: '1px' }}>
-                        {eq.em_degelo ? 'CICLO DE DEGELO' : (eq.motor_ligado ? 'EM OPERAÇÃO' : 'FALHA DE MOTOR')}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                           <Power size={20} />
+                           <span style={{ fontSize: '0.85rem', fontWeight: '800', letterSpacing: '1px' }}>
+                             {eq.em_degelo ? 'DEGELO' : (eq.motor_ligado ? 'LIGADO' : 'PARADO')}
+                           </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Limites: {eq.temp_min} a {eq.temp_max}°C</span>
+                      </div>
+                      
+                      <div className="temp-display">
+                         <span>Atual</span>
+                         <h2 style={{ color: isTempAlta ? '#ffcccc' : 'white' }}>
+                           {eq.ultima_temp ? `${eq.ultima_temp} °C` : '--'}
+                         </h2>
+                      </div>
                     </div>
                   </div>
-                ))}
+                )})}
                 {equipamentosFiltradosMotores.length === 0 && (
                    <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                      <p>Nenhum equipamento registado neste setor.</p>
+                      <p>Nenhuma máquina encontrada nos critérios selecionados.</p>
                    </div>
                 )}
               </div>
@@ -484,16 +500,16 @@ export default function App() {
             <div className="anim-fade-in">
               <div className="card" style={{ marginBottom: '2.5rem', borderLeft: equipEditando ? '5px solid var(--warning)' : 'none' }}>
                 <h3 style={{ marginBottom: '1.5rem', color: equipEditando ? 'var(--warning)' : 'var(--text-main)' }}>
-                  {equipEditando ? '✏️ A Atualizar Dados do Equipamento' : 'Adicionar Novo Equipamento ao Inventário'}
+                  {equipEditando ? '✏️ Alterar Configurações Técnicas' : 'Novo Equipamento'}
                 </h3>
                 <form className="form-grid" onSubmit={salvarEquipamento}>
                   <div className="login-input-group">
-                    <label>Identificação Única (Nome)</label>
+                    <label>Código / Nome</label>
                     <input type="text" placeholder="Ex: Ilha Central 01" value={formEquip.nome} onChange={e => setFormEquip({ ...formEquip, nome: e.target.value })} required />
                   </div>
                   
                   <div className="login-input-group">
-                    <label>Modelo / Categoria</label>
+                    <label>Tipo (Formato Físico)</label>
                     <select value={formEquip.tipo} onChange={e => setFormEquip({ ...formEquip, tipo: e.target.value })} required>
                       <option value="">Selecione...</option>
                       <option value="Camara Fria Resfriada">Câmara Fria Resfriada</option>
@@ -517,7 +533,7 @@ export default function App() {
                   </div>
                   
                   <div className="login-input-group">
-                    <label>Setor da Loja</label>
+                    <label>Zona da Loja</label>
                     <select value={formEquip.setor} onChange={e => setFormEquip({ ...formEquip, setor: e.target.value })} required>
                       <option value="">Localização...</option>
                       <option value="Açougue">Açougue</option>
@@ -530,28 +546,28 @@ export default function App() {
                   </div>
 
                   <div className="login-input-group">
-                    <label>Temperatura Mínima (°C)</label>
+                    <label>Temperatura Base (°C)</label>
                     <input type="number" step="0.1" placeholder="-18.0" value={formEquip.temp_min} onChange={e => setFormEquip({ ...formEquip, temp_min: e.target.value })} required />
                   </div>
                   <div className="login-input-group">
-                    <label>Temperatura Máxima (°C)</label>
+                    <label>Limite Alarme (°C)</label>
                     <input type="number" step="0.1" placeholder="-12.0" value={formEquip.temp_max} onChange={e => setFormEquip({ ...formEquip, temp_max: e.target.value })} required />
                   </div>
                   <div className="login-input-group">
-                    <label>Intervalo de Degelo (Horas)</label>
+                    <label>Frequência Degelo (h)</label>
                     <input type="number" placeholder="Ex: 6" value={formEquip.intervalo_degelo} onChange={e => setFormEquip({ ...formEquip, intervalo_degelo: e.target.value })} required />
                   </div>
                   <div className="login-input-group">
-                    <label>Duração do Degelo (Minutos)</label>
+                    <label>Tempo Ativo Degelo (m)</label>
                     <input type="number" placeholder="Ex: 30" value={formEquip.duracao_degelo} onChange={e => setFormEquip({ ...formEquip, duracao_degelo: e.target.value })} required />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', gridColumn: '1 / -1', marginTop: '1rem' }}>
-                    <button type="submit" className={`btn ${equipEditando ? 'btn-warning' : 'btn-primary'}`} style={{ minWidth: '200px' }}>
-                      {equipEditando ? 'Guardar Modificações' : 'Confirmar Registo'}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', gridColumn: '1 / -1', marginTop: '1rem', flexWrap: 'wrap' }}>
+                    <button type="submit" className={`btn ${equipEditando ? 'btn-warning' : 'btn-primary'}`} style={{ flex: '1 1 200px' }}>
+                      {equipEditando ? 'Aplicar Definições' : 'Registar Equipamento'}
                     </button>
                     {equipEditando && (
-                      <button type="button" className="btn btn-outline" onClick={cancelarEdicao}>Cancelar</button>
+                      <button type="button" className="btn btn-outline" onClick={cancelarEdicao} style={{ flex: '1 1 200px' }}>Cancelar</button>
                     )}
                   </div>
                 </form>
@@ -559,15 +575,10 @@ export default function App() {
 
               <div className="card table-responsive">
                 <div className="flex-header">
-                   <h3 style={{ margin: 0 }}>Listagem do Parque</h3>
+                   <h3 style={{ margin: 0 }}>Grelha do Hardware</h3>
                    <div className="search-bar">
                      <Search size={18} color="var(--text-muted)" />
-                     <input 
-                       type="text" 
-                       placeholder="Pesquisar por nome ou setor..." 
-                       value={termoPesquisa} 
-                       onChange={(e) => setTermoPesquisa(e.target.value)} 
-                     />
+                     <input type="text" placeholder="Pesquisar ID ou setor..." value={termoPesquisa} onChange={(e) => setTermoPesquisa(e.target.value)} />
                    </div>
                 </div>
                 
@@ -577,9 +588,9 @@ export default function App() {
                       <th>Status</th>
                       <th>Identificação</th>
                       <th>Setor</th>
-                      <th>Configuração Térmica</th>
-                      <th>Ciclo Degelo</th>
-                      <th>Ações de Gestão</th>
+                      <th>Limites Térmicos</th>
+                      <th>Rotina Degelo</th>
+                      <th>Gerir</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -597,10 +608,10 @@ export default function App() {
                         <td>A cada {eq.intervalo_degelo}h ({eq.duracao_degelo}m)</td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => editarEquipamento(eq)} title="Editar Configurações">
+                            <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => editarEquipamento(eq)} title="Editar">
                               <Edit size={16} />
                             </button>
-                            <button className="btn btn-outline" style={{ padding: '0.5rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => pedirExclusao(eq.id, eq.nome)} title="Remover do Sistema">
+                            <button className="btn btn-outline" style={{ padding: '0.5rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => pedirExclusao(eq.id, eq.nome)} title="Eliminar">
                               <X size={16} />
                             </button>
                           </div>
@@ -610,7 +621,7 @@ export default function App() {
                   </tbody>
                 </table>
                 {equipamentosFiltradosLista.length === 0 && (
-                   <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nenhum equipamento corresponde à pesquisa.</div>
+                   <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>O equipamento não foi encontrado.</div>
                 )}
               </div>
             </div>
@@ -619,25 +630,20 @@ export default function App() {
           {abaAtiva === 'historico' && (
             <div className="anim-fade-in card table-responsive" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
               <div className="flex-header">
-                <h3 style={{ margin: 0 }}>Livro de Registo de Manutenção</h3>
+                <h3 style={{ margin: 0 }}>Registo de Ocorrências Técnicas</h3>
                 <div className="search-bar">
                      <Search size={18} color="var(--text-muted)" />
-                     <input 
-                       type="text" 
-                       placeholder="Procurar ocorrências..." 
-                       value={termoPesquisa} 
-                       onChange={(e) => setTermoPesquisa(e.target.value)} 
-                     />
+                     <input type="text" placeholder="Procurar relatórios..." value={termoPesquisa} onChange={(e) => setTermoPesquisa(e.target.value)} />
                 </div>
               </div>
               <table className="table">
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 1 }}>
                   <tr>
-                    <th>Data / Hora</th>
-                    <th>Equipamento Afetado</th>
-                    <th>Localização</th>
-                    <th>Relatório do Sistema</th>
-                    <th>Nota do Técnico</th>
+                    <th>Data Emitida</th>
+                    <th>Origem (Equip.)</th>
+                    <th>Zona</th>
+                    <th>Diagnóstico (AI)</th>
+                    <th>Fecho Técnico</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -650,7 +656,7 @@ export default function App() {
                       <td style={{ color: 'var(--primary)', fontStyle: 'italic', fontWeight: '500' }}>"{hist.nota_resolucao}"</td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="5" className="empty-state">Nenhum registo de intervenção encontrado.</td></tr>
+                    <tr><td colSpan="5" className="empty-state">As auditorias passadas não contêm registos.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -660,19 +666,22 @@ export default function App() {
           {abaAtiva === 'relatorios' && (
             <div className="anim-fade-in">
               <div className="flex-header">
-                <h3 style={{ margin: 0 }}>Análise Térmica</h3>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0 }}>Relatórios Analíticos</h3>
+                <div className="action-group">
                   <select className="select-input" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)}>
-                    <option value="">Visão Global (Todos)</option>
+                    <option value="">Panorama (Média Global)</option>
                     {equipamentos.map(eq => <option key={eq.id} value={eq.nome}>{eq.nome} ({eq.setor})</option>)}
                   </select>
                   <select className="select-input" value={periodoRelatorio} onChange={(e) => setPeriodoRelatorio(e.target.value)}>
-                    <option value="diario">Últimas 24 Horas</option>
-                    <option value="semanal">Últimos 7 Dias</option>
-                    <option value="mensal">Últimos 30 Dias</option>
+                    <option value="diario">Janela: 24 Horas</option>
+                    <option value="semanal">Janela: 7 Dias</option>
+                    <option value="mensal">Janela: 30 Dias</option>
                   </select>
+                  <button className="btn btn-outline" onClick={imprimirRelatorio}>
+                    <Printer size={18} /> Imprimir / PDF
+                  </button>
                   <button className="btn btn-success" onClick={exportarCSV}>
-                    <Download size={18} /> Folha de Excel
+                    <Download size={18} /> Planilha
                   </button>
                 </div>
               </div>
@@ -696,9 +705,9 @@ export default function App() {
                 <table className="table">
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 1 }}>
                     <tr>
-                      <th>Ponto de Registo (Data/Hora)</th>
-                      <th>Câmara / Equipamento</th>
-                      <th>Leitura Térmica</th>
+                      <th>Telemetria de Tempo</th>
+                      <th>Identificação</th>
+                      <th>Registo (°C)</th>
                     </tr>
                   </thead>
                   <tbody>

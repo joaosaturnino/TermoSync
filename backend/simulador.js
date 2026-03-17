@@ -4,18 +4,17 @@ const API_URL = 'http://localhost:3001/api';
 const LOGIN_SIMULADOR = { usuario: 'admin', senha: 'admin123' };
 let tokenAtivo = '';
 
+// NOVO: Memória térmica para simular a física de refrigeração realista
+let historicoTemperaturas = {}; 
+
 async function autenticar() {
     try {
         const res = await axios.post(`${API_URL}/login`, LOGIN_SIMULADOR);
         tokenAtivo = res.data.token;
-        console.log('\n[SISTEMA] Simulador autenticado com sucesso! Iniciando leituras...\n');
+        console.log('\n[SISTEMA] Simulador autenticado com sucesso! Iniciando telemetria...\n');
     } catch (error) {
-        console.error('\n[ERRO] Simulador falhou ao fazer login. Verifique se o usuário/senha estão corretos.');
+        console.error('\n[ERRO] Simulador falhou ao fazer login.');
     }
-}
-
-function gerarTemperatura(min, max) {
-    return (Math.random() * (max - min) + min).toFixed(2);
 }
 
 async function executarSimulacao() {
@@ -34,66 +33,74 @@ async function executarSimulacao() {
 
         const eq = equipamentos[Math.floor(Math.random() * equipamentos.length)];
 
-        // --- SIMULAÇÃO: INICIAR DEGELO (5% de chance) ---
+        // --- SIMULAÇÃO DE ACONTECIMENTOS ---
         if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
-            console.log(`\n❄️ [SISTEMA] Iniciando ciclo de DEGELO programado no equipamento "${eq.nome}"...`);
+            console.log(`\n❄️ [AÇÃO] Iniciando ciclo de DEGELO no equipamento "${eq.nome}"...`);
             await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: true }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             return;
         }
 
-        // --- SIMULAÇÃO: FALHA NO MOTOR (5% de chance) ---
         if (eq.motor_ligado && !eq.em_degelo && Math.random() < 0.05) {
-            console.log(`\n🚨 [ALERTA CRÍTICO] O motor do equipamento "${eq.nome}" PAROU (FALHA INESPERADA)!`);
+            console.log(`\n🚨 [FALHA] O motor do equipamento "${eq.nome}" PAROU!`);
             await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             return;
         }
 
-        // --- SIMULAÇÃO: RECUPERAÇÃO (Técnico religou ou Degelo acabou) (15% de chance) ---
         if ((!eq.motor_ligado || eq.em_degelo) && Math.random() < 0.15) {
             if (eq.em_degelo) {
-                console.log(`\n✅ [SISTEMA] O ciclo de DEGELO do "${eq.nome}" terminou. Motor religado!`);
+                console.log(`\n✅ [FIM] O ciclo de DEGELO do "${eq.nome}" terminou. Arrefecimento retomado.`);
                 await axios.put(`${API_URL}/equipamentos/${eq.id}/degelo`, { em_degelo: false }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             } else {
-                console.log(`\n🔧 [MANUTENÇÃO] O técnico consertou e RELIGOU o motor do "${eq.nome}"!`);
+                console.log(`\n🔧 [MANUTENÇÃO] Técnico resolveu a falha do "${eq.nome}" e ligou o motor.`);
             }
             await axios.put(`${API_URL}/equipamentos/${eq.id}`, { temp_min: eq.temp_min, temp_max: eq.temp_max, motor_ligado: true }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
             return;
         }
 
-        // --- SIMULAÇÃO: LEITURAS ---
-        let tempAtual;
+        // --- NOVA FÍSICA TERMODINÂMICA ---
+        let tempAtual = historicoTemperaturas[eq.id];
+        const tempIdeal = parseFloat(eq.temp_min) + ((parseFloat(eq.temp_max) - parseFloat(eq.temp_min)) / 2); // Meio termo ideal
+        
+        // Se nunca foi lido, começa perto da temperatura ideal
+        if (tempAtual === undefined) tempAtual = tempIdeal;
+
         if (!eq.motor_ligado) {
-            tempAtual = gerarTemperatura(parseFloat(eq.temp_max) + 2, parseFloat(eq.temp_max) + 12);
-            if (eq.em_degelo) {
-                console.log(`[DEGELO]  ${eq.nome} | Motor parado, derretendo gelo. Temp subindo: ${tempAtual}°C`);
-            } else {
-                console.log(`[CRÍTICO] ${eq.nome} | MOTOR DESLIGADO! Temperatura disparou para: ${tempAtual}°C`);
-            }
+            // AQUECIMENTO GRADUAL (A câmara está desligada ou em degelo)
+            tempAtual += (Math.random() * 0.8 + 0.2); // Sobe entre +0.2 a +1.0 °C
+            if (tempAtual > 25) tempAtual = 25; // Limite da temperatura ambiente
+            
+            if (eq.em_degelo) console.log(`[DEGELO]  ${eq.nome} | Temp a subir suavemente: ${tempAtual.toFixed(2)}°C`);
+            else console.log(`[CRÍTICO] ${eq.nome} | MOTOR PARADO! Temp a subir: ${tempAtual.toFixed(2)}°C`);
+            
         } else {
-            if (Math.random() < 0.15) {
-                tempAtual = gerarTemperatura(parseFloat(eq.temp_max) + 0.1, parseFloat(eq.temp_max) + 3);
-                console.log(`[AVISO]   ${eq.nome} | Porta Aberta? Temp. alta: ${tempAtual}°C`);
+            // ARREFECIMENTO OU MANUTENÇÃO (Motor a funcionar)
+            if (tempAtual > tempIdeal + 0.5) {
+                // Motor força o arrefecimento rápido para voltar ao normal
+                tempAtual -= (Math.random() * 1.0 + 0.3); // Desce entre -0.3 e -1.3 °C
             } else {
-                tempAtual = gerarTemperatura(parseFloat(eq.temp_min), parseFloat(eq.temp_max) - 0.5);
-                console.log(`[OK]      ${eq.nome} | Operando normal. Temp: ${tempAtual}°C`);
+                // Flutuação normal de manutenção (Compressor liga e desliga)
+                tempAtual += (Math.random() * 0.6 - 0.3); // Varia suavemente entre -0.3 e +0.3 °C
             }
+            console.log(`[OK]      ${eq.nome} | Operação normal. Temp: ${tempAtual.toFixed(2)}°C`);
         }
 
-        await axios.post(`${API_URL}/leituras`, { equipamento_id: eq.id, temperatura: parseFloat(tempAtual) });
+        // Guarda em memória e envia
+        historicoTemperaturas[eq.id] = tempAtual;
+        await axios.post(`${API_URL}/leituras`, { equipamento_id: eq.id, temperatura: tempAtual.toFixed(2) });
 
     } catch (error) {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-            console.log('[SISTEMA] Token expirado, reconectando...');
+            console.log('[SISTEMA] Token expirado, a reconectar...');
             tokenAtivo = '';
         } else {
-            console.error("Erro no ciclo de simulação:", error.message);
+            console.error("Erro de simulação:", error.message);
         }
     }
 }
 
 console.log('=========================================');
-console.log('   ROBÔ SIMULADOR FRIOMONITOR INICIADO   ');
+console.log('   ROBÔ TERMOMÉTRICO IoT INICIADO        ');
 console.log('=========================================');
 
 setInterval(executarSimulacao, 4000);
