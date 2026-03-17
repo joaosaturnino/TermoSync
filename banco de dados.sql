@@ -43,3 +43,5 @@ ALTER TABLE equipamentos
 ADD COLUMN intervalo_degelo INT DEFAULT 6, 
 ADD COLUMN duracao_degelo INT DEFAULT 30, 
 ADD COLUMN em_degelo BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE equipamentos MODIFY COLUMN tipo VARCHAR(50);
