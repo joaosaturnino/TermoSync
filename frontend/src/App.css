@@ -1,16 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+/* =========================================
+   DESIGN TOKENS & THEMING
+   ========================================= */
 :root {
-  --primary: #006837;
-  --secondary: #8CC63F;
-  --bg-color: #f3f4f6;
+  --primary: #059669;
+  --secondary: #10b981;
+  --bg-color: #f8fafc;
   --card-bg: #ffffff;
-  --text-main: #111827;
-  --text-muted: #6b7280;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
   --danger: #ef4444;
   --danger-light: #fee2e2;
   --success: #10b981;
   --warning: #f59e0b;
-  --border: #e5e7eb;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --border: #e2e8f0;
+  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
 
 .dark-theme {
@@ -20,12 +25,15 @@
   --text-muted: #94a3b8;
   --border: #334155;
   --danger-light: #450a0a;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
+/* =========================================
+   RESETS E BASE
+   ========================================= */
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
   transition: background-color 0.3s, color 0.3s;
@@ -35,13 +43,15 @@ body {
   box-sizing: border-box;
 }
 
-/* --- Login Corporativo --- */
+/* =========================================
+   LOGIN SCREEN
+   ========================================= */
 .login-container {
   display: flex;
   height: 100vh;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary) 0%, #004d28 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #064e3b 100%);
   padding: 1rem;
 }
 
@@ -97,7 +107,7 @@ body {
 
 .login-box input:focus {
   border-color: var(--secondary);
-  box-shadow: 0 0 0 3px rgba(140, 198, 63, 0.2);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
   outline: none;
 }
 
@@ -108,7 +118,9 @@ body {
   border-radius: 8px;
 }
 
-/* --- Layout Principal --- */
+/* =========================================
+   LAYOUT PRINCIPAL (SIDEBAR & HEADER)
+   ========================================= */
 .app-container {
   display: flex;
   height: 100vh;
@@ -198,7 +210,6 @@ body {
   margin-left: auto;
 }
 
-/* --- Main Content --- */
 .main-content {
   flex: 1;
   display: flex;
@@ -210,25 +221,32 @@ body {
   width: 100%;
 }
 
+/* Glassmorphism Header */
 .header {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   padding: 1.2rem 2rem;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.3s;
   position: sticky;
   top: 0;
   z-index: 10;
   justify-content: space-between;
+  gap: 15px;
+}
+
+.dark-theme .header {
+  background: rgba(30, 41, 59, 0.85);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.8);
 }
 
 .menu-btn {
   display: none;
   background: transparent;
   border: none;
-  margin-right: 1rem;
+  margin-right: 0.5rem;
   cursor: pointer;
   color: var(--text-main);
 }
@@ -264,10 +282,6 @@ body {
   flex-shrink: 0;
 }
 
-.status-text {
-  display: inline;
-}
-
 .content-area {
   padding: 2rem;
   max-width: 1400px;
@@ -275,7 +289,9 @@ body {
   width: 100%;
 }
 
-/* --- Tags e Badges --- */
+/* =========================================
+   CARDS & GRIDS
+   ========================================= */
 .badge-setor {
   background: #e2e8f0;
   color: #475569;
@@ -294,7 +310,6 @@ body {
   color: #cbd5e1;
 }
 
-/* --- Dashboard Summary Cards --- */
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -345,15 +360,19 @@ body {
   color: #38bdf8;
 }
 
-/* --- Cards e Grid --- */
 .card {
   background: var(--card-bg);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 1.5rem;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
-  transition: background-color 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
+}
+
+.card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
 }
 
 .grid-cards {
@@ -394,6 +413,9 @@ body {
   line-height: 1.4;
 }
 
+/* =========================================
+   UI COMPONENTS (Botões, Inputs, Termômetro)
+   ========================================= */
 .status-box {
   display: flex;
   align-items: center;
@@ -423,6 +445,7 @@ body {
   border-radius: 8px;
   text-align: center;
   min-width: 100px;
+  flex-grow: 1;
 }
 
 .temp-display span {
@@ -453,7 +476,6 @@ body {
   border: 2px solid #38bdf8;
 }
 
-/* --- Form, Search & Buttons --- */
 .flex-header {
   display: flex;
   justify-content: space-between;
@@ -464,12 +486,34 @@ body {
   width: 100%;
 }
 
+.flex-header h3 {
+  margin: 0;
+}
+
 .action-group {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   flex: 1;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.date-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-color);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.date-separator {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .search-bar {
@@ -517,9 +561,32 @@ input:focus,
 select:focus {
   outline: none;
   border-color: var(--secondary);
-  box-shadow: 0 0 0 3px rgba(140, 198, 63, 0.2);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
+/* React Datepicker overrides */
+.react-datepicker-wrapper {
+  width: 100%;
+  flex: 1;
+}
+
+.react-datepicker__input-container input {
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.date-filter-group .react-datepicker__input-container input {
+  border: none;
+  background: transparent;
+  padding: 0.3rem;
+}
+
+/* Botões Customizados */
 .btn {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
@@ -544,6 +611,13 @@ select:focus {
   transform: scale(0.98);
 }
 
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(100%);
+}
+
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -561,7 +635,7 @@ select:focus {
 
 .btn-success {
   background: var(--secondary);
-  color: #004d28;
+  color: white;
 }
 
 .btn-outline {
@@ -601,7 +675,9 @@ select:focus {
   width: 100%;
 }
 
-/* --- Modais Customizados --- */
+/* =========================================
+   MODALS & TOAST NOTIFICATIONS
+   ========================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -648,7 +724,6 @@ select:focus {
   flex-wrap: wrap;
 }
 
-/* --- Toast Notificações --- */
 .toast-container {
   position: fixed;
   bottom: 20px;
@@ -686,19 +761,9 @@ select:focus {
   background: #3b82f6;
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* --- Gráficos & Tabela --- */
+/* =========================================
+   GRÁFICOS, TABELAS E ESTADOS VAZIOS
+   ========================================= */
 .chart-container {
   background: var(--card-bg);
   padding: 1.5rem;
@@ -766,7 +831,9 @@ select:focus {
   width: 100%;
 }
 
-/* --- Animations --- */
+/* =========================================
+   ANIMAÇÕES E BARRAS TÉRMICAS
+   ========================================= */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -793,64 +860,248 @@ select:focus {
   }
 }
 
-/* --- Modo de Impressão de Relatórios --- */
-@media print {
-
-  .sidebar,
-  .header,
-  .toast-container,
-  .modal-overlay,
-  .btn,
-  .search-bar,
-  .select-input {
-    display: none !important;
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
 
-  .app-container {
-    height: auto;
-    overflow: visible;
-    display: block;
-    background: white;
-  }
-
-  .main-content {
-    overflow: visible;
-    display: block;
-    margin: 0;
-    padding: 0;
-    background: white;
-    color: black;
-  }
-
-  .content-area {
-    padding: 0;
-    max-width: 100%;
-    margin: 0;
-  }
-
-  .chart-container,
-  .card {
-    border: 1px solid #ccc;
-    box-shadow: none;
-    page-break-inside: avoid;
-    margin-bottom: 20px;
-  }
-
-  body {
-    background: white;
-    color: black;
-  }
-
-  * {
-    color: black !important;
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-/* =========================================
-   MEDIA QUERIES - RESPONSIVIDADE AVANÇADA
-   ========================================= */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
 
-/* Tablets e Ecrãs Médios */
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger Animations */
+.stagger-1 {
+  animation: slideUpFade 0.4s ease-out 0.1s both;
+}
+
+.stagger-2 {
+  animation: slideUpFade 0.4s ease-out 0.2s both;
+}
+
+.stagger-3 {
+  animation: slideUpFade 0.4s ease-out 0.3s both;
+}
+
+.stagger-4 {
+  animation: slideUpFade 0.4s ease-out 0.4s both;
+}
+
+/* Barras de Progresso */
+.thermal-bar-bg {
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  margin-top: 15px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dark-theme .thermal-bar-bg {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.thermal-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s;
+}
+
+.pulse-danger {
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: pulse-red 2s infinite;
+}
+
+/* =========================================
+   DASHBOARD & TIMELINE COMPONENTS
+   ========================================= */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.donut-container {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.donut-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: -10px;
+  letter-spacing: 0.5px;
+}
+
+/* Timeline/Auditoria */
+.timeline-container {
+  position: relative;
+  padding-left: 2rem;
+  margin-top: 1.5rem;
+}
+
+.timeline-container::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -1.95rem;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 3px solid var(--bg-color);
+  box-shadow: 0 0 0 2px var(--border);
+  z-index: 1;
+}
+
+.dark-theme .timeline-marker {
+  border-color: var(--card-bg);
+}
+
+.timeline-content {
+  background: var(--card-bg);
+  padding: 1.2rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.timeline-content:hover {
+  transform: translateX(4px);
+  border-color: var(--primary);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.8rem;
+}
+
+.timeline-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.timeline-body p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.timeline-action {
+  background: rgba(16, 185, 129, 0.1);
+  padding: 0.8rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--success);
+  margin-top: 1rem;
+}
+
+.timeline-action p {
+  margin: 0;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.offline-banner {
+  background-color: var(--warning);
+  color: #fff;
+  padding: 8px 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+.offline-banner.dark-theme {
+  background-color: #b45309;
+}
+
+/* =========================================
+   MEDIA QUERIES (Responsividade)
+   ========================================= */
 @media (max-width: 1024px) {
   .summary-cards {
     grid-template-columns: repeat(2, 1fr);
@@ -859,9 +1110,12 @@ select:focus {
   .grid-cards {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Dispositivos Móveis e Tablets Pequenos */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -875,13 +1129,9 @@ select:focus {
     transform: translateX(0);
   }
 
-  .mobile-close {
-    display: block;
-  }
-
+  .mobile-close,
   .menu-btn {
     display: block;
-    margin-right: 15px;
   }
 
   .header {
@@ -896,8 +1146,6 @@ select:focus {
   .status-text {
     display: none;
   }
-
-  /* Esconde a palavra "Online" no header no mobile */
 
   .content-area {
     padding: 1rem;
@@ -915,7 +1163,6 @@ select:focus {
     backdrop-filter: blur(2px);
   }
 
-  /* Ajuste dos cabeçalhos das abas (Filtros, Pesquisa e Botões) */
   .flex-header {
     flex-direction: column;
     align-items: stretch;
@@ -930,6 +1177,7 @@ select:focus {
   .action-group {
     flex-direction: column;
     width: 100%;
+    align-items: stretch;
   }
 
   .action-group>* {
@@ -937,10 +1185,14 @@ select:focus {
     margin: 0;
   }
 
+  .date-filter-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .search-bar {
     max-width: 100%;
     width: 100%;
-    margin-bottom: 10px;
   }
 
   .btn {
@@ -957,7 +1209,6 @@ select:focus {
     gap: 1rem;
   }
 
-  /* Modais e Toasts */
   .modal-content {
     padding: 1.5rem;
     margin: 1rem;
@@ -985,7 +1236,6 @@ select:focus {
     text-align: center;
   }
 
-  /* Ajuste no Painel de Motores */
   .status-box {
     flex-direction: column;
     text-align: center;
@@ -996,14 +1246,57 @@ select:focus {
     margin-top: 10px;
   }
 
-  /* Gráfico */
   .chart-container {
     height: 300px;
     padding: 1rem 0;
   }
+
+  /* Tables to Cards */
+  .table thead {
+    display: none;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tr {
+    margin-bottom: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.5rem;
+    box-shadow: var(--shadow);
+  }
+
+  .table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    border-bottom: 1px solid var(--bg-color);
+    padding: 0.75rem;
+    gap: 4px;
+  }
+
+  .table td:last-child {
+    border-bottom: none;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
 }
 
-/* Telemóveis muito pequenos */
 @media (max-width: 480px) {
   .login-box {
     padding: 2rem 1.5rem;
