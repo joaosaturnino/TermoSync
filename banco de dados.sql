@@ -45,3 +45,17 @@ ADD COLUMN duracao_degelo INT DEFAULT 30,
 ADD COLUMN em_degelo BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE equipamentos MODIFY COLUMN tipo VARCHAR(50);
+
+ALTER TABLE equipamentos ADD COLUMN setor VARCHAR(50) DEFAULT 'Geral';
+ALTER TABLE notificacoes ADD COLUMN nota_resolucao VARCHAR(255);
+
+ALTER TABLE equipamentos MODIFY COLUMN tipo VARCHAR(100);
+
+ALTER TABLE equipamentos ADD COLUMN umidade_min DECIMAL(5,2) DEFAULT 40.0;
+ALTER TABLE equipamentos ADD COLUMN umidade_max DECIMAL(5,2) DEFAULT 60.0;
+
+ALTER TABLE leituras ADD COLUMN umidade DECIMAL(5,2) DEFAULT 50.0;
+
+ALTER TABLE notificacoes ADD COLUMN tipo_alerta VARCHAR(50) DEFAULT 'GERAL';
+
+CREATE INDEX idx_equip_data ON leituras (equipamento_id, data_hora);

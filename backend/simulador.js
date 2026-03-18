@@ -38,7 +38,7 @@ async function executarSimulacao() {
 
     const eq = equipamentos[Math.floor(Math.random() * equipamentos.length)];
     
-    // Simulação de Quebra de Rede IoT (Perda de Pacotes WiFi/RF)
+    // Simulação de Quebra de Rede IoT
     if (Math.random() < 0.04) { 
       console.log(`\n📡 [REDE] DROP DE PACOTE: O sensor do equipamento "${eq.nome}" perdeu conexão momentânea. Carga ignorada.`);
       return; 
