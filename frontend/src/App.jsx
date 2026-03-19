@@ -298,6 +298,22 @@ export default function App() {
     } catch (error) { showToast('Erro ao gravar dados.', 'error'); }
   };
 
+  const editarEquipamento = (eq) => {
+    if (checkOfflineAcao()) return;
+    setEquipEditando(eq.id);
+    setFormEditEquip({
+      nome: eq.nome,
+      tipo: eq.tipo,
+      temp_min: eq.temp_min,
+      temp_max: eq.temp_max,
+      umidade_min: eq.umidade_min || '',
+      umidade_max: eq.umidade_max || '',
+      intervalo_degelo: eq.intervalo_degelo,
+      duracao_degelo: eq.duracao_degelo,
+      setor: eq.setor
+    });
+  };
+
   const salvarEdicaoEquipamento = async (e) => {
     e.preventDefault();
     if (checkOfflineAcao()) return;
@@ -365,7 +381,7 @@ export default function App() {
       }
 
       autoTable(doc, { head, body, startY: 40, theme: 'grid', headStyles: { fillColor: [5, 150, 105] } });
-      doc.save(`pharmax_export_${new Date().getTime()}.pdf`);
+      doc.save(`friomonitor_export_${new Date().getTime()}.pdf`);
     } else {
       let csvContent = abaAtiva === 'historico' 
         ? "data:text/csv;charset=utf-8,Data/Hora,Equipamento,Setor,Ocorrencia Reportada,Acao Tecnica Tomada\n"
@@ -378,7 +394,7 @@ export default function App() {
       });
       const link = document.createElement("a");
       link.setAttribute("href", encodeURI(csvContent));
-      link.setAttribute("download", `pharmax_export_${new Date().getTime()}.csv`);
+      link.setAttribute("download", `friomonitor_export_${new Date().getTime()}.csv`);
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
     showToast('Exportação concluída.', 'success');
@@ -488,7 +504,7 @@ export default function App() {
             <div style={{ background: 'rgba(255, 255, 255, 0.95)', padding: '1.2rem', borderRadius: '50%', marginBottom: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
               <FrioMonitorLogo size={56} color="var(--primary)" />
             </div>
-            <h2 style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>PharmaX</h2>
+            <h2 style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>FrioMonitor</h2>
             <p style={{ color: 'rgba(255,255,255,0.8)' }}>Telemetry & Audit Server</p>
           </div>
           <form onSubmit={fazerLogin}>
@@ -509,12 +525,12 @@ export default function App() {
     );
   }
 
-  /* --- COMPONENTES DAS ABAS (EXTRAÍDOS PARA LIMPEZA DO CÓDIGO) --- */
+  /* --- COMPONENTES DAS ABAS --- */
   const renderDashboard = () => (
     <div className="anim-fade-in">
       <div className="dashboard-grid stagger-1">
         <div className="summary-cards" style={{ margin: 0 }}>
-          <div className="summary-card"><span className="summary-title">Parque Total</span><span className="summary-value">{qtdTotal}</span></div>
+          <div className="summary-card"><span className="summary-title">Total de Equipamentos</span><span className="summary-value">{qtdTotal}</span></div>
           <div className="summary-card"><span className="summary-title">Dentro dos Parâmetros</span><span className="summary-value val-green">{qtdOperando}</span></div>
           <div className="summary-card"><span className="summary-title">Ciclo de Degelo</span><span className="summary-value val-blue">{qtdDegelo}</span></div>
           <div className="summary-card"><span className="summary-title">Anomalias Ativas</span><span className={`summary-value val-red ${notificacoes.length > 0 ? 'pulse-danger' : ''}`} style={{ borderRadius: '50%', display: 'inline-block', width: 'fit-content' }}>{qtdFalha}</span></div>
@@ -913,7 +929,7 @@ export default function App() {
     </div>
   );
 
-  /* --- RENDERIZAÇÃO DO LAYOUT PRINCIPAL (Otimizado: Sem duplicar menus e cabeçalhos) --- */
+  /* --- RENDERIZAÇÃO DO LAYOUT PRINCIPAL --- */
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : ''}`}>
       <audio id="alerta-audio" preload="auto">
@@ -936,11 +952,11 @@ export default function App() {
         </div>
       )}
 
-      {/* --- SIDEBAR ÚNICO --- */}
+      {/* --- SIDEBAR --- */}
       <div className={`sidebar ${menuAberto ? 'open' : ''}`}>
         <div className="sidebar-header" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ background: 'white', borderRadius: '8px', padding: '4px', display: 'flex' }}><FrioMonitorLogo size={24} color="var(--primary)" /></div>
-          <h2>PharmaX</h2>
+          <h2>FrioMonitor</h2>
           <button className="mobile-close" onClick={() => setMenuAberto(false)} style={{ marginLeft: 'auto' }}><X size={24} color="white" /></button>
         </div>
         <nav className="sidebar-nav">
@@ -951,10 +967,10 @@ export default function App() {
             <Thermometer size={20} /> Painel de Motores
           </button>
           <button className={`nav-item ${abaAtiva === 'umidade' ? 'active' : ''}`} onClick={() => { setAbaAtiva('umidade'); setMenuAberto(false); }}>
-            <Droplets size={20} /> Controlo de Humidade
+            <Droplets size={20} /> Controle de Humidade
           </button>
           <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}>
-            <Settings size={20} /> Base de Dados
+            <Settings size={20} /> Equipamentos
           </button>
           <button className={`nav-item ${abaAtiva === 'relatorios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('relatorios'); setMenuAberto(false); }}>
             <Activity size={20} /> Conformidade & MKT
@@ -971,13 +987,13 @@ export default function App() {
       {menuAberto && <div className="overlay" onClick={() => setMenuAberto(false)}></div>}
 
       <div className="main-content">
-        {/* --- HEADER ÚNICO --- */}
+        {/* --- HEADER --- */}
         <header className="header" style={{ marginTop: isOffline ? '40px' : 0 }}>
           <button className="menu-btn" onClick={() => setMenuAberto(true)}><Menu size={24} /></button>
           <h2 className="page-title">
             {abaAtiva === 'dashboard' && 'Monitorização Geral'}
             {abaAtiva === 'motores' && 'Telemetria em Tempo Real (Temp)'}
-            {abaAtiva === 'umidade' && 'Controlo de Humidade'}
+            {abaAtiva === 'umidade' && 'Controle de Humidade'}
             {abaAtiva === 'equipamentos' && 'Configuração de Infraestrutura'}
             {abaAtiva === 'relatorios' && 'Análise Avançada e Cálculo MKT'}
             {abaAtiva === 'historico' && 'Registo de Manutenções e Ocorrências'}
@@ -1009,6 +1025,85 @@ export default function App() {
           {abaAtiva === 'historico' && renderHistorico()}
         </main>
       </div>
+
+      {/* --- MODAL DE EDIÇÃO DE EQUIPAMENTOS --- */}
+      {equipEditando && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3><Edit size={20} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Editar Equipamento</h3>
+            <form onSubmit={salvarEdicaoEquipamento}>
+              <div className="form-grid">
+                <div><label>Identificador</label><input type="text" value={formEditEquip.nome} onChange={(e) => setFormEditEquip({ ...formEditEquip, nome: e.target.value })} required disabled={isOffline} /></div>
+                <div>
+                  <label>Setor</label>
+                  <select value={formEditEquip.setor} onChange={(e) => setFormEditEquip({ ...formEditEquip, setor: e.target.value })} required disabled={isOffline}>
+                    <option value="">Selecione...</option>
+                    <option value="Farmácia / Vacinas">Farmácia / Vacinas</option>
+                    <option value="Açougue">Açougue</option>
+                    <option value="Padaria">Padaria</option>
+                    <option value="Rotisseria">Rotisseria</option>
+                    <option value="Frios">Frios</option>
+                    <option value="Cooler">Cooler</option>
+                    <option value="FLV">FLV</option>
+                    <option value="Geral">Geral</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Tipo de Equipamento</label>
+                  <select value={formEditEquip.tipo} onChange={(e) => setFormEditEquip({ ...formEditEquip, tipo: e.target.value })} required disabled={isOffline}>
+                    <option value="">Selecione...</option>
+                    <option value="Câmara Frigorífica">Câmara Frigorífica</option>
+                    <option value="Câmara Refrigerada">Câmara Refrigerada</option>
+                    <option value="Câmara de Congelados">Câmara de Congelados</option>
+                    <option value="Ilha de Congelados">Ilha de Congelados</option>
+                    <option value="Balcão Refrigerado Aberto">Balcão Refrigerado Aberto</option>
+                    <option value="Balcão Refrigerado com Porta">Balcão Refrigerado com Porta</option>
+                    <option value="Arca Horizontal">Arca Horizontal</option>
+                  </select>
+                </div>
+                <div><label>Temp. Min (°C)</label><input type="number" step="0.1" value={formEditEquip.temp_min} onChange={(e) => setFormEditEquip({ ...formEditEquip, temp_min: e.target.value })} required disabled={isOffline} /></div>
+                <div><label>Temp. Max (°C)</label><input type="number" step="0.1" value={formEditEquip.temp_max} onChange={(e) => setFormEditEquip({ ...formEditEquip, temp_max: e.target.value })} required disabled={isOffline} /></div>
+                <div><label>Hum. Min (%)</label><input type="number" step="0.1" value={formEditEquip.umidade_min} onChange={(e) => setFormEditEquip({ ...formEditEquip, umidade_min: e.target.value })} disabled={isOffline} /></div>
+                <div><label>Hum. Max (%)</label><input type="number" step="0.1" value={formEditEquip.umidade_max} onChange={(e) => setFormEditEquip({ ...formEditEquip, umidade_max: e.target.value })} disabled={isOffline} /></div>
+                <div><label>Intervalo de Degelo (H)</label><input type="number" min="1" value={formEditEquip.intervalo_degelo} onChange={(e) => setFormEditEquip({ ...formEditEquip, intervalo_degelo: e.target.value })} required disabled={isOffline} /></div>
+                <div><label>Duração Degelo (Min)</label><input type="number" min="1" value={formEditEquip.duracao_degelo} onChange={(e) => setFormEditEquip({ ...formEditEquip, duracao_degelo: e.target.value })} required disabled={isOffline} /></div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-outline" onClick={() => setEquipEditando(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={isOffline}><Save size={18} /> Salvar Alterações</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL GENÉRICO --- */}
+      {modalConfig.isOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>{modalConfig.title}</h3>
+            <p>{modalConfig.message}</p>
+            {modalConfig.isPrompt && (
+              <input 
+                type="text" 
+                style={{ width: '100%', marginBottom: '1rem' }}
+                value={modalConfig.promptValue} 
+                onChange={(e) => setModalConfig({...modalConfig, promptValue: e.target.value})} 
+                placeholder="Descreva a ação..."
+                autoFocus
+              />
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setModalConfig({...modalConfig, isOpen: false})}>Cancelar</button>
+              <button className="btn btn-primary" onClick={() => {
+                modalConfig.onConfirm(modalConfig.promptValue);
+                setModalConfig({...modalConfig, isOpen: false});
+              }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

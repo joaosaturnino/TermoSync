@@ -1,5 +1,5 @@
 /**
- * Servidor Backend - PharmaX Telemetry Node (Production Ready)
+ * Servidor Backend - FrioMonitor Telemetry Node (Production Ready)
  * Otimizado com Connection Pooling para Alta Performance.
  */
 
@@ -33,7 +33,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-const SECRET_KEY = process.env.JWT_SECRET || 'chave_super_secreta_pharmax_node';
+const SECRET_KEY = process.env.JWT_SECRET || 'chave_super_secreta_friomonitor_node';
 const PORT = process.env.PORT || 3001;
 
 /* ====================================================
@@ -344,4 +344,4 @@ app.post('/api/relatorios/mkt', verificarToken, (req, res) => {
   res.json({ mkt: mktCelsius });
 });
 
-server.listen(PORT, () => console.log(`PharmaX Telemetry Server a rodar na porta ${PORT}`));
+server.listen(PORT, () => console.log(`FrioMonitor Telemetry Server a rodar na porta ${PORT}`));

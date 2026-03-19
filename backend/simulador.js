@@ -16,7 +16,7 @@ async function autenticar() {
   try {
     const res = await axios.post(`${API_URL}/login`, LOGIN_SIMULADOR);
     tokenAtivo = res.data.token;
-    console.log('\n[SISTEMA] Simulador IoT autenticado. Conectado ao Core PharmaX.\n');
+    console.log('\n[SISTEMA] Simulador IoT autenticado. Conectado ao Core FrioMonitor.\n');
   } catch (error) {
     console.error('\n[ERRO] Simulador falhou ao fazer login.');
   }
@@ -127,6 +127,8 @@ async function executarSimulacao() {
 
 console.log('=========================================');
 console.log('   ROBÔ TERMOMÉTRICO IoT INICIADO        ');
+console.log('   Frequência: 1 leitura a cada 2 min    ');
 console.log('=========================================');
 
-setInterval(executarSimulacao, 3500);
+// 120.000 ms = 2 minutos
+setInterval(executarSimulacao, 120000);
