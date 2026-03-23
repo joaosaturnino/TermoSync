@@ -10,6 +10,9 @@ CREATE TABLE equipamentos (
     motor_ligado BOOLEAN DEFAULT TRUE
 );
 
+select * from leituras;
+select * from equipamentos;
+
 CREATE TABLE leituras (
     id INT AUTO_INCREMENT PRIMARY KEY,
     equipamento_id INT NOT NULL,

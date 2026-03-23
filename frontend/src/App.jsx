@@ -9,8 +9,8 @@ import './App.css';
 import { 
   Thermometer, AlertTriangle, Settings, Activity, Power, LogOut, Menu, X, 
   CheckCircle, Edit, Download, Moon, Sun, Bell, BellOff, History, Search, 
-  Info, FileText, PlusCircle, Save, WifiOff, List, Maximize, Minimize, 
-  Calendar, ShieldCheck, Droplets, Wifi, Snowflake 
+  Info, FileText, PlusCircle, Save, WifiOff, List, Maximize, Calendar, 
+  ShieldCheck, Droplets, Wifi, Snowflake 
 } from 'lucide-react';
 import { 
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -20,7 +20,7 @@ import {
 const API_URL = 'http://localhost:3001/api';
 const SOCKET_URL = 'http://localhost:3001';
 
-const FrioMonitorLogo = ({ size = 40, color = "currentColor", className = "" }) => (
+const TermoSyncLogo = ({ size = 40, color = "currentColor", className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
     <path d="M10 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M7.5 13.5v-5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -55,8 +55,9 @@ export default function App() {
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const [mostrarTabelaBruta, setMostrarTabelaBruta] = useState(false);
   
-  const [formEquip, setFormEquip] = useState({ nome: '', tipo: '', temp_min: '', temp_max: '', umidade_min: '', umidade_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' });
-  const [formEditEquip, setFormEditEquip] = useState({ nome: '', tipo: '', temp_min: '', temp_max: '', umidade_min: '', umidade_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' });
+  const formInicial = { nome: '', tipo: '', temp_min: '', temp_max: '', umidade_min: '', umidade_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' };
+  const [formEquip, setFormEquip] = useState({ ...formInicial });
+  const [formEditEquip, setFormEditEquip] = useState({ ...formInicial });
   const [equipEditando, setEquipEditando] = useState(null);
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -104,7 +105,7 @@ export default function App() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
-      showToast('Conexão restabelecida. A sincronizar dados...', 'success');
+      showToast('Ligação restabelecida. A sincronizar dados...', 'success');
       carregarDadosBase();
     };
     const handleOffline = () => {
@@ -121,7 +122,7 @@ export default function App() {
 
   const fazerLogin = async (e) => {
     e.preventDefault();
-    if (isOffline) return showToast('Necessita de internet para iniciar sessão.', 'error');
+    if (isOffline) return showToast('Necessita de rede para iniciar sessão.', 'error');
     try {
       const res = await axios.post(`${API_URL}/login`, { usuario, senha });
       setToken(res.data.token);
@@ -138,16 +139,36 @@ export default function App() {
   };
 
   const tocarAlarme = useCallback(() => {
-    const audioEl = document.getElementById('alerta-audio');
-    if (audioEl) {
-      audioEl.currentTime = 0;
-      let playPromise = audioEl.play();
-      if (playPromise !== undefined) playPromise.catch(() => {});
-      setTimeout(() => {
-        audioEl.currentTime = 0;
-        let playPromise2 = audioEl.play();
-        if (playPromise2 !== undefined) playPromise2.catch(() => {}); 
-      }, 500);
+    try {
+      // Usa a Web Audio API nativa do navegador (não precisa de ficheiros MP3)
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const dispararBeep = (atraso) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'square'; // Som de alarme clássico
+        osc.frequency.setValueAtTime(800, ctx.currentTime + atraso); // Frequência do som (800Hz)
+        
+        // Controla o volume (0.1 é 10%)
+        gain.gain.setValueAtTime(0.1, ctx.currentTime + atraso);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + atraso + 0.3);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(ctx.currentTime + atraso);
+        osc.stop(ctx.currentTime + atraso + 0.3);
+      };
+      
+      // Toca um "Beep-Beep" duplo imediato
+      dispararBeep(0);
+      dispararBeep(0.2); 
+      
+    } catch (e) {
+      console.log('Áudio bloqueado pelas políticas do navegador.');
     }
   }, []);
 
@@ -168,6 +189,7 @@ export default function App() {
         api.get('/notificacoes'),
         abaAtiva === 'historico' ? api.get('/notificacoes/historico') : Promise.resolve({ data: historicoAlertas })
       ]);
+      
       setEquipamentos(resEquip.data);
       if (abaAtiva === 'historico') setHistoricoAlertas(resHist.data);
       
@@ -208,31 +230,40 @@ export default function App() {
   }, [token, isOffline, api, dataInicio, dataFim]);
 
   useEffect(() => {
-    if (!token) return;
-    carregarDadosBase();
-    if (isOffline) return;
+    if (token) carregarDadosBase();
+  }, [token, abaAtiva, carregarDadosBase]);
+
+  useEffect(() => {
+    if (!token || isOffline) return;
+    
     const socket = io(SOCKET_URL);
+    
     socket.on('nova_leitura', (dadosNovaLeitura) => {
-      if (abaAtiva === 'relatorios') {
-        setRelatorios(prev => {
-          const atualizado = [...prev, dadosNovaLeitura];
-          if (atualizado.length > 20000) atualizado.shift(); 
-          return atualizado;
-        });
-      }
-      setEquipamentos(prev => {
-        return prev.map(eq => eq.id === dadosNovaLeitura.equipamento_id ? { 
-            ...eq, ultima_temp: dadosNovaLeitura.temperatura, ultima_umidade: dadosNovaLeitura.umidade 
-        } : eq);
+      setRelatorios(prev => {
+        const atualizado = [...prev, dadosNovaLeitura];
+        if (atualizado.length > 20000) atualizado.shift(); 
+        return atualizado;
       });
+      
+      setEquipamentos(prev => prev.map(eq => 
+        eq.id === dadosNovaLeitura.equipamento_id 
+          ? { ...eq, ultima_temp: dadosNovaLeitura.temperatura, ultima_umidade: dadosNovaLeitura.umidade } 
+          : eq
+      ));
     });
+    
     socket.on('atualizacao_dados', () => carregarDadosBase());
+    
     const pingInterval = setInterval(() => {
       const start = Date.now();
       socket.emit('medir_latencia', start, (enviadoEm) => { setLatencia(Date.now() - enviadoEm); });
     }, 2500);
-    return () => { clearInterval(pingInterval); socket.disconnect(); };
-  }, [token, abaAtiva, isOffline, carregarDadosBase]);
+    
+    return () => { 
+      clearInterval(pingInterval); 
+      socket.disconnect(); 
+    };
+  }, [token, isOffline, carregarDadosBase]);
 
   useEffect(() => {
     if (token && abaAtiva === 'relatorios') carregarRelatorios();
@@ -240,7 +271,7 @@ export default function App() {
 
   const checkOfflineAcao = () => {
     if (isOffline) {
-      showToast('Ação bloqueada. Conecte-se à rede para alterar dados.', 'warning');
+      showToast('Ação bloqueada. Ligue-se à rede para alterar dados.', 'warning');
       return true;
     }
     return false;
@@ -285,7 +316,7 @@ export default function App() {
     setFormAction(prev => ({ 
       ...prev, temp_min: tMin, temp_max: tMax, umidade_min: uMin, umidade_max: uMax, intervalo_degelo: 6, duracao_degelo: 30
     }));
-    showToast('Limites normativos da ANVISA aplicados.', 'info');
+    showToast('Limites regulamentares aplicados.', 'info');
   };
 
   const salvarNovoEquipamento = async (e) => {
@@ -293,8 +324,8 @@ export default function App() {
     if (checkOfflineAcao()) return;
     try {
       await api.post('/equipamentos', formEquip);
-      showToast('Equipamento inserido.', 'success');
-      setFormEquip({ nome: '', tipo: '', temp_min: '', temp_max: '', umidade_min: '', umidade_max: '', intervalo_degelo: '', duracao_degelo: '', setor: '' });
+      showToast('Equipamento inserido com sucesso.', 'success');
+      setFormEquip({ ...formInicial });
     } catch (error) { showToast('Erro ao gravar dados.', 'error'); }
   };
 
@@ -328,11 +359,11 @@ export default function App() {
     if (checkOfflineAcao()) return;
     setModalConfig({
       isOpen: true, title: 'Aviso de Segurança',
-      message: `Isto irá remover o equipamento "${nome}". Prosseguir?`,
+      message: `Isto irá remover permanentemente o equipamento "${nome}". Prosseguir?`,
       isPrompt: false,
       onConfirm: async () => {
-        try { await api.delete(`/equipamentos/${id}`); showToast('Removido.', 'success'); } 
-        catch (error) { showToast('Falha.', 'error'); }
+        try { await api.delete(`/equipamentos/${id}`); showToast('Equipamento removido.', 'success'); } 
+        catch (error) { showToast('Falha na exclusão.', 'error'); }
       }
     });
   };
@@ -354,9 +385,9 @@ export default function App() {
   const resolverTodasNotificacoes = () => {
     if (checkOfflineAcao()) return;
     setModalConfig({
-      isOpen: true, title: 'Ação em Massa', message: 'Confirma o encerramento de todos os alarmes ativos?', isPrompt: false,
+      isOpen: true, title: 'Ação em Massa', message: 'Confirma o encerramento e arquivamento de todos os alarmes ativos?', isPrompt: false,
       onConfirm: async () => {
-        try { await api.put(`/notificacoes/resolver-todas`); showToast('Ação executada.', 'success'); } 
+        try { await api.put(`/notificacoes/resolver-todas`); showToast('Todos os alertas foram arquivados.', 'success'); } 
         catch (error) { showToast('Falha no servidor.', 'error'); }
       }
     });
@@ -373,7 +404,7 @@ export default function App() {
       
       let head, body;
       if (abaAtiva === 'historico') {
-        head = [["Data/Hora", "Hardware / Setor", "Ocorrência Reportada", "Ação Técnica Tomada"]];
+        head = [["Data/Hora", "Equipamento / Setor", "Ocorrência Reportada", "Ação Técnica Tomada"]];
         body = fonteDados.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}\n(${h.setor})`, h.mensagem, h.nota_resolucao]);
       } else {
         head = [["Data/Hora", "Equipamento", "Setor", "Temp (°C)", "Hum (%)"]];
@@ -381,21 +412,27 @@ export default function App() {
       }
 
       autoTable(doc, { head, body, startY: 40, theme: 'grid', headStyles: { fillColor: [5, 150, 105] } });
-      doc.save(`friomonitor_export_${new Date().getTime()}.pdf`);
+      doc.save(`termosync_export_${new Date().getTime()}.pdf`);
     } else {
       let csvContent = abaAtiva === 'historico' 
-        ? "data:text/csv;charset=utf-8,Data/Hora,Equipamento,Setor,Ocorrencia Reportada,Acao Tecnica Tomada\n"
-        : "data:text/csv;charset=utf-8,Data/Hora,Equipamento,Setor,Temperatura (°C),Humidade (%)\n";
+        ? "Data/Hora,Equipamento,Setor,Ocorrencia Reportada,Acao Tecnica Tomada\n"
+        : "Data/Hora,Equipamento,Setor,Temp (°C),Hum (%)\n";
       
       fonteDados.forEach(row => {
         csvContent += abaAtiva === 'historico'
           ? `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n`
           : `"${new Date(row.data_hora).toLocaleString()}","${row.nome}","${row.setor || 'Geral'}","${row.temperatura}","${row.umidade || '--'}"\n`;
       });
+      
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", encodeURI(csvContent));
-      link.setAttribute("download", `friomonitor_export_${new Date().getTime()}.csv`);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `termosync_export_${new Date().getTime()}.csv`);
+      document.body.appendChild(link); 
+      link.click(); 
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
     showToast('Exportação concluída.', 'success');
   };
@@ -434,7 +471,6 @@ export default function App() {
     nome: r.nome
   })), [dadosRelatorioBrutos]);
 
-  // AQUI: Downsampling da Gráfica para alta performance. Limita a 200 pontos no ecrã.
   const dadosGraficoFiltrados = useMemo(() => {
      if (dadosGrafico.length <= 200) return dadosGrafico;
      const step = Math.ceil(dadosGrafico.length / 200);
@@ -491,7 +527,7 @@ export default function App() {
 
   const dadosDonutStatus = useMemo(() => [
     { name: 'Operacionais', value: qtdOperando, color: 'var(--success)' },
-    { name: 'Em Degelo', value: qtdDegelo, color: '#38bdf8' },
+    { name: 'Em Degelo', value: qtdDegelo, color: 'var(--info)' },
     { name: 'Falha/Parado', value: qtdFalha, color: 'var(--danger)' }
   ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
 
@@ -502,14 +538,14 @@ export default function App() {
         <div className="login-box stagger-1">
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' }}>
             <div style={{ background: 'rgba(255, 255, 255, 0.95)', padding: '1.2rem', borderRadius: '50%', marginBottom: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
-              <FrioMonitorLogo size={56} color="var(--primary)" />
+              <TermoSyncLogo size={56} color="var(--primary)" />
             </div>
-            <h2 style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>FrioMonitor</h2>
+            <h2 style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>TermoSync</h2>
             <p style={{ color: 'rgba(255,255,255,0.8)' }}>Telemetry & Audit Server</p>
           </div>
           <form onSubmit={fazerLogin}>
             <div className="login-input-group stagger-2">
-              <label style={{ color: 'white' }}>Credencial de Acesso</label>
+              <label style={{ color: 'white' }}>Utilizador</label>
               <input type="text" placeholder="admin" value={usuario} onChange={(e) => setUsuario(e.target.value)} required />
             </div>
             <div className="login-input-group stagger-3">
@@ -517,7 +553,7 @@ export default function App() {
               <input type="password" placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required />
             </div>
             <button type="submit" className="btn btn-primary w-100 login-btn stagger-4" disabled={isOffline} style={{ background: 'white', color: 'var(--primary)' }}>
-              {isOffline ? 'Sem Ligação à Internet' : 'Entrar no Sistema'}
+              {isOffline ? 'Sem Ligação à Internet' : 'Iniciar Sessão'}
             </button>
           </form>
         </div>
@@ -563,19 +599,28 @@ export default function App() {
         <div className="empty-state stagger-3">
           <CheckCircle size={56} color="var(--success)" style={{ marginBottom: '1rem' }} />
           <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Topologia de Rede e Temperatura Estáveis</h3>
-          <p>Todos os sensores respondem ao Watchdog e operam dentro da norma ANVISA.</p>
+          <p>Todos os sensores respondem ao Watchdog e operam dentro da norma.</p>
         </div>
       ) : (
         <div className="grid-cards stagger-3">
           {notificacoes.map(notif => {
             const isNetworkFail = notif.mensagem.includes('FALHA DE REDE');
             const isDegelo = notif.tipo_alerta === 'DEGELO' || notif.mensagem.includes('DEGELO');
-            let IconCmp = AlertTriangle; let colorTheme = 'var(--danger)';
-            if (isNetworkFail) { IconCmp = Wifi; colorTheme = 'var(--warning)'; }
-            else if (isDegelo) { IconCmp = Snowflake; colorTheme = '#38bdf8'; }
+            const isMecanica = notif.tipo_alerta === 'MECANICA' || notif.mensagem.includes('FALHA MECÂNICA');
+
+            let IconCmp = AlertTriangle; 
+            let colorTheme = 'var(--danger)';
+            
+            if (isNetworkFail) { 
+                IconCmp = Wifi; colorTheme = 'var(--warning)'; 
+            } else if (isDegelo) { 
+                IconCmp = Snowflake; colorTheme = 'var(--info)'; 
+            } else if (isMecanica) { 
+                IconCmp = Power; colorTheme = 'var(--alert-mech)'; 
+            }
 
             return (
-              <div key={notif.id} className={`card card-alert ${!isDegelo ? 'pulse-danger' : ''}`} style={{ animationDuration: '3s', borderColor: colorTheme }}>
+              <div key={notif.id} className={`card card-alert ${(!isDegelo && !isNetworkFail) ? 'pulse-danger' : ''}`} style={{ animationDuration: '3s', borderColor: colorTheme }}>
                 <div className="card-top">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <IconCmp size={24} color={colorTheme} />
@@ -587,8 +632,8 @@ export default function App() {
                 </div>
                 <span className="badge-setor">{notif.setor}</span>
                 <p className="alert-msg">{notif.mensagem}</p>
-                <button className="btn btn-primary w-100" onClick={() => pedirNotaResolucao(notif.id)} disabled={isOffline} style={isDegelo ? { backgroundColor: colorTheme, color: '#fff', borderColor: colorTheme } : {}}>
-                  {isDegelo ? 'Confirmar Fim de Ciclo' : 'Arquivar Registo de Evento'}
+                <button className="btn btn-primary w-100" onClick={() => pedirNotaResolucao(notif.id)} disabled={isOffline} style={(isDegelo || isMecanica) ? { backgroundColor: colorTheme, color: '#fff', borderColor: colorTheme } : {}}>
+                  {isDegelo ? 'Confirmar Fim de Ciclo' : (isMecanica ? 'Registar Reparação do Motor' : 'Arquivar Registo de Evento')}
                 </button>
               </div>
             );
@@ -604,7 +649,7 @@ export default function App() {
       <div className="anim-fade-in stagger-1">
         <div className="flex-header">
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {isTemp ? <Thermometer size={24} color="var(--primary)"/> : <Droplets size={24} color="#38bdf8" />} 
+            {isTemp ? <Thermometer size={24} color="var(--primary)"/> : <Droplets size={24} color="var(--info)" />} 
             {isTemp ? 'Termómetros Digitais' : 'Higrómetros Digitais'}
           </h3>
           <div className="action-group">
@@ -636,9 +681,9 @@ export default function App() {
             let percentage = (offset / range) * 100;
             if (percentage > 100) percentage = 100; if (percentage < 5) percentage = 5;
 
-            let barColor = isTemp ? 'var(--success)' : '#38bdf8';
+            let barColor = isTemp ? 'var(--success)' : 'var(--info)';
             if (isAnomalia) barColor = isTemp ? 'var(--danger)' : 'var(--warning)';
-            if (eq.em_degelo) barColor = '#38bdf8';
+            if (eq.em_degelo) barColor = 'var(--info)';
 
             return (
               <div key={eq.id} className={`card ${isAnomalia ? 'card-danger-border pulse-danger' : (eq.em_degelo ? 'card-info-border' : (isTemp && eq.motor_ligado ? 'card-success-border' : 'card-info-border'))}`}>
@@ -647,7 +692,7 @@ export default function App() {
                 </div>
                 <span className="badge-setor">{eq.setor}</span>
                 
-                <div className={`status-box ${eq.em_degelo && isTemp ? 'status-defrost' : (isAnomalia && !isTemp ? '' : (isTemp && !eq.motor_ligado ? 'status-off' : 'status-on'))}`} style={{ marginTop: '15px', backgroundColor: !isTemp ? (isAnomalia ? 'var(--warning)' : '#0ea5e9') : undefined }}>
+                <div className={`status-box ${eq.em_degelo && isTemp ? 'status-defrost' : (isAnomalia && !isTemp ? '' : (isTemp && !eq.motor_ligado ? 'status-off' : 'status-on'))}`} style={{ marginTop: '15px', backgroundColor: !isTemp ? (isAnomalia ? 'var(--warning)' : 'var(--info)') : undefined }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -682,8 +727,8 @@ export default function App() {
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}><PlusCircle size={20} color="var(--primary)" /> Novo Equipamento</h3>
-          <button type="button" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderColor: '#38bdf8', color: '#38bdf8' }} onClick={() => aplicarNormaANVISA(formEquip.setor, formEquip.tipo, setFormEquip)} disabled={!formEquip.setor || !formEquip.tipo || isOffline}>
-            <ShieldCheck size={16} /> Preencher Padrão RDC
+          <button type="button" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderColor: 'var(--info)', color: 'var(--info)' }} onClick={() => aplicarNormaANVISA(formEquip.setor, formEquip.tipo, setFormEquip)} disabled={!formEquip.setor || !formEquip.tipo || isOffline}>
+            <ShieldCheck size={16} /> Preencher Regras
           </button>
         </div>
         <form onSubmit={salvarNovoEquipamento}>
@@ -739,13 +784,13 @@ export default function App() {
         </div>
         <table className="table">
           <thead>
-            <tr><th>Status</th><th>Identificação</th><th>Setor</th><th>Limites</th><th>Rotina Degelo</th><th>Gerir</th></tr>
+            <tr><th>Estado</th><th>Identificador</th><th>Setor</th><th>Limites</th><th>Rotina Degelo</th><th>Gerir</th></tr>
           </thead>
           <tbody>
             {equipamentosFiltradosLista.map(eq => (
               <tr key={eq.id}>
-                <td data-label="Status"><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: eq.em_degelo ? '#38bdf8' : (eq.motor_ligado ? 'var(--success)' : 'var(--danger)')}}></span></td>
-                <td data-label="Identificação"><strong>{eq.nome}</strong><br/><span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{eq.tipo}</span></td>
+                <td data-label="Estado"><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: eq.em_degelo ? 'var(--info)' : (eq.motor_ligado ? 'var(--success)' : 'var(--danger)')}}></span></td>
+                <td data-label="Identificador"><strong>{eq.nome}</strong><br/><span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{eq.tipo}</span></td>
                 <td data-label="Setor"><span className="badge-setor">{eq.setor}</span></td>
                 <td data-label="Limites">{eq.temp_min}°C a {eq.temp_max}°C <br/><span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{eq.umidade_min || 40}% a {eq.umidade_max || 80}% (Hum)</span></td>
                 <td data-label="Rotina Degelo">A cada {eq.intervalo_degelo}h<br/><span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>({eq.duracao_degelo} min)</span></td>
@@ -778,7 +823,7 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '5px' }}>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary)' }}>Temperatura Cinética Média (MKT)</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cálculo USP / FDA (Energia Ativação: 83.144 kJ/mol)</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cálculo Regulamentar (Energia Ativação: 83.144 kJ/mol)</div>
                   </div>
                   <div style={{ fontSize: '1.8rem', fontWeight: '900', color: 'var(--primary)', background: 'var(--bg-color)', padding: '5px 15px', borderRadius: '8px' }}>
                     {mktValueProcessado}°C
@@ -786,14 +831,14 @@ export default function App() {
               </div>
           </div>
           
-          <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #38bdf8' }}>
+          <div className="card" style={{ padding: '1rem', borderLeft: '4px solid var(--info)' }}>
               <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <Droplets size={16} /> Indicadores de Humidade
               </h4>
               <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
                   <div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Média</div><div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{kpis.kpiMediaU}%</div></div>
                   <div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mínima</div><div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--warning)' }}>{kpis.kpiMinU}%</div></div>
-                  <div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Máxima</div><div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0ea5e9' }}>{kpis.kpiMaxU}%</div></div>
+                  <div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Máxima</div><div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--info)' }}>{kpis.kpiMaxU}%</div></div>
               </div>
           </div>
       </div>
@@ -826,16 +871,15 @@ export default function App() {
             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e5e7eb'} vertical={false} />
             <XAxis dataKey="hora" stroke={isDarkMode ? '#94a3b8' : '#6b7280'} tick={{ fontSize: 12 }} />
             <YAxis yAxisId="left" stroke="var(--primary)" tick={{ fontSize: 12 }} label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft', fill: 'var(--primary)' }} />
-            <YAxis yAxisId="right" orientation="right" stroke="#38bdf8" tick={{ fontSize: 12 }} label={{ value: 'Humidade (%)', angle: 90, position: 'insideRight', fill: '#38bdf8' }} />
+            <YAxis yAxisId="right" orientation="right" stroke="var(--info)" tick={{ fontSize: 12 }} label={{ value: 'Humidade (%)', angle: 90, position: 'insideRight', fill: 'var(--info)' }} />
             <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow)' }} />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
             
             {equipamentoSelecionado && <ReferenceLine yAxisId="left" y={equipamentoSelecionado.temp_max} stroke="var(--danger)" strokeDasharray="4 4" label={{ position: 'top', value: 'Máx Temp', fill: 'var(--danger)', fontSize: 12 }} />}
-            {equipamentoSelecionado && <ReferenceLine yAxisId="right" y={equipamentoSelecionado.umidade_max || 80} stroke="#0ea5e9" strokeDasharray="4 4" label={{ position: 'top', value: 'Máx Hum', fill: '#0ea5e9', fontSize: 12 }} />}
+            {equipamentoSelecionado && <ReferenceLine yAxisId="right" y={equipamentoSelecionado.umidade_max || 80} stroke="var(--info)" strokeDasharray="4 4" label={{ position: 'top', value: 'Máx Hum', fill: 'var(--info)', fontSize: 12 }} />}
 
-            {/* Gráfico otimizado sem animações pesadas */}
             <Area isAnimationActive={false} yAxisId="left" type="monotone" dataKey="temperatura" name="Temperatura (°C)" stroke="var(--primary)" fillOpacity={1} fill="url(#colorTemp)" strokeWidth={3} activeDot={{ r: 6 }} />
-            <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="umidade" name="Humidade (%)" stroke="#38bdf8" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
+            <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="umidade" name="Humidade (%)" stroke="var(--info)" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
             <Brush dataKey="hora" height={30} stroke="var(--primary)" fill={isDarkMode ? 'var(--card-bg)' : '#f8fafc'} />
           </ComposedChart>
         </ResponsiveContainer>
@@ -849,7 +893,7 @@ export default function App() {
           <div className="card table-responsive" style={{ marginTop: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
             <table className="table">
               <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-color)', zIndex: 1 }}>
-                <tr><th>Data e Hora</th><th>Sensor</th><th>Termometria (°C)</th><th>Higrometria (%)</th></tr>
+                <tr><th>Data/Hora</th><th>Identificador</th><th>Temp (°C)</th><th>Hum (%)</th></tr>
               </thead>
               <tbody>
                 {ultimasLeiturasRaw.length === 0 ? (
@@ -861,12 +905,12 @@ export default function App() {
                       const isUmidAlerta = eqRef && (dado.umidade > (eqRef.umidade_max || 80) || dado.umidade < (eqRef.umidade_min || 40));
                       return (
                         <tr key={index}>
-                          <td data-label="Data Exata" style={{ fontSize: '0.9rem' }}>{dado.dataExata}</td>
-                          <td data-label="Equipamento" style={{ fontWeight: '600' }}>{dado.nome}</td>
+                          <td data-label="Data/Hora" style={{ fontSize: '0.9rem' }}>{dado.dataExata}</td>
+                          <td data-label="Identificador" style={{ fontWeight: '600' }}>{dado.nome}</td>
                           <td data-label="Temp (°C)" style={{ fontWeight: '800', color: isTempAlerta ? 'var(--danger)' : 'var(--primary)' }}>
                             {dado.temperatura} °C {isTempAlerta && <AlertTriangle size={14} style={{ marginLeft: '4px', verticalAlign: 'middle' }}/>}
                           </td>
-                          <td data-label="Humidade (%)" style={{ fontWeight: '800', color: isUmidAlerta ? 'var(--warning)' : '#38bdf8' }}>
+                          <td data-label="Hum (%)" style={{ fontWeight: '800', color: isUmidAlerta ? 'var(--warning)' : 'var(--info)' }}>
                             {dado.umidade > 0 ? `${dado.umidade} %` : '--'} {isUmidAlerta && <AlertTriangle size={14} style={{ marginLeft: '4px', verticalAlign: 'middle' }}/>}
                           </td>
                         </tr>
@@ -955,19 +999,19 @@ export default function App() {
       {/* --- SIDEBAR --- */}
       <div className={`sidebar ${menuAberto ? 'open' : ''}`}>
         <div className="sidebar-header" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ background: 'white', borderRadius: '8px', padding: '4px', display: 'flex' }}><FrioMonitorLogo size={24} color="var(--primary)" /></div>
-          <h2>FrioMonitor</h2>
+          <div style={{ background: 'white', borderRadius: '8px', padding: '4px', display: 'flex' }}><TermoSyncLogo size={24} color="var(--primary)" /></div>
+          <h2>TermoSync</h2>
           <button className="mobile-close" onClick={() => setMenuAberto(false)} style={{ marginLeft: 'auto' }}><X size={24} color="white" /></button>
         </div>
         <nav className="sidebar-nav">
           <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}>
-            <Activity size={20} /> Visão Global {notificacoes.length > 0 && <span className="badge">{notificacoes.length}</span>}
+            <Activity size={20} /> Monitorização Geral {notificacoes.length > 0 && <span className="badge">{notificacoes.length}</span>}
           </button>
           <button className={`nav-item ${abaAtiva === 'motores' ? 'active' : ''}`} onClick={() => { setAbaAtiva('motores'); setMenuAberto(false); }}>
             <Thermometer size={20} /> Painel de Motores
           </button>
           <button className={`nav-item ${abaAtiva === 'umidade' ? 'active' : ''}`} onClick={() => { setAbaAtiva('umidade'); setMenuAberto(false); }}>
-            <Droplets size={20} /> Controle de Humidade
+            <Droplets size={20} /> Controlo de Humidade
           </button>
           <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}>
             <Settings size={20} /> Equipamentos
@@ -976,11 +1020,11 @@ export default function App() {
             <Activity size={20} /> Conformidade & MKT
           </button>
           <button className={`nav-item ${abaAtiva === 'historico' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico'); setMenuAberto(false); }}>
-            <History size={20} /> Auditoria RDC
+            <History size={20} /> Registo de Auditoria
           </button>
         </nav>
         <div style={{ marginTop: 'auto', padding: '1.5rem 1rem' }}>
-          <button className="btn btn-outline w-100" style={{ color: '#cbd5e1', borderColor: 'rgba(255,255,255,0.2)' }} onClick={fazerLogout}><LogOut size={18} style={{ marginRight: '8px' }} /> Sair</button>
+          <button className="btn btn-outline w-100" style={{ color: '#cbd5e1', borderColor: 'rgba(255,255,255,0.2)' }} onClick={fazerLogout}><LogOut size={18} style={{ marginRight: '8px' }} /> Sair do Sistema</button>
         </div>
       </div>
 
@@ -991,9 +1035,9 @@ export default function App() {
         <header className="header" style={{ marginTop: isOffline ? '40px' : 0 }}>
           <button className="menu-btn" onClick={() => setMenuAberto(true)}><Menu size={24} /></button>
           <h2 className="page-title">
-            {abaAtiva === 'dashboard' && 'Monitorização Geral'}
+            {abaAtiva === 'dashboard' && 'Monitorização Global'}
             {abaAtiva === 'motores' && 'Telemetria em Tempo Real (Temp)'}
-            {abaAtiva === 'umidade' && 'Controle de Humidade'}
+            {abaAtiva === 'umidade' && 'Controlo de Humidade Analítica'}
             {abaAtiva === 'equipamentos' && 'Configuração de Infraestrutura'}
             {abaAtiva === 'relatorios' && 'Análise Avançada e Cálculo MKT'}
             {abaAtiva === 'historico' && 'Registo de Manutenções e Ocorrências'}
@@ -1070,7 +1114,7 @@ export default function App() {
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setEquipEditando(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" disabled={isOffline}><Save size={18} /> Salvar Alterações</button>
+                <button type="submit" className="btn btn-primary" disabled={isOffline}><Save size={18} /> Guardar Alterações</button>
               </div>
             </form>
           </div>

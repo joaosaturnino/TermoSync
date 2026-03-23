@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 /* =========================================
-   DESIGN TOKENS & THEMING
+   DESIGN TOKENS & THEMING PADRONIZADO
    ========================================= */
 :root {
   --primary: #059669;
@@ -14,6 +14,8 @@
   --danger-light: #fee2e2;
   --success: #10b981;
   --warning: #f59e0b;
+  --info: #38bdf8;        /* Azul Padrão (Degelo / Humidade) */
+  --alert-mech: #f97316;  /* Laranja Padrão (Falha Mecânica) */
   --border: #e2e8f0;
   --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
