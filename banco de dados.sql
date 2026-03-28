@@ -62,3 +62,53 @@ ALTER TABLE leituras ADD COLUMN umidade DECIMAL(5,2) DEFAULT 50.0;
 ALTER TABLE notificacoes ADD COLUMN tipo_alerta VARCHAR(50) DEFAULT 'GERAL';
 
 CREATE INDEX idx_equip_data ON leituras (equipamento_id, data_hora);
+
+ALTER TABLE equipamentos ADD COLUMN intervalo_degelo INT DEFAULT 6;
+ALTER TABLE equipamentos ADD COLUMN duracao_degelo INT DEFAULT 30;
+
+ALTER TABLE equipamentos ADD COLUMN filial VARCHAR(100) DEFAULT 'Loja Principal';
+
+ALTER TABLE notificacoes ADD COLUMN tipo_alerta VARCHAR(50) DEFAULT 'GERAL';
+
+ALTER TABLE usuarios ADD COLUMN role VARCHAR(20) DEFAULT 'ADMIN';
+ALTER TABLE usuarios ADD COLUMN filial VARCHAR(100) DEFAULT 'Todas';
+
+ALTER TABLE leituras ADD COLUMN consumo_kwh DECIMAL(10,2) DEFAULT 0.00;
+
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE notificacoes;
+TRUNCATE TABLE leituras;
+TRUNCATE TABLE equipamentos;
+TRUNCATE TABLE usuarios;
+SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE equipamentos ADD COLUMN data_calibracao DATE DEFAULT;
+
+ALTER TABLE equipamentos ADD COLUMN data_calibracao DATE;
+
+ALTER TABLE leituras ADD COLUMN consumo_kwh DECIMAL(10,2) DEFAULT 0.00;
+
+select * from usuarios;
+
+CREATE TABLE IF NOT EXISTS chamados (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  equipamento_id INT,
+  usuario_id INT,
+  filial VARCHAR(100),
+  descricao TEXT,
+  urgencia ENUM('Pendente', 'Baixa', 'Média', 'Alta', 'Crítica') DEFAULT 'Pendente',
+  status ENUM('Aberto', 'Em Atendimento', 'Concluído') DEFAULT 'Aberto',
+  data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  data_conclusao TIMESTAMP NULL,
+  nota_resolucao TEXT,
+  FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE chamados;
+TRUNCATE TABLE notificacoes;
+TRUNCATE TABLE leituras;
+TRUNCATE TABLE equipamentos;
+TRUNCATE TABLE usuarios;
+SET FOREIGN_KEY_CHECKS = 1;
