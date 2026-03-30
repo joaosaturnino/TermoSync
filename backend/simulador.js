@@ -1,11 +1,10 @@
 /**
  * Robô IoT Simulador (Enterprise Edition)
  * Lógica Original de Física/Temperaturas mantida.
- * Atualizado: Integração automática com o sistema de Chamados e Arquivamento.
+ * ATUALIZADO: Geração de Todos os 6 Alertas (Rede, Metrologia, Porta, Preditiva, etc.) + Chamados.
  */
 
 const axios = require('axios');
-// Se o teu backend estiver noutro IP, muda aqui.
 const API_URL = 'http://127.0.0.1:3000/api';
 
 const LOGIN_SIMULADOR = { usuario: 'admin_master', senha: '123456' };
@@ -33,6 +32,8 @@ async function criarChamadoSimulado(eq, tipoFalha) {
     'MECANICA': 'URGENTE: O compressor parou inesperadamente e a máquina não reage aos comandos remotos.',
     'PERDA_EFICIENCIA': 'Aviso de Preditiva: A máquina está a consumir demasiada energia para manter o setpoint térmico. Possível fuga de gás.',
     'PORTA_ABERTA': 'ALERTA: A porta da câmara frigorífica encontra-se aberta ou mal vedada, causando perda térmica rápida.',
+    'REDE': 'TI / INFRAESTRUTURA: O sensor IoT perdeu o sinal Wi-Fi ou encontra-se desligado da energia. Verificar Gateway.',
+    'METROLOGIA': 'QUALIDADE: O sensor térmico apresenta um desvio de leitura (necessita recalibração).',
     'GENERICO': 'Manutenção de Rotina: Ruído anómalo detetado na ventoinha do evaporador pelos sensores acústicos.'
   };
 
@@ -69,8 +70,8 @@ async function gerirChamadosPendentes() {
         let urgenciaCalculada = 'Baixa';
         if (c.descricao.includes('URGENTE') || c.descricao.includes('parou')) urgenciaCalculada = 'Crítica';
         else if (c.descricao.includes('Preditiva') || c.descricao.includes('energia')) urgenciaCalculada = 'Alta';
-        else if (c.descricao.includes('ALERTA') || c.descricao.includes('porta')) urgenciaCalculada = 'Média';
-        else if (c.descricao.includes('Rotina')) urgenciaCalculada = 'Baixa';
+        else if (c.descricao.includes('ALERTA') || c.descricao.includes('porta') || c.descricao.includes('TI')) urgenciaCalculada = 'Média';
+        else if (c.descricao.includes('Rotina') || c.descricao.includes('QUALIDADE')) urgenciaCalculada = 'Baixa';
 
         await axios.put(`${API_URL}/chamados/${c.id}/urgencia`, 
           { urgencia: urgenciaCalculada }, 
@@ -84,6 +85,8 @@ async function gerirChamadosPendentes() {
             "Compressor substituído e sistema de gás purgado com sucesso.",
             "Detetada fuga de gás na tubagem. Solda efetuada e carga reposta.",
             "Borracha da porta substituída e fecho magnético realinhado.",
+            "Sensor reiniciado e reconectado à rede Wi-Fi da loja.",
+            "Auditoria metrológica realizada. Sensor devidamente calibrado.",
             "Substituição preventiva das borrachas de vedação e ventoinha lubrificada."
           ];
           const solucaoSorteada = solucoes[Math.floor(Math.random() * solucoes.length)];
@@ -104,7 +107,7 @@ async function gerirChamadosPendentes() {
   }
 }
 
-// LÓGICA ORIGINAL MANTIDA NA ÍNTEGRA
+// LÓGICA DE FÍSICA E ANOMALIAS (Mantendo o ritmo Original de falhas)
 async function simularMaquina(eq) {
   let alertaForcado = null;
   let consumoKwh = 0.1; 
@@ -115,22 +118,35 @@ async function simularMaquina(eq) {
   if (motorLigado && !emDegelo && Math.random() < 0.005) { 
       alertaForcado = 'PERDA_EFICIENCIA'; 
       consumoKwh = 3.8; 
-      criarChamadoSimulado(eq, 'PERDA_EFICIENCIA'); // Adicionado
+      criarChamadoSimulado(eq, 'PERDA_EFICIENCIA'); 
   }
   
   // Anomalia 2: Porta Aberta (0.5% original)
   if (motorLigado && !emDegelo && !alertaForcado && Math.random() < 0.005) { 
       alertaForcado = 'PORTA_ABERTA'; 
       consumoKwh = 4.5; 
-      criarChamadoSimulado(eq, 'PORTA_ABERTA'); // Adicionado
+      criarChamadoSimulado(eq, 'PORTA_ABERTA'); 
   }
 
-  // Anomalia 3: Falha do Motor vs Ciclo Normal (1% e 8% originais)
+  // Anomalia 3: Falha de Rede (Wi-Fi caiu) - Novo
+  if (!alertaForcado && Math.random() < 0.003) { 
+      alertaForcado = 'REDE'; 
+      // Apenas 20% das vezes que a rede cai é que se abre OS (pode ser só instabilidade)
+      if (Math.random() < 0.2) criarChamadoSimulado(eq, 'REDE'); 
+  }
+
+  // Anomalia 4: Erro de Metrologia (Calibração) - Novo
+  if (!alertaForcado && Math.random() < 0.003) { 
+      alertaForcado = 'METROLOGIA'; 
+      criarChamadoSimulado(eq, 'METROLOGIA'); 
+  }
+
+  // Anomalia 5: Falha do Motor vs Ciclo Normal (1% e 8% originais)
   if (motorLigado && !emDegelo && Math.random() < 0.01) {
     emDegelo = 1; motorLigado = 0; console.log(`❄️ [AÇÃO] Degelo ativado em: ${eq.nome} (${eq.filial})`);
   } else if (motorLigado && !emDegelo && !alertaForcado && Math.random() < 0.01) {
     motorLigado = 0; console.log(`⚠️ [FALHA MECÂNICA] Motor parou em: ${eq.nome} (${eq.filial})`);
-    criarChamadoSimulado(eq, 'MECANICA'); // Adicionado
+    criarChamadoSimulado(eq, 'MECANICA'); 
   } else if ((!motorLigado || emDegelo) && Math.random() < 0.08) {
     emDegelo = 0; motorLigado = 1; 
   }

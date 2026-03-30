@@ -1,6 +1,6 @@
 /**
  * Componente Raiz: TermoSync Enterprise (Web Completa)
- * ATUALIZADO: Filtros de Tela para Técnicos e Períodos ligados visualmente aos cartões de OS.
+ * VERSÃO FINAL: Sanitização forte de Parâmetros e Raio-X de Erros no Backend
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -11,14 +11,16 @@ import 'react-datepicker/dist/react-datepicker.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './App.css';
+
 import { 
   Thermometer, AlertTriangle, Settings, Activity, Power, LogOut, Menu, X, 
   CheckCircle, Edit, Download, Moon, Sun, Bell, BellOff, History, Search, 
   Info, FileText, PlusCircle, Save, WifiOff, List, Maximize, Calendar, 
   ShieldCheck, Droplets, Wifi, Snowflake, DoorOpen, Clock, ActivitySquare, MapPin,
   ClipboardCheck, Percent, UserCheck, Zap, Leaf, Volume2, VolumeX, Users, UserPlus,
-  Wrench, MessageSquarePlus, Store, Wrench as WrenchIcon, Printer, Archive
+  Wrench, MessageSquarePlus, Store, Printer, Archive, User, Lock, Loader2, Sliders 
 } from 'lucide-react';
+
 import { 
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, ReferenceLine, PieChart, Pie, Cell 
@@ -55,6 +57,9 @@ export default function App() {
   const [senha, setSenha] = useState('');
   const [abaAtiva, setAbaAtiva] = useState('dashboard');
   const [menuAberto, setMenuAberto] = useState(false);
+  
+  const [isLoginLoading, setIsLoginLoading] = useState(false); 
+  const [loginErro, setLoginErro] = useState(''); 
 
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [somAtivoState, setSomAtivoState] = useState(true);
@@ -74,12 +79,19 @@ export default function App() {
   const [usuariosLista, setUsuariosLista] = useState([]);
   const [lojasCadastradas, setLojasCadastradas] = useState([]); 
   const [filiaisDb, setFiliaisDb] = useState([]);
-  const [setoresDb, setSetoresDb] = useState([]);
   const [tecnicosDb, setTecnicosDb] = useState([]); 
+  
+  const [listaSetores, setListaSetores] = useState([]);
+  const [listaTipos, setListaTipos] = useState([]);
   
   const [modalUsuario, setModalUsuario] = useState(false);
   const [modalLoja, setModalLoja] = useState(false); 
   const [modalChamado, setModalChamado] = useState(false);
+
+  const [modalParametro, setModalParametro] = useState({ 
+    isOpen: false, entidade: 'SETOR', id: '', nome: '',
+    temp_min: '', temp_max: '', umidade_min: '', umidade_max: '', intervalo_degelo: '', duracao_degelo: ''
+  });
   
   const formInicialUsuario = { 
     id: '', usuario: '', senha: '', role: 'LOJA', filial: '', 
@@ -136,6 +148,26 @@ export default function App() {
     } else { showToast('Alarmes sonoros silenciados.', 'info'); }
   }, [somAtivoState, showToast]);
 
+  const tocarAlarme = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime); 
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime); 
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5); 
+    } catch (e) {
+      console.warn('Áudio bloqueado pelo navegador ou não suportado.', e);
+    }
+  }, []);
+
   const solicitarPermissaoPush = () => {
     if ("Notification" in window) {
       Notification.requestPermission().then(perm => { setPermPush(perm); if (perm === "granted") showToast("Notificações OS ativadas!", "success"); });
@@ -166,6 +198,10 @@ export default function App() {
   const fazerLogin = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast('Sem ligação à rede.', 'error');
+    
+    setLoginErro(''); 
+    setIsLoginLoading(true); 
+    
     try {
       const res = await axios.post(`${API_URL}/login`, { usuario, senha });
       setToken(res.data.token); setUserRole(res.data.role); setUserFilial(res.data.filial); setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
@@ -194,7 +230,7 @@ export default function App() {
             roleTitle = 'Coordenador da Loja'; 
           }
           else { 
-            identityName = 'Equipa Geral'; 
+            identityName = 'Equipe Geral'; 
             roleTitle = 'Acesso da Loja'; 
           }
       }
@@ -215,7 +251,13 @@ export default function App() {
       showToast(`Bem-vindo! Acesso: ${identityName}`, 'success');
       
       try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch(e){}
-    } catch (error) { showToast('Credenciais incorretas.', 'error'); }
+    } catch (error) { 
+      setLoginErro('Credenciais inválidas. Verifique o usuário e/ou a senha.');
+      setSenha(''); 
+      showToast('Acesso Negado.', 'error'); 
+    } finally {
+      setIsLoginLoading(false); 
+    }
   };
 
   const fazerLogout = () => { 
@@ -224,39 +266,36 @@ export default function App() {
     setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
   };
 
-  const tocarAlarme = useCallback(() => {
-    if (!somAtivoRef.current) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (ctx.state === 'suspended') ctx.resume();
-      const dispararBeep = (atraso) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.type = 'square'; osc.frequency.setValueAtTime(800, ctx.currentTime + atraso); 
-        gain.gain.setValueAtTime(0.1, ctx.currentTime + atraso); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + atraso + 0.3);
-        osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + atraso); osc.stop(ctx.currentTime + atraso + 0.3);
-      };
-      dispararBeep(0); dispararBeep(0.2); 
-    } catch (e) { }
-  }, []);
-
   const carregarChamados = useCallback(async () => {
     if (!token || isOffline) return;
-    try { const res = await api.get('/chamados'); setChamados(res.data); } catch (e) { }
+    try { const res = await api.get('/chamados'); setChamados(Array.isArray(res.data) ? res.data : []); } catch (e) { }
   }, [token, isOffline, api]);
 
   const carregarUsuarios = useCallback(async () => {
     if (userRole !== 'ADMIN' || !token || isOffline) return;
-    try { const res = await api.get('/usuarios'); setUsuariosLista(res.data); } catch (e) {}
+    try { const res = await api.get('/usuarios'); setUsuariosLista(Array.isArray(res.data) ? res.data : []); } catch (e) {}
   }, [api, userRole, token, isOffline]);
 
   const carregarLojas = useCallback(async () => {
     if (userRole !== 'ADMIN' || !token || isOffline) return;
-    try { const res = await api.get('/lojas'); setLojasCadastradas(res.data); } catch (e) {}
+    try { const res = await api.get('/lojas'); setLojasCadastradas(Array.isArray(res.data) ? res.data : []); } catch (e) {}
   }, [api, userRole, token, isOffline]);
 
   const carregarTecnicos = useCallback(async () => {
     if (!token || isOffline) return;
-    try { const res = await api.get('/tecnicos'); setTecnicosDb(res.data); } catch (e) {}
+    try { const res = await api.get('/tecnicos'); setTecnicosDb(Array.isArray(res.data) ? res.data : []); } catch (e) {}
+  }, [api, token, isOffline]);
+
+  const carregarParametrosGerais = useCallback(async () => {
+    if (!token || isOffline) return;
+    try {
+      const [resSetores, resTipos] = await Promise.all([
+        api.get('/setores').catch(() => ({ data: [] })),
+        api.get('/tipos-refrigeracao').catch(() => ({ data: [] }))
+      ]);
+      setListaSetores(Array.isArray(resSetores.data) ? resSetores.data : []);
+      setListaTipos(Array.isArray(resTipos.data) ? resTipos.data : []);
+    } catch (e) {}
   }, [api, token, isOffline]);
 
   const carregarDadosBase = useCallback(async () => {
@@ -268,23 +307,24 @@ export default function App() {
     }
     try {
       const isHistorico = abaAtivaRef.current === 'historico';
-      const [resEquip, resNotif, resHist, resFiliais, resSetores] = await Promise.all([
-        api.get('/equipamentos'), 
-        api.get('/notificacoes'), 
-        isHistorico ? api.get('/notificacoes/historico') : Promise.resolve({ data: historicoAlertas }),
-        api.get('/auxiliares/filiais').catch(() => ({ data: [] })),
-        api.get('/auxiliares/setores').catch(() => ({ data: [] }))
+      const [resEquip, resNotif, resHist, resFiliais] = await Promise.all([
+        api.get('/equipamentos').catch(() => ({ data: [] })), 
+        api.get('/notificacoes').catch(() => ({ data: [] })), 
+        isHistorico ? api.get('/notificacoes/historico').catch(() => ({ data: [] })) : Promise.resolve({ data: historicoAlertas }),
+        api.get('/auxiliares/filiais').catch(() => ({ data: [] }))
       ]);
       
-      setEquipamentos(resEquip.data); 
-      setFiliaisDb(resFiliais.data); 
-      setSetoresDb(resSetores.data);
+      setEquipamentos(Array.isArray(resEquip.data) ? resEquip.data : []); 
+      setFiliaisDb(Array.isArray(resFiliais.data) ? resFiliais.data : []); 
       
-      if (isHistorico) setHistoricoAlertas(resHist.data);
+      carregarParametrosGerais();
       
-      const idMaisAlto = resNotif.data.length > 0 ? Math.max(...resNotif.data.map(n => n.id)) : 0;
+      if (isHistorico) setHistoricoAlertas(Array.isArray(resHist.data) ? resHist.data : []);
+      
+      const dadosNotificacoes = Array.isArray(resNotif.data) ? resNotif.data : [];
+      const idMaisAlto = dadosNotificacoes.length > 0 ? Math.max(...dadosNotificacoes.map(n => n.id)) : 0;
       if (lastAlertIdRef.current !== -1 && idMaisAlto > lastAlertIdRef.current) {
-        const novos = resNotif.data.filter(n => n.id > lastAlertIdRef.current);
+        const novos = dadosNotificacoes.filter(n => n.id > lastAlertIdRef.current);
         if (novos.length > 0) {
           const isDegelo = novos[0].tipo_alerta === 'DEGELO';
           if (somAtivoRef.current && !isDegelo) tocarAlarme();
@@ -292,20 +332,24 @@ export default function App() {
           if (!isDegelo && somAtivoRef.current) enviarPushNotificationOS('Alerta TermoSync', novos[0].mensagem);
         }
       }
-      lastAlertIdRef.current = idMaisAlto; setNotificacoes(resNotif.data);
-      localStorage.setItem('cache_equipamentos', JSON.stringify(resEquip.data)); localStorage.setItem('cache_notificacoes', JSON.stringify(resNotif.data));
+      lastAlertIdRef.current = idMaisAlto; 
+      setNotificacoes(dadosNotificacoes);
+      
+      localStorage.setItem('cache_equipamentos', JSON.stringify(resEquip.data)); 
+      localStorage.setItem('cache_notificacoes', JSON.stringify(dadosNotificacoes));
     } catch (error) { if (error.response?.status === 401) fazerLogout(); }
-  }, [token, isOffline, api, tocarAlarme, showToast, enviarPushNotificationOS]); 
+  }, [token, isOffline, api, tocarAlarme, showToast, enviarPushNotificationOS, carregarParametrosGerais]); 
 
   const carregarRelatorios = useCallback(async () => {
     if (!token || isOffline) return;
-    try { const res = await api.get(`/relatorios?data_inicio=${dataInicio.toISOString()}&data_fim=${dataFim.toISOString()}`); setRelatorios(res.data); } catch (error) {}
+    try { const res = await api.get(`/relatorios?data_inicio=${dataInicio.toISOString()}&data_fim=${dataFim.toISOString()}`); setRelatorios(Array.isArray(res.data) ? res.data : []); } catch (error) {}
   }, [token, isOffline, api, dataInicio, dataFim]);
 
   useEffect(() => { if (token) carregarDadosBase(); }, [token, carregarDadosBase]);
   useEffect(() => { if (abaAtiva === 'usuarios' && userRole === 'ADMIN') carregarUsuarios(); }, [abaAtiva, carregarUsuarios, userRole]);
   useEffect(() => { if (abaAtiva === 'lojas' && userRole === 'ADMIN') carregarLojas(); }, [abaAtiva, carregarLojas, userRole]);
   useEffect(() => { if (abaAtiva === 'chamados' || abaAtiva === 'historico_chamados') { carregarChamados(); carregarTecnicos(); } }, [abaAtiva, carregarChamados, carregarTecnicos]); 
+  useEffect(() => { if (abaAtiva === 'parametros' && userRole === 'ADMIN') carregarParametrosGerais(); }, [abaAtiva, carregarParametrosGerais, userRole]); 
 
   useEffect(() => {
     if (!token || isOffline) return;
@@ -321,7 +365,6 @@ export default function App() {
 
   useEffect(() => { if (token && abaAtiva === 'relatorios') carregarRelatorios(); }, [token, abaAtiva, dataInicio, dataFim, carregarRelatorios]);
 
-  // 🔴 LÓGICA DE FILTRAGEM VISUAL DIRETA PARA OS CARTÕES E PDF
   const trintaDiasAtras = new Date();
   trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
 
@@ -333,23 +376,16 @@ export default function App() {
      return chamados.filter(c => c.status === 'Concluído' && new Date(c.data_conclusao) < trintaDiasAtras);
   }, [chamados, trintaDiasAtras]);
 
-  // Processa a lista ATIVA
   const chamadosAtivosFiltrados = useMemo(() => {
     let list = chamadosAtivosBrutos;
-
-    // Filtro de Loja/Filial (Apenas para o ADMIN que usar o filtro global da barra lateral)
     if (userRole === 'ADMIN' && filialAtiva !== 'Todas') {
        list = list.filter(c => c.filial === filialAtiva);
     }
-
-    // Filtro do Técnico selecionado no dropdown da página
     if (userRole === 'MANUTENCAO') {
        list = list.filter(c => c.tecnico_responsavel === nomeLogado);
     } else if (tecnicoFiltroOS !== 'todos') {
        list = list.filter(c => c.tecnico_responsavel === tecnicoFiltroOS);
     }
-
-    // Filtro de Tempo selecionado no dropdown da página
     const hoje = new Date();
     if (filtroTempoOS === 'dia') {
        list = list.filter(c => new Date(c.data_abertura).toDateString() === hoje.toDateString() || (c.data_conclusao && new Date(c.data_conclusao).toDateString() === hoje.toDateString()));
@@ -360,29 +396,21 @@ export default function App() {
        const mesAtras = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
        list = list.filter(c => new Date(c.data_abertura) >= mesAtras || (c.data_conclusao && new Date(c.data_conclusao) >= mesAtras));
     }
-
     return list;
   }, [chamadosAtivosBrutos, filialAtiva, userRole, nomeLogado, tecnicoFiltroOS, filtroTempoOS]);
 
-  // Processa a lista HISTÓRICA
   const chamadosHistoricoFiltrados = useMemo(() => {
     let list = chamadosHistoricoBrutos;
-
-    // Filtro de Loja/Filial
     if (userRole === 'ADMIN' && filialAtiva !== 'Todas') {
        list = list.filter(c => c.filial === filialAtiva);
     }
-
-    // Filtro do Técnico
     if (userRole === 'MANUTENCAO') {
        list = list.filter(c => c.tecnico_responsavel === nomeLogado);
     } else if (tecnicoFiltroOS !== 'todos') {
        list = list.filter(c => c.tecnico_responsavel === tecnicoFiltroOS);
     }
-
     return list;
   }, [chamadosHistoricoBrutos, filialAtiva, userRole, nomeLogado, tecnicoFiltroOS]);
-
 
   const gerarLoteOS = (listaParaImprimir) => {
     if (listaParaImprimir.length === 0) {
@@ -451,12 +479,119 @@ export default function App() {
     showToast(`Livro PDF gerado contendo ${listaParaImprimir.length} Ordens de Serviço!`, 'success');
   };
 
+  // 🔴 CORREÇÃO DO CADASTRO E RAIO-X DE ERROS
+  const salvarParametro = async (e) => {
+    e.preventDefault();
+    const endpoint = modalParametro.entidade === 'SETOR' ? '/setores' : '/tipos-refrigeracao';
+    
+    // Assegura remoção de espaços em branco e conversão estrita para números
+    const payload = modalParametro.entidade === 'SETOR' 
+      ? { nome: String(modalParametro.nome).trim() } 
+      : { 
+          nome: String(modalParametro.nome).trim(), 
+          temp_min: Number(modalParametro.temp_min), 
+          temp_max: Number(modalParametro.temp_max), 
+          umidade_min: Number(modalParametro.umidade_min), 
+          umidade_max: Number(modalParametro.umidade_max), 
+          intervalo_degelo: Number(modalParametro.intervalo_degelo), 
+          duracao_degelo: Number(modalParametro.duracao_degelo) 
+        };
+
+    try {
+      if (modalParametro.id) {
+        await api.put(`${endpoint}/${modalParametro.id}`, payload);
+        showToast(`${modalParametro.entidade === 'SETOR' ? 'Setor' : 'Tipo'} atualizado com sucesso!`, 'success');
+      } else {
+        if (!payload.nome) return showToast('O nome é obrigatório.', 'error');
+        await api.post(endpoint, payload);
+        showToast(`${modalParametro.entidade === 'SETOR' ? 'Setor' : 'Tipo'} cadastrado com sucesso!`, 'success');
+      }
+      setModalParametro({ ...modalParametro, isOpen: false });
+      carregarParametrosGerais();
+      carregarDadosBase(); 
+    } catch(err) {
+      // 🔴 RAIO-X: Mostra EXATAMENTE o que o banco de dados devolveu
+      const erroReal = err.response?.data?.error || err.response?.data?.message || err.message || 'Erro Desconhecido';
+      console.error("Erro na API ao salvar:", err.response?.data || err);
+      showToast(`Falha no Servidor: ${erroReal}`, 'error'); 
+    }
+  };
+
+  const pedirExclusaoParametro = (id, nome, entidade) => {
+    const endpoint = entidade === 'SETOR' ? `/setores/${id}` : `/tipos-refrigeracao/${id}`;
+    setModalConfig({ 
+      isOpen: true, 
+      title: `Remover ${entidade}`, 
+      message: `Tem a certeza que deseja remover "${nome}" permanentemente da lista?`, 
+      isPrompt: false, 
+      onConfirm: async () => {
+        try { 
+          await api.delete(endpoint); 
+          showToast('Removido com sucesso.', 'success'); 
+          carregarParametrosGerais(); 
+        } catch (e) { showToast('Erro ao remover.', 'error'); }
+      }
+    });
+  };
+
+  const aplicarNormaANVISA = (tipoSelecionado, setFormAction) => {
+    if (!tipoSelecionado) return showToast('Selecione um Tipo de Refrigeração primeiro.', 'warning');
+    
+    const tipoEncontrado = (listaTipos || []).find(t => t.nome === tipoSelecionado);
+    
+    if (tipoEncontrado) {
+      setFormAction(prev => ({ 
+        ...prev, 
+        temp_min: tipoEncontrado.temp_min, 
+        temp_max: tipoEncontrado.temp_max, 
+        umidade_min: tipoEncontrado.umidade_min, 
+        umidade_max: tipoEncontrado.umidade_max, 
+        intervalo_degelo: tipoEncontrado.intervalo_degelo, 
+        duracao_degelo: tipoEncontrado.duracao_degelo 
+      }));
+      showToast('Padrão Legal (ANVISA) aplicado a partir do cadastro do Administrador!', 'info');
+    } else {
+      showToast('Tipo de Refrigeração não encontrado no sistema.', 'error');
+    }
+  };
+
+  const aplicarPresetAnvisa = (e) => {
+    const presetName = e.target.value;
+    if (!presetName) return;
+    
+    const presets = {
+      // Alimentos e Bebidas (Básicos)
+      'Laticínios e Frios': { temp_min: 0, temp_max: 8, umidade_min: 60, umidade_max: 80, intervalo_degelo: 6, duracao_degelo: 20 },
+      'Carnes Resfriadas': { temp_min: 0, temp_max: 4, umidade_min: 85, umidade_max: 95, intervalo_degelo: 4, duracao_degelo: 30 },
+      'Congelados': { temp_min: -22, temp_max: -12, umidade_min: 40, umidade_max: 60, intervalo_degelo: 8, duracao_degelo: 40 },
+      'Hortifruti': { temp_min: 8, temp_max: 15, umidade_min: 85, umidade_max: 95, intervalo_degelo: 12, duracao_degelo: 20 },
+      'Cervejeiras': { temp_min: -4, temp_max: 2, umidade_min: 60, umidade_max: 80, intervalo_degelo: 6, duracao_degelo: 25 },
+      
+      // Sensíveis e Específicos (ANVISA RDC Rigorosa)
+      'Vacinas e Medicamentos': { temp_min: 2, temp_max: 8, umidade_min: 40, umidade_max: 70, intervalo_degelo: 12, duracao_degelo: 20 },
+      'Sorvetes': { temp_min: -25, temp_max: -18, umidade_min: 40, umidade_max: 60, intervalo_degelo: 8, duracao_degelo: 30 },
+      'Pescados Resfriados': { temp_min: 0, temp_max: 2, umidade_min: 90, umidade_max: 95, intervalo_degelo: 4, duracao_degelo: 30 },
+      'Chocolates e Confeitaria': { temp_min: 15, temp_max: 18, umidade_min: 40, umidade_max: 60, intervalo_degelo: 24, duracao_degelo: 15 },
+      'Carnes Maturadas (Dry Aged)': { temp_min: 1, temp_max: 3, umidade_min: 75, umidade_max: 85, intervalo_degelo: 6, duracao_degelo: 20 },
+      'Refeições Prontas': { temp_min: 2, temp_max: 5, umidade_min: 60, umidade_max: 80, intervalo_degelo: 8, duracao_degelo: 20 },
+    };
+
+    if (presets[presetName]) {
+      setModalParametro(prev => ({
+        ...prev,
+        nome: prev.nome || presetName, 
+        ...presets[presetName]
+      }));
+      showToast(`Normas ANVISA aplicadas para ${presetName}!`, 'info');
+    }
+  };
+
   const salvarLoja = async (e) => {
     e.preventDefault();
     try {
       if (formLoja.id) {
         await api.put(`/lojas/${formLoja.id}`, { nome: formLoja.nome, endereco_loja: formLoja.endereco_loja, telefone_loja: formLoja.telefone_loja });
-        showToast('Loja atualizada (Efeito Dominó aplicado aos acessos e equipamentos!)', 'success');
+        showToast('Loja atualizada (Todos os equipamentos foram atualizados com o novo nome !)', 'success');
       } else {
         if (!formLoja.nome) return showToast('O nome da loja é obrigatório.', 'error');
         await api.post('/lojas', { nome: formLoja.nome, endereco_loja: formLoja.endereco_loja, telefone_loja: formLoja.telefone_loja });
@@ -504,14 +639,14 @@ export default function App() {
         await api.put(`/usuarios/${formUsuario.id}`, payload); 
         showToast('Credencial atualizada.', 'success'); 
       } else { 
-        if (!formUsuario.senha) return showToast('A palavra-passe é obrigatória.', 'error'); 
+        if (!formUsuario.senha) return showToast('A senha é obrigatória.', 'error'); 
         await api.post('/usuarios', payload); 
         showToast('Nova conta registada.', 'success'); 
       }
       setModalUsuario(false); 
       carregarUsuarios();
     } catch (error) { 
-      showToast('Erro ao guardar (Login já existe).', 'error'); 
+      showToast('Erro ao salvar (Login já existe).', 'error'); 
     }
   };
 
@@ -523,25 +658,11 @@ export default function App() {
 
   const aplicarFiltroRapido = (horas) => { const agora = new Date(); setDataFim(agora); setDataInicio(new Date(agora.getTime() - (horas * 60 * 60 * 1000))); };
 
-  const aplicarNormaANVISA = (setor, tipo, setFormAction) => {
-    let tMin = '', tMax = '', uMin = '', uMax = '';
-    if (setor === 'Farmácia / Vacinas' || setor === 'Farmácia') {
-      if (tipo.includes('Congelados')) { tMin = -25; tMax = -15; uMin = 35; uMax = 60; } else { tMin = 2; tMax = 8; uMin = 35; uMax = 65; }
-    } else {
-      if (tipo.includes('Congelados') || tipo.includes('Arca')) { tMin = -24; tMax = -18; uMin = 60; uMax = 80; } 
-      else if (setor === 'Açougue') { tMin = 0; tMax = 4; uMin = 85; uMax = 95; } 
-      else if (setor === 'FLV') { tMin = 8; tMax = 12; uMin = 85; uMax = 95; } 
-      else { tMin = 0; tMax = 8; uMin = 60; uMax = 85; }
-    }
-    setFormAction(prev => ({ ...prev, temp_min: tMin, temp_max: tMax, umidade_min: uMin, umidade_max: uMax, intervalo_degelo: 6, duracao_degelo: 30 }));
-    showToast('Regulamentação Aplicada.', 'info');
-  };
-
   const salvarNovoEquipamento = async (e) => {
     e.preventDefault(); if (isOffline) return showToast('Ação bloqueada.', 'warning');
     const dadosFinais = { ...formEquip, filial: userRole === 'LOJA' ? userFilial : formEquip.filial };
-    try { await api.post('/equipamentos', dadosFinais); showToast('Hardware registado.', 'success'); setFormEquip({ ...formInicial, filial: userRole === 'LOJA' ? userFilial : '' }); carregarDadosBase(); } 
-    catch (e) { showToast('Erro de gravação.', 'error'); }
+    try { await api.post('/equipamentos', dadosFinais); showToast('Equipamento registado.', 'success'); setFormEquip({ ...formInicial, filial: userRole === 'LOJA' ? userFilial : '' }); carregarDadosBase(); } 
+    catch (e) { showToast('Erro ao salvar.', 'error'); }
   };
 
   const editarEquipamento = (eq) => {
@@ -567,7 +688,7 @@ export default function App() {
   };
 
   const pedirNotaResolucao = (id) => {
-    setModalConfig({ isOpen: true, title: 'Registo de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => {
+    setModalConfig({ isOpen: true, title: 'Registro de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => {
       try { await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); showToast('Arquivado no log.', 'success'); } 
       catch (e) { showToast('Erro.', 'error'); }
     }});
@@ -607,51 +728,51 @@ export default function App() {
 
   const listaFiliais = useMemo(() => {
     if (userRole === 'LOJA') return [userFilial];
-    return ['Todas', ...filiaisDb];
+    return ['Todas', ...(filiaisDb || [])];
   }, [filiaisDb, userRole, userFilial]);
 
   const equipamentosDaFilial = useMemo(() => filialAtiva === 'Todas' ? equipamentos : equipamentos.filter(eq => (eq.filial || 'Loja Principal') === filialAtiva), [equipamentos, filialAtiva]);
   const notificacoesDaFilial = useMemo(() => filialAtiva === 'Todas' ? notificacoes : notificacoes.filter(n => (n.filial || 'Loja Principal') === filialAtiva), [notificacoes, filialAtiva]);
 
   const { qtdTotal, qtdDegelo, qtdFalha, qtdOperando } = useMemo(() => {
-    const total = equipamentosDaFilial.length; const degelo = equipamentosDaFilial.filter(e => e.em_degelo).length; const falha = equipamentosDaFilial.filter(e => !e.motor_ligado && !e.em_degelo).length;
+    const total = equipamentosDaFilial?.length || 0; const degelo = equipamentosDaFilial?.filter(e => e.em_degelo).length || 0; const falha = equipamentosDaFilial?.filter(e => !e.motor_ligado && !e.em_degelo).length || 0;
     return { qtdTotal: total, qtdDegelo: degelo, qtdFalha: falha, qtdOperando: total - degelo - falha };
   }, [equipamentosDaFilial]);
 
   const eqPesquisaLower = termoPesquisa.toLowerCase();
-  const equipamentosFiltradosLista = useMemo(() => equipamentosDaFilial.filter(eq => eq.nome.toLowerCase().includes(eqPesquisaLower) || (eq.setor && eq.setor.toLowerCase().includes(eqPesquisaLower))), [equipamentosDaFilial, eqPesquisaLower]);
+  const equipamentosFiltradosLista = useMemo(() => equipamentosDaFilial?.filter(eq => eq.nome?.toLowerCase().includes(eqPesquisaLower) || (eq.setor && eq.setor.toLowerCase().includes(eqPesquisaLower))), [equipamentosDaFilial, eqPesquisaLower]);
   
   const historicoFiltradoLista = useMemo(() => {
-    let hist = filialAtiva === 'Todas' ? historicoAlertas : historicoAlertas.filter(h => (h.filial || 'Loja Principal') === filialAtiva);
-    return hist.filter(h => h.equipamento_nome.toLowerCase().includes(eqPesquisaLower) || (h.setor && h.setor.toLowerCase().includes(eqPesquisaLower)));
+    let hist = filialAtiva === 'Todas' ? historicoAlertas : historicoAlertas?.filter(h => (h.filial || 'Loja Principal') === filialAtiva);
+    return hist?.filter(h => h.equipamento_nome?.toLowerCase().includes(eqPesquisaLower) || (h.setor && h.setor.toLowerCase().includes(eqPesquisaLower)));
   }, [historicoAlertas, filialAtiva, eqPesquisaLower]);
 
-  const equipamentosFiltradosMotores = useMemo(() => setorFiltroMotores ? equipamentosDaFilial.filter(eq => eq.setor === setorFiltroMotores) : equipamentosDaFilial, [equipamentosDaFilial, setorFiltroMotores]);
+  const equipamentosFiltradosMotores = useMemo(() => setorFiltroMotores ? equipamentosDaFilial?.filter(eq => eq.setor === setorFiltroMotores) : equipamentosDaFilial, [equipamentosDaFilial, setorFiltroMotores]);
   
   const dadosRelatorioBrutos = useMemo(() => {
-    let r = filialAtiva === 'Todas' ? relatorios : relatorios.filter(x => (x.filial || 'Loja Principal') === filialAtiva);
-    return r.filter(x => equipamentoFiltro === '' || x.nome === equipamentoFiltro);
+    let r = filialAtiva === 'Todas' ? relatorios : relatorios?.filter(x => (x.filial || 'Loja Principal') === filialAtiva);
+    return r?.filter(x => equipamentoFiltro === '' || x.nome === equipamentoFiltro);
   }, [relatorios, filialAtiva, equipamentoFiltro]);
   
-  const dadosGrafico = useMemo(() => dadosRelatorioBrutos.map(r => ({ hora: new Date(r.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), dataExata: new Date(r.data_hora).toLocaleString(), temperatura: parseFloat(r.temperatura), umidade: parseFloat(r.umidade || 0), consumo_kwh: parseFloat(r.consumo_kwh || 0), nome: r.nome, filial: r.filial || 'Loja Principal' })), [dadosRelatorioBrutos]);
-  const dadosGraficoFiltrados = useMemo(() => { if (dadosGrafico.length <= 200) return dadosGrafico; return dadosGrafico.filter((_, idx) => idx % Math.ceil(dadosGrafico.length / 200) === 0); }, [dadosGrafico]);
-  const ultimasLeiturasRaw = useMemo(() => [...dadosGrafico].reverse().slice(0, 150), [dadosGrafico]);
+  const dadosGrafico = useMemo(() => dadosRelatorioBrutos?.map(r => ({ hora: new Date(r.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), dataExata: new Date(r.data_hora).toLocaleString(), temperatura: parseFloat(r.temperatura), umidade: parseFloat(r.umidade || 0), consumo_kwh: parseFloat(r.consumo_kwh || 0), nome: r.nome, filial: r.filial || 'Loja Principal' })), [dadosRelatorioBrutos]);
+  const dadosGraficoFiltrados = useMemo(() => { if (dadosGrafico?.length <= 200) return dadosGrafico; return dadosGrafico?.filter((_, idx) => idx % Math.ceil(dadosGrafico.length / 200) === 0); }, [dadosGrafico]);
+  const ultimasLeiturasRaw = useMemo(() => [...(dadosGrafico || [])].reverse().slice(0, 150), [dadosGrafico]);
 
   const { kpis, slaCompliance, totalEnergia } = useMemo(() => {
     let kpiMaxT = -Infinity, kpiMinT = Infinity, kpiMaxU = -Infinity, kpiMinU = Infinity, somaUmid = 0, countUmid = 0, somaTemp = 0, leiturasNoLimite = 0, somaKwh = 0;
     
-    dadosGrafico.forEach(d => {
+    dadosGrafico?.forEach(d => {
       if (d.temperatura > kpiMaxT) kpiMaxT = d.temperatura; if (d.temperatura < kpiMinT) kpiMinT = d.temperatura; somaTemp += d.temperatura;
       if (d.umidade > 0) { if (d.umidade > kpiMaxU) kpiMaxU = d.umidade; if (d.umidade < kpiMinU) kpiMinU = d.umidade; somaUmid += d.umidade; countUmid++; }
       somaKwh += d.consumo_kwh;
-      const eqRef = equipamentos.find(e => e.nome === d.nome);
+      const eqRef = equipamentos?.find(e => e.nome === d.nome);
       if (eqRef && d.temperatura >= eqRef.temp_min && d.temperatura <= eqRef.temp_max) leiturasNoLimite++;
     });
 
-    const sla = dadosGrafico.length > 0 ? ((leiturasNoLimite / dadosGrafico.length) * 100).toFixed(1) : '--';
+    const sla = dadosGrafico?.length > 0 ? ((leiturasNoLimite / dadosGrafico.length) * 100).toFixed(1) : '--';
     return {
       kpis: {
-        kpiMaxT: kpiMaxT === -Infinity ? '--' : kpiMaxT, kpiMinT: kpiMinT === Infinity ? '--' : kpiMinT, kpiMediaT: dadosGrafico.length > 0 ? (somaTemp / dadosGrafico.length).toFixed(2) : '--',
+        kpiMaxT: kpiMaxT === -Infinity ? '--' : kpiMaxT, kpiMinT: kpiMinT === Infinity ? '--' : kpiMinT, kpiMediaT: dadosGrafico?.length > 0 ? (somaTemp / dadosGrafico.length).toFixed(2) : '--',
         kpiMaxU: kpiMaxU === -Infinity ? '--' : kpiMaxU, kpiMinU: kpiMinU === Infinity ? '--' : kpiMinU, kpiMediaU: countUmid > 0 ? (somaUmid / countUmid).toFixed(1) : '--'
       }, 
       slaCompliance: sla,
@@ -660,13 +781,13 @@ export default function App() {
   }, [dadosGrafico, equipamentos]);
 
   const mktValueProcessado = useMemo(() => {
-    const arr = dadosRelatorioBrutos.map(d => parseFloat(d.temperatura));
+    const arr = dadosRelatorioBrutos?.map(d => parseFloat(d.temperatura)) || [];
     if (arr.length === 0) return '--';
     let soma = 0; arr.forEach(t => soma += Math.exp(-83.144 / (0.0083144 * (t + 273.15))));
     return ((83.144 / 0.0083144) / (-Math.log(soma / arr.length)) - 273.15).toFixed(2);
   }, [dadosRelatorioBrutos]);
 
-  const equipamentoSelecionado = useMemo(() => equipamentosDaFilial.find(e => e.nome === equipamentoFiltro), [equipamentosDaFilial, equipamentoFiltro]);
+  const equipamentoSelecionado = useMemo(() => equipamentosDaFilial?.find(e => e.nome === equipamentoFiltro), [equipamentosDaFilial, equipamentoFiltro]);
 
   const dadosDonutStatus = useMemo(() => [
     { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' }
@@ -675,13 +796,72 @@ export default function App() {
   if (!token) {
     return (
       <div className="login-container">
+        <div className="login-background-shapes">
+           <div className="shape shape-1"></div>
+           <div className="shape shape-2"></div>
+        </div>
+        
         <div className="login-box stagger-1">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' }}><div style={{ background: 'rgba(255, 255, 255, 0.95)', padding: '1.2rem', borderRadius: '50%', marginBottom: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}><TermoSyncLogo size={56} color="var(--primary)" /></div><h2 style={{ color: 'white' }}>TermoSync</h2><p style={{ color: 'rgba(255,255,255,0.8)' }}>Corporate Platform ESG</p></div>
-          <form onSubmit={fazerLogin}>
-            <div className="login-input-group stagger-2"><label style={{ color: 'white' }}>Credencial de Acesso</label><input type="text" placeholder="Ex: admin_master ou gerente" value={usuario} onChange={(e) => setUsuario(e.target.value)} required /></div>
-            <div className="login-input-group stagger-3"><label style={{ color: 'white' }}>Palavra-passe</label><input type="password" placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required /></div>
-            <button type="submit" className="btn btn-primary w-100 login-btn stagger-4" disabled={isOffline} style={{ background: 'white', color: 'var(--primary)' }}>{isOffline ? 'Gateway Offline' : 'Autenticar'}</button>
+          <div className="login-header">
+            <div className="login-logo-wrapper">
+              <TermoSyncLogo size={42} color="var(--primary)" />
+            </div>
+            <h2>TermoSync</h2>
+            <p>Inteligência e controle para a sua refrigeração.</p>
+          </div>
+          
+          <form onSubmit={fazerLogin} className="login-form">
+            <div className="input-with-icon stagger-2">
+              <User size={20} className="input-icon" />
+              <input 
+                type="text" 
+                placeholder="Usuário" 
+                value={usuario} 
+                onChange={(e) => { setUsuario(e.target.value); setLoginErro(''); }} 
+                required 
+                disabled={isOffline || isLoginLoading}
+                style={loginErro ? { borderColor: 'var(--danger)', backgroundColor: 'var(--danger-light)' } : {}}
+              />
+            </div>
+            
+            <div className="input-with-icon stagger-3">
+              <Lock size={20} className="input-icon" />
+              <input 
+                type="password" 
+                placeholder="Senha" 
+                value={senha} 
+                onChange={(e) => { setSenha(e.target.value); setLoginErro(''); }} 
+                required 
+                disabled={isOffline || isLoginLoading}
+                style={loginErro ? { borderColor: 'var(--danger)', backgroundColor: 'var(--danger-light)' } : {}}
+              />
+            </div>
+
+            {loginErro && (
+              <div className="stagger-3" style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <AlertTriangle size={16} />
+                {loginErro}
+              </div>
+            )}
+            
+            <button 
+              type="submit" 
+              className="btn btn-primary w-100 login-btn stagger-4" 
+              disabled={isOffline || isLoginLoading}
+            >
+              {isOffline ? (
+                <><WifiOff size={20}/> Gateway Offline</>
+              ) : isLoginLoading ? (
+                <><Loader2 size={20} className="spin-anim"/> A Autenticar...</>
+              ) : (
+                'Acessar Sistema'
+              )}
+            </button>
           </form>
+          
+          <div className="login-footer stagger-4">
+             <p>Protegido por Criptografia End-to-End</p>
+          </div>
         </div>
       </div>
     );
@@ -691,10 +871,10 @@ export default function App() {
     <div className="anim-fade-in">
       <div className="dashboard-grid stagger-1">
         <div className="summary-cards" style={{ margin: 0 }}>
-          <div className="summary-card"><span className="summary-title">Parque IoT</span><span className="summary-value">{qtdTotal}</span></div>
+          <div className="summary-card"><span className="summary-title">Equipamentos Instalados</span><span className="summary-value">{qtdTotal}</span></div>
           <div className="summary-card"><span className="summary-title">Operação Segura</span><span className="summary-value val-green">{qtdOperando}</span></div>
           <div className="summary-card"><span className="summary-title">Modo Degelo</span><span className="summary-value val-blue">{qtdDegelo}</span></div>
-          <div className="summary-card"><span className="summary-title">Anomalias Ativas</span><span className={`summary-value val-red ${notificacoesDaFilial.length > 0 ? 'pulse-danger' : ''}`} style={{ borderRadius: '50%', display: 'inline-block', width: 'fit-content' }}>{qtdFalha}</span></div>
+          <div className="summary-card"><span className="summary-title">Anomalias Ativas</span><span className={`summary-value val-red ${notificacoesDaFilial?.length > 0 ? 'pulse-danger' : ''}`} style={{ borderRadius: '50%', display: 'inline-block', width: 'fit-content' }}>{qtdFalha}</span></div>
         </div>
         <div className="donut-container">
           <span className="donut-title">Eficiência e Saúde do Frio</span>
@@ -706,14 +886,14 @@ export default function App() {
 
       <div className="flex-header stagger-2">
         <h3>Painel Operacional e Triagem</h3>
-        {notificacoesDaFilial.length > 0 && (<div className="action-group"><button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={resolverTodasNotificacoes} disabled={isOffline}><CheckCircle size={18}/> Arquivar Todos</button></div>)}
+        {notificacoesDaFilial?.length > 0 && (<div className="action-group"><button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={resolverTodasNotificacoes} disabled={isOffline}><CheckCircle size={18}/> Arquivar Todos</button></div>)}
       </div>
       
-      {notificacoesDaFilial.length === 0 ? (
+      {notificacoesDaFilial?.length === 0 ? (
         <div className="empty-state stagger-3"><CheckCircle size={56} color="var(--success)" style={{ marginBottom: '1rem' }} /><h3 style={{ margin: 0, color: 'var(--text-main)' }}>Plataforma Limpa</h3><p>Temperatura, rede e metrologia dentro dos conformes legais.</p></div>
       ) : (
         <div className="grid-cards stagger-3">
-          {notificacoesDaFilial.map(notif => {
+          {notificacoesDaFilial?.map(notif => {
             const isRede = notif.tipo_alerta === 'REDE'; const isDegelo = notif.tipo_alerta === 'DEGELO'; const isMecanica = notif.tipo_alerta === 'MECANICA'; const isPorta = notif.tipo_alerta === 'PORTA'; const isPreditivo = notif.tipo_alerta === 'PREDITIVO'; const isMetrologia = notif.tipo_alerta === 'METROLOGIA';
             let IconCmp = AlertTriangle; let colorTheme = 'var(--danger)';
             if (isRede) { IconCmp = Wifi; colorTheme = 'var(--warning)'; } 
@@ -752,15 +932,15 @@ export default function App() {
         <div className="action-group">
           <select className="select-input" value={setorFiltroMotores} onChange={(e) => setSetorFiltroMotores(e.target.value)}>
             <option value="">Setores (Todos)</option>
-            {setoresDb.map(setor => <option key={setor} value={setor}>{setor}</option>)}
+            {listaSetores?.map(setor => <option key={setor.id} value={setor.nome}>{setor.nome}</option>)}
           </select>
         </div>
       </div>
       <div className="grid-cards stagger-2">
-        {equipamentosFiltradosMotores.map(eq => {
+        {equipamentosFiltradosMotores?.map(eq => {
           const valor = isTemp ? eq.ultima_temp : eq.ultima_umidade; const min = isTemp ? eq.temp_min : (eq.umidade_min || 40); const max = isTemp ? eq.temp_max : (eq.umidade_max || 60);
           const isAlta = valor > max; const isBaixa = valor < min; const isAnomalia = (isAlta || isBaixa) && !eq.em_degelo;
-          let percent = ((valor || min) - min) / (max - min) * 100; if(percent > 100) percent=100; if(percent<5) percent=5;
+          let percent = 50; if (max > min) { percent = ((valor || min) - min) / (max - min) * 100; } if(percent > 100) percent=100; if(percent<5) percent=5;
           let barColor = isTemp ? 'var(--success)' : 'var(--info)'; if (isAnomalia) barColor = isTemp ? 'var(--danger)' : 'var(--warning)'; if (eq.em_degelo) barColor = 'var(--info)';
 
           return (
@@ -792,8 +972,8 @@ export default function App() {
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : ''}`}>
       
-      <datalist id="filiais-db">{filiaisDb.map(f => <option key={f} value={f} />)}</datalist>
-      <datalist id="setores-db">{setoresDb.map(s => <option key={s} value={s} />)}</datalist>
+      <datalist id="filiais-db">{filiaisDb?.map(f => <option key={f} value={f} />)}</datalist>
+      <datalist id="setores-db">{listaSetores?.map(s => <option key={s.id} value={s.nome} />)}</datalist>
 
       {toast.show && (
         <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 99999, backgroundColor: toast.type === 'error' ? '#ef4444' : (toast.type === 'info' ? '#38bdf8' : '#10b981'), color: '#ffffff', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', gap: '14px', maxWidth: '400px', borderLeft: '4px solid rgba(255,255,255,0.5)', animation: 'slideIn 0.4s ease-out' }}>
@@ -831,7 +1011,7 @@ export default function App() {
             </div>
             {userRole !== 'LOJA' ? (
               <select className="select-input" value={filialAtiva} onChange={(e) => setFilialAtiva(e.target.value)} style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  {listaFiliais.map(f => <option key={f} value={f} style={{ color: 'black' }}>{f === 'Todas' ? 'Visão Global Integrada' : f}</option>)}
+                  {listaFiliais?.map(f => <option key={f} value={f} style={{ color: 'black' }}>{f === 'Todas' ? 'Visão Global Integrada' : f}</option>)}
               </select>
             ) : (
               <div style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', fontSize: '0.9rem' }}>
@@ -841,7 +1021,7 @@ export default function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}><Activity size={20} /> Painel Central {notificacoesDaFilial.length > 0 && <span className="badge">{notificacoesDaFilial.length}</span>}</button>
+          <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}><Activity size={20} /> Painel Central {notificacoesDaFilial?.length > 0 && <span className="badge">{notificacoesDaFilial.length}</span>}</button>
           <button className={`nav-item ${abaAtiva === 'motores' ? 'active' : ''}`} onClick={() => { setAbaAtiva('motores'); setMenuAberto(false); }}><Thermometer size={20} /> Monitorização Térmica</button>
           <button className={`nav-item ${abaAtiva === 'umidade' ? 'active' : ''}`} onClick={() => { setAbaAtiva('umidade'); setMenuAberto(false); }}><Droplets size={20} /> Monitorização Humidade</button>
           <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}><Settings size={20} /> Metrologia & Instalações</button>
@@ -853,7 +1033,9 @@ export default function App() {
 
           {userRole === 'ADMIN' && (
              <>
-               <button className={`nav-item ${abaAtiva === 'lojas' ? 'active' : ''}`} onClick={() => { setAbaAtiva('lojas'); setMenuAberto(false); }}><Store size={20} /> Informações da Loja</button>
+               <div style={{ marginTop: '1rem', marginBottom: '0.5rem', paddingLeft: '1.5rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Sistema</div>
+               <button className={`nav-item ${abaAtiva === 'lojas' ? 'active' : ''}`} onClick={() => { setAbaAtiva('lojas'); setMenuAberto(false); }}><Store size={20} /> Gestão de Lojas</button>
+               <button className={`nav-item ${abaAtiva === 'parametros' ? 'active' : ''}`} onClick={() => { setAbaAtiva('parametros'); setMenuAberto(false); }}><Sliders size={20} /> Parâmetros Globais</button>
                <button className={`nav-item ${abaAtiva === 'usuarios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('usuarios'); setMenuAberto(false); }}><Users size={20} /> Gestão de Acessos</button>
              </>
           )}
@@ -870,13 +1052,14 @@ export default function App() {
              {abaAtiva === 'dashboard' ? 'Centro de Operações' : 
               abaAtiva === 'relatorios' ? 'Inteligência e Sustentabilidade' : 
               abaAtiva === 'usuarios' ? 'Administração de Acessos' : 
+              abaAtiva === 'parametros' ? 'Configurações do Sistema' : 
               abaAtiva === 'lojas' ? 'Cadastro de Lojas' :
               abaAtiva === 'chamados' ? 'Manutenção Corretiva' : 
               abaAtiva === 'historico_chamados' ? 'Histórico de Manutenções Antigas' : 'Gestão Comercial'}
           </h2>
           <div className="user-info">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-color)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-              {isOffline ? <><span className="status-dot" style={{ backgroundColor: 'var(--danger)' }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--danger)' }}>Offline</span></> : <><span className={`status-dot ${notificacoesDaFilial.length > 0 ? 'pulse-danger' : ''}`} style={{ backgroundColor: latencia === 0 ? 'var(--text-muted)' : (latencia < 80 ? 'var(--success)' : 'var(--warning)') }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)' }}>{latencia === 0 ? 'Ligando...' : `Latência: ${latencia}ms`}</span></>}
+              {isOffline ? <><span className="status-dot" style={{ backgroundColor: 'var(--danger)' }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--danger)' }}>Offline</span></> : <><span className={`status-dot ${notificacoesDaFilial?.length > 0 ? 'pulse-danger' : ''}`} style={{ backgroundColor: latencia === 0 ? 'var(--text-muted)' : (latencia < 80 ? 'var(--success)' : 'var(--warning)') }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)' }}>{latencia === 0 ? 'Ligando...' : `Latência: ${latencia}ms`}</span></>}
             </div>
             <button className="btn-icon" onClick={alternarSom} title="Ligar/Desligar Alarmes" style={{ color: somAtivoState ? 'var(--primary)' : 'var(--text-muted)' }}>{somAtivoState ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
             <button className="btn-icon" onClick={solicitarPermissaoPush} title="Permitir Push Nativos" style={{ color: permPush === 'granted' ? 'var(--success)' : 'var(--warning)' }}>{permPush === 'granted' ? <Bell size={20} /> : <BellOff size={20} />}</button>
@@ -904,7 +1087,7 @@ export default function App() {
                       style={{ minWidth: '150px' }}
                     >
                       <option value="todos">Todos os Técnicos</option>
-                      {tecnicosDb.map(tec => (
+                      {tecnicosDb?.map(tec => (
                         <option key={tec.id} value={tec.nome_tecnico}>{tec.nome_tecnico}</option>
                       ))}
                     </select>
@@ -925,18 +1108,18 @@ export default function App() {
                   <button 
                     className="btn btn-outline" 
                     style={{ borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.05)' }} 
-                    onClick={() => gerarLoteOS(chamadosAtivosFiltrados.filter(c => c.status === 'Concluído'))}
+                    onClick={() => gerarLoteOS(chamadosAtivosFiltrados?.filter(c => c.status === 'Concluído') || [])}
                   >
-                    <Printer size={18} /> Imprimir OS ({chamadosAtivosFiltrados.filter(c => c.status === 'Concluído').length})
+                    <Printer size={18} /> Imprimir OS ({(chamadosAtivosFiltrados?.filter(c => c.status === 'Concluído') || []).length})
                   </button>
 
                   {userRole !== 'MANUTENCAO' && (
                     <button className="btn btn-primary" onClick={() => {
-                      if (equipamentosDaFilial.length === 0) {
+                      if (!equipamentosDaFilial || equipamentosDaFilial.length === 0) {
                         return showToast("Não existem equipamentos nesta unidade para abrir um chamado.", "warning");
                       }
                       
-                      let solicitanteAuto = 'Equipa da Loja';
+                      let solicitanteAuto = 'Equipe da Loja';
                       if (userRole === 'ADMIN') solicitanteAuto = 'Administração Central';
                       else if (nomeGerente) solicitanteAuto = `Gerente - ${nomeGerente}`;
                       else if (nomeCoordenador) solicitanteAuto = `Coordenador - ${nomeCoordenador}`;
@@ -950,7 +1133,7 @@ export default function App() {
                 </div>
               </div>
 
-              {chamadosAtivosFiltrados.length === 0 ? (
+              {!chamadosAtivosFiltrados || chamadosAtivosFiltrados.length === 0 ? (
                 <div className="empty-state" style={{ marginTop: '2rem' }}>
                   <CheckCircle size={56} color="var(--success)" style={{ marginBottom: '1rem' }} />
                   <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Sem Ocorrências Encontradas</h3>
@@ -983,7 +1166,7 @@ export default function App() {
                       {c.status === 'Concluído' && (
                         <div style={{ marginTop: '10px', padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', fontSize: '0.85rem' }}>
                           <strong>Nota de Resolução:</strong> {c.nota_resolucao}
-                          <div style={{ fontSize: '0.7rem', color: 'gray', marginTop: '4px' }}>Concluído em: {new Date(c.data_conclusao).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'gray', marginTop: '4px' }}>Concluído em: {c.data_conclusao ? new Date(c.data_conclusao).toLocaleDateString() : ''}</div>
                         </div>
                       )}
 
@@ -1040,7 +1223,7 @@ export default function App() {
                       style={{ minWidth: '150px' }}
                     >
                       <option value="todos">Todos os Técnicos</option>
-                      {tecnicosDb.map(tec => (
+                      {tecnicosDb?.map(tec => (
                         <option key={tec.id} value={tec.nome_tecnico}>{tec.nome_tecnico}</option>
                       ))}
                     </select>
@@ -1049,15 +1232,15 @@ export default function App() {
                   <button 
                     className="btn btn-outline" 
                     style={{ borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.05)' }} 
-                    onClick={() => gerarLoteOS(chamadosHistoricoFiltrados)}
+                    onClick={() => gerarLoteOS(chamadosHistoricoFiltrados || [])}
                   >
-                    <Printer size={18} /> Imprimir OS Antigas ({chamadosHistoricoFiltrados.length})
+                    <Printer size={18} /> Imprimir OS Antigas ({(chamadosHistoricoFiltrados || []).length})
                   </button>
 
                 </div>
               </div>
 
-              {chamadosHistoricoFiltrados.length === 0 ? (
+              {!chamadosHistoricoFiltrados || chamadosHistoricoFiltrados.length === 0 ? (
                 <div className="empty-state" style={{ marginTop: '2rem' }}>
                   <Archive size={56} color="gray" style={{ marginBottom: '1rem', opacity: 0.5 }} />
                   <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Histórico Vazio</h3>
@@ -1080,7 +1263,7 @@ export default function App() {
                       </div>
                       <div style={{ marginTop: '10px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: '8px', fontSize: '0.85rem' }}>
                         <strong>Resolução Histórica:</strong> {c.nota_resolucao}
-                        <div style={{ fontSize: '0.7rem', color: 'gray', marginTop: '4px' }}>Data: {new Date(c.data_conclusao).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'gray', marginTop: '4px' }}>Data: {c.data_conclusao ? new Date(c.data_conclusao).toLocaleDateString() : ''}</div>
                       </div>
                     </div>
                   ))}
@@ -1089,13 +1272,184 @@ export default function App() {
             </div>
           )}
 
+          {/* 🔴 NOVA ABA DE PARÂMETROS E CATEGORIAS COM LISTAS MODERNAS */}
+          {abaAtiva === 'parametros' && userRole === 'ADMIN' && (
+            <div className="anim-fade-in stagger-1">
+              
+              {/* BOTÕES DISTINTOS NO TOPO */}
+              <div className="flex-header">
+                <h3 style={{ margin: 0 }}>Parâmetros Globais</h3>
+                <div className="action-group" style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn btn-primary" onClick={() => setModalParametro({ isOpen: true, entidade: 'SETOR', id: '', nome: '' })}>
+                    <PlusCircle size={18}/> Novo Setor Comercial
+                  </button>
+                  <button className="btn btn-info" style={{ backgroundColor: '#38bdf8', color: 'white', borderColor: '#38bdf8' }} onClick={() => setModalParametro({ 
+                    isOpen: true, entidade: 'TIPO', id: '', nome: '', 
+                    temp_min: 0, temp_max: 8, umidade_min: 60, umidade_max: 85, intervalo_degelo: 6, duracao_degelo: 30 
+                  })}>
+                    <PlusCircle size={18}/> Novo Tipo de Refrigeração
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem', marginTop: '1rem' }}>
+                
+                {/* LISTAGEM MODERNA DE SETORES */}
+                <div className="card">
+                  <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MapPin size={20} color="var(--primary)" /> Setores Comerciais
+                  </h4>
+                  <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+                    {!listaSetores || listaSetores.length === 0 ? (
+                      <div className="empty-state" style={{ padding: '2rem 1rem' }}>
+                        <MapPin size={32} color="var(--border)" style={{ marginBottom: '10px' }}/>
+                        <p style={{ color: 'var(--text-muted)' }}>Nenhum setor cadastrado.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {listaSetores.map(s => (
+                          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{s.nome}</strong>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button className="btn btn-outline" style={{ padding: '0.4rem', border: 'none', color: 'var(--text-muted)' }} title="Editar" onClick={() => setModalParametro({ isOpen: true, entidade: 'SETOR', id: s.id, nome: s.nome })}>
+                                <Edit size={16} />
+                              </button>
+                              <button className="btn btn-outline" style={{ padding: '0.4rem', border: 'none', color: 'var(--danger)' }} title="Excluir" onClick={() => pedirExclusaoParametro(s.id, s.nome, 'SETOR')}>
+                                <X size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* LISTAGEM MODERNA DE TIPOS DE REFRIGERAÇÃO COM BADGES */}
+                <div className="card">
+                  <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Thermometer size={20} color="var(--info)" /> Tipos de Refrigeração e Limites
+                  </h4>
+                  <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+                    {!listaTipos || listaTipos.length === 0 ? (
+                      <div className="empty-state" style={{ padding: '2rem 1rem' }}>
+                        <Thermometer size={32} color="var(--border)" style={{ marginBottom: '10px' }}/>
+                        <p style={{ color: 'var(--text-muted)' }}>Nenhum tipo cadastrado.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {listaTipos.map(t => (
+                          <div key={t.id} style={{ display: 'flex', flexDirection: 'column', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                              <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{t.nome}</strong>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button className="btn btn-outline" style={{ padding: '0.4rem', border: 'none', color: 'var(--text-muted)' }} title="Editar" onClick={() => setModalParametro({ 
+                                  isOpen: true, entidade: 'TIPO', id: t.id, nome: t.nome,
+                                  temp_min: t.temp_min, temp_max: t.temp_max, umidade_min: t.umidade_min, umidade_max: t.umidade_max,
+                                  intervalo_degelo: t.intervalo_degelo, duracao_degelo: t.duracao_degelo
+                                })}>
+                                  <Edit size={16} />
+                                </button>
+                                <button className="btn btn-outline" style={{ padding: '0.4rem', border: 'none', color: 'var(--danger)' }} title="Excluir" onClick={() => pedirExclusaoParametro(t.id, t.nome, 'TIPO')}>
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* BADGES COM AS MÉTRICAS (CHIPS) */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                               <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                 <Thermometer size={12} style={{ marginRight:'4px' }}/> {t.temp_min}°C a {t.temp_max}°C
+                               </span>
+                               <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: 'var(--info)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                 <Droplets size={12} style={{ marginRight:'4px' }}/> {t.umidade_min}% a {t.umidade_max}%
+                               </span>
+                               <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                                 <Snowflake size={12} style={{ marginRight:'4px' }}/> Degelo: {t.duracao_degelo}m / {t.intervalo_degelo}h
+                               </span>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* MODAL DE CADASTRO/EDIÇÃO */}
+              {modalParametro.isOpen && (
+                <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '10vh' }}>
+                  <div className="modal-content" style={{ maxWidth: modalParametro.entidade === 'TIPO' ? '600px' : '400px', width: '100%' }}>
+                    <h3><Sliders size={20} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> {modalParametro.id ? `Editar ${modalParametro.entidade === 'SETOR' ? 'Setor' : 'Tipo'}` : `Novo ${modalParametro.entidade === 'SETOR' ? 'Setor' : 'Tipo'}`}</h3>
+                    <form onSubmit={salvarParametro}>
+                      
+                      {/* PREENCHIMENTO AUTOMÁTICO ANVISA (APENAS PARA NOVOS TIPOS DE REFRIGERAÇÃO) */}
+                      {modalParametro.entidade === 'TIPO' && !modalParametro.id && (
+                        <div style={{ marginBottom: '1.5rem', padding: '12px', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          <label style={{ color: 'var(--text-main)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                            <ShieldCheck size={16} style={{verticalAlign:'middle', marginRight: '5px', color: 'var(--info)'}}/> 
+                            Preenchimento Automático (Normas ANVISA)
+                          </label>
+                          <select className="select-input" onChange={aplicarPresetAnvisa} style={{ width: '100%', marginTop: '8px', border: '1px solid var(--info)' }}>
+                            <option value="">Selecione um padrão para auto-preencher...</option>
+                            <optgroup label="Alimentos e Bebidas Básicas">
+                              <option value="Laticínios e Frios">Laticínios e Frios (0°C a 8°C)</option>
+                              <option value="Carnes Resfriadas">Carnes Resfriadas (0°C a 4°C)</option>
+                              <option value="Congelados">Câmaras de Congelados (-22°C a -12°C)</option>
+                              <option value="Hortifruti">Hortifruti / FLV (8°C a 15°C)</option>
+                              <option value="Cervejeiras">Cervejeiras e Bebidas (-4°C a 2°C)</option>
+                              <option value="Refeições Prontas">Refeições Prontas e Marmitas (2°C a 5°C)</option>
+                            </optgroup>
+                            <optgroup label="Itens Sensíveis e Específicos (ANVISA/RDC)">
+                              <option value="Vacinas e Medicamentos">Vacinas e Medicamentos (2°C a 8°C)</option>
+                              <option value="Sorvetes">Câmaras de Sorvetes (-25°C a -18°C)</option>
+                              <option value="Pescados Resfriados">Pescados Resfriados (0°C a 2°C)</option>
+                              <option value="Chocolates e Confeitaria">Chocolates e Confeitaria (15°C a 18°C)</option>
+                              <option value="Carnes Maturadas (Dry Aged)">Carnes Maturadas / Dry Aged (1°C a 3°C)</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
+
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label>Nome da Categoria</label>
+                        <input type="text" placeholder="Ex: Cervejeira, FLV, etc." value={modalParametro.nome} onChange={e => setModalParametro({...modalParametro, nome: e.target.value})} required autoFocus />
+                      </div>
+
+                      {modalParametro.entidade === 'TIPO' && (
+                        <>
+                          <h4 style={{ margin: '1rem 0 0.5rem 0', color: 'var(--text-main)', fontSize: '0.9rem' }}>Limites Operacionais</h4>
+                          <div className="form-grid" style={{ marginBottom: '1.5rem' }}>
+                            <div><label>Temp. Mínima (°C)</label><input type="number" step="0.1" value={modalParametro.temp_min} onChange={e => setModalParametro({...modalParametro, temp_min: e.target.value})} required /></div>
+                            <div><label>Temp. Máxima (°C)</label><input type="number" step="0.1" value={modalParametro.temp_max} onChange={e => setModalParametro({...modalParametro, temp_max: e.target.value})} required /></div>
+                            <div><label>Humidade Mín (%)</label><input type="number" step="0.1" value={modalParametro.umidade_min} onChange={e => setModalParametro({...modalParametro, umidade_min: e.target.value})} required /></div>
+                            <div><label>Humidade Máx (%)</label><input type="number" step="0.1" value={modalParametro.umidade_max} onChange={e => setModalParametro({...modalParametro, umidade_max: e.target.value})} required /></div>
+                            <div><label>Ciclo Degelo (Horas)</label><input type="number" value={modalParametro.intervalo_degelo} onChange={e => setModalParametro({...modalParametro, intervalo_degelo: e.target.value})} required /></div>
+                            <div><label>Dur. Degelo (Min)</label><input type="number" value={modalParametro.duracao_degelo} onChange={e => setModalParametro({...modalParametro, duracao_degelo: e.target.value})} required /></div>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="modal-actions" style={{ marginTop: '0' }}>
+                        <button type="button" className="btn btn-outline" onClick={() => setModalParametro({ ...modalParametro, isOpen: false })}>Cancelar</button>
+                        <button type="submit" className="btn btn-primary"><Save size={18}/> Salvar Parâmetro</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {abaAtiva === 'equipamentos' && (
             <div className="anim-fade-in stagger-1">
               <div className="card" style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}><PlusCircle size={20} color="var(--primary)" /> Registo de Sensor IoT</h3>
-                  <button type="button" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderColor: 'var(--info)', color: 'var(--info)' }} onClick={() => aplicarNormaANVISA(formEquip.setor, formEquip.tipo, setFormEquip)} disabled={!formEquip.setor || !formEquip.tipo || isOffline}><ShieldCheck size={16} /> Preencher Padrão Legal</button>
+                  <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}><PlusCircle size={20} color="var(--primary)" /> Novo Equipamento</h3>
+                  <button type="button" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderColor: 'var(--info)', color: 'var(--info)' }} onClick={() => aplicarNormaANVISA(formEquip.tipo, setFormEquip)} disabled={!formEquip.tipo || isOffline}><ShieldCheck size={16} /> Preencher Padrão Legal</button>
                 </div>
                 <form onSubmit={salvarNovoEquipamento}>
                   <div className="form-grid">
@@ -1112,23 +1466,26 @@ export default function App() {
                            style={{ backgroundColor: userRole === 'LOJA' ? 'var(--bg-color)' : undefined }} 
                         >
                           <option value="">Selecione...</option>
-                          {filiaisDb.map(f => <option key={f} value={f}>{f}</option>)}
+                          {filiaisDb?.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
                     </div>
 
                     <div>
                         <label>Setor Comercial</label>
-                        <input 
-                           list="setores-db"
-                           type="text" 
-                           placeholder="Selecione ou digite novo..." 
-                           value={formEquip.setor} 
-                           onChange={(e) => setFormEquip({ ...formEquip, setor: e.target.value })} 
-                           required 
-                        />
+                        <select className="select-input" value={formEquip.setor} onChange={(e) => setFormEquip({ ...formEquip, setor: e.target.value })} required>
+                          <option value="">Selecione o Setor...</option>
+                          {listaSetores?.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
+                        </select>
                     </div>
                     
-                    <div><label>Tipo de Refrigeração</label><select value={formEquip.tipo} onChange={(e) => setFormEquip({ ...formEquip, tipo: e.target.value })} required><option value="">Selecione...</option><option value="Câmara Frigorífica">Câmara</option><option value="Ilha de Congelados">Ilha (-18°C)</option><option value="Balcão Refrigerado Aberto">Balcão Aberto</option></select></div>
+                    <div>
+                        <label>Tipo de Refrigeração</label>
+                        <select className="select-input" value={formEquip.tipo} onChange={(e) => setFormEquip({ ...formEquip, tipo: e.target.value })} required>
+                          <option value="">Selecione o Tipo...</option>
+                          {listaTipos?.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                        </select>
+                    </div>
+
                     <div><label>Data Calibração Oficial</label><input type="date" value={formEquip.data_calibracao} onChange={(e) => setFormEquip({ ...formEquip, data_calibracao: e.target.value })} required /></div>
                     <div><label>Degelo Automático (Horas)</label><input type="number" min="1" value={formEquip.intervalo_degelo} onChange={(e) => setFormEquip({ ...formEquip, intervalo_degelo: e.target.value })} required /></div>
                     <div><label>Temperatura Mín (°C)</label><input type="number" step="0.1" value={formEquip.temp_min} onChange={(e) => setFormEquip({ ...formEquip, temp_min: e.target.value })} required /></div>
@@ -1143,7 +1500,7 @@ export default function App() {
                 <table className="table">
                   <thead><tr><th>Loja</th><th>Identificador</th><th>Metrologia</th><th>SLA Físico (Min/Max)</th><th>Gerir</th></tr></thead>
                   <tbody>
-                    {equipamentosFiltradosLista.map(eq => {
+                    {equipamentosFiltradosLista?.map(eq => {
                        const diasCalib = eq.data_calibracao ? Math.floor((Date.now() - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 0;
                        const calibCritica = diasCalib > 365;
                        return (
@@ -1211,7 +1568,7 @@ export default function App() {
                 </div>
                 <div className="action-group">
                   <div className="date-filter-group"><DatePicker selected={dataInicio} onChange={(date) => setDataInicio(date)} selectsStart startDate={dataInicio} endDate={dataFim} disabled={isOffline} /><span className="date-separator">até</span><DatePicker selected={dataFim} onChange={(date) => setDataFim(date)} selectsEnd startDate={dataInicio} endDate={dataFim} minDate={dataInicio} disabled={isOffline} /></div>
-                  <select className="select-input" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)} style={{maxWidth: '200px'}}><option value="">Geral da Loja</option>{equipamentosDaFilial.map(eq => <option key={eq.id} value={eq.nome}>{eq.nome}</option>)}</select>
+                  <select className="select-input" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)} style={{maxWidth: '200px'}}><option value="">Geral da Loja</option>{equipamentosDaFilial?.map(eq => <option key={eq.id} value={eq.nome}>{eq.nome}</option>)}</select>
                   <button className="btn btn-outline" onClick={() => gerarExportacao('csv')}><Download size={18} /></button>
                   <button className="btn btn-danger" onClick={() => gerarExportacao('pdf')}><FileText size={18} /></button>
                 </div>
@@ -1244,8 +1601,8 @@ export default function App() {
                           <tr><th>Data/Hora</th><th>Localização / Máquina</th><th>Sensor Térmico (°C)</th><th>Energia Injetada (kWh)</th></tr>
                         </thead>
                         <tbody>
-                          {ultimasLeiturasRaw.map((dado, index) => {
-                              const eqRef = equipamentosDaFilial.find(e => e.nome === dado.nome);
+                          {ultimasLeiturasRaw?.map((dado, index) => {
+                              const eqRef = equipamentosDaFilial?.find(e => e.nome === dado.nome);
                               const isTempAlerta = eqRef && dado.temperatura > eqRef.temp_max;
                               return (
                                 <tr key={index}>
@@ -1267,14 +1624,14 @@ export default function App() {
           {abaAtiva === 'historico' && (
             <div className="anim-fade-in stagger-1">
               <div className="flex-header">
-                <h3 style={{ margin: 0 }}>Livro de Registo Oficial</h3>
+                <h3 style={{ margin: 0 }}>Livro de Registro Oficial</h3>
                 <div className="action-group">
                   <button className="btn btn-danger" onClick={() => gerarExportacao('pdf')}><FileText size={18} /> Exportar Log Auditável</button>
                 </div>
               </div>
               <div className="card" style={{ marginTop: '1rem', padding: '2rem' }}>
                 <div className="timeline-container">
-                  {historicoFiltradoLista.map((hist, index) => (
+                  {historicoFiltradoLista?.map((hist, index) => (
                     <div key={hist.id} className="timeline-item stagger-2" style={{ animationDelay: `${index * 0.05}s` }}>
                       <div className="timeline-marker"></div>
                       <div className="timeline-content">
@@ -1313,7 +1670,7 @@ export default function App() {
                     <tr><th>Loja / Filial</th><th>Gerente e Coordenador</th><th>Endereço e Contato</th><th>Ações</th></tr>
                   </thead>
                   <tbody>
-                    {lojasCadastradas.map(l => (
+                    {lojasCadastradas?.map(l => (
                       <tr key={l.id}>
                         <td data-label="Loja"><strong>{l.nome}</strong></td>
                         <td data-label="Gestão">
@@ -1385,7 +1742,7 @@ export default function App() {
                     <UserPlus size={16} /> Novo Coordenador
                   </button>
                   <button className="btn btn-outline" style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => abrirModalUsuario('TECNICO')}>
-                    <WrenchIcon size={16} /> Novo Técnico
+                    <Wrench size={16} /> Novo Técnico
                   </button>
                   <button className="btn btn-outline" onClick={() => abrirModalUsuario('OUTROS')}>
                     <Settings size={16} /> Admin
@@ -1399,7 +1756,7 @@ export default function App() {
                     <tr><th>Credencial (Login)</th><th>Nível de Acesso</th><th>Filial / Âmbito</th><th>Ações</th></tr>
                   </thead>
                   <tbody>
-                    {usuariosLista.map(u => {
+                    {usuariosLista?.map(u => {
                       let displayIdentity = 'Acesso Loja Geral';
                       let tipoAcessoReal = 'GERAL';
                       
@@ -1485,7 +1842,7 @@ export default function App() {
                               <label>Vincular à Loja</label>
                               <select className="select-input" value={formUsuario.filial} onChange={e => setFormUsuario({...formUsuario, filial: e.target.value})} required style={{width: '100%', padding: '10px'}}>
                                 <option value="">Selecione a Loja...</option>
-                                {filiaisDb.map(f => <option key={f} value={f}>{f}</option>)}
+                                {filiaisDb?.map(f => <option key={f} value={f}>{f}</option>)}
                               </select>
                             </div>
                           </>
@@ -1541,7 +1898,7 @@ export default function App() {
           {modalChamado && (
             <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '10vh' }}>
               <div className="modal-content" style={{ maxWidth: '500px', width: '100%' }}>
-                <h3><WrenchIcon size={20} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--primary)' }}/> Nova Ordem de Serviço</h3>
+                <h3><Wrench size={20} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--primary)' }}/> Nova Ordem de Serviço</h3>
                 
                 <form onSubmit={async (e) => {
                   e.preventDefault();
@@ -1562,7 +1919,7 @@ export default function App() {
                       <label>Máquina / Equipamento com Avaria</label>
                       <select className="select-input" value={formChamado.equipamento_id} onChange={e => setFormChamado({...formChamado, equipamento_id: e.target.value})} required style={{ width: '100%' }}>
                         <option value="">Selecione o equipamento...</option>
-                        {equipamentosDaFilial.map(eq => (
+                        {equipamentosDaFilial?.map(eq => (
                           <option key={eq.id} value={eq.id}>
                             {userRole === 'ADMIN' ? `[${eq.filial}] ` : ''}{eq.nome} - {eq.setor}
                           </option>
@@ -1597,7 +1954,7 @@ export default function App() {
                       <label>Atribuir a um Técnico Específico (Opcional)</label>
                       <select className="select-input" value={formChamado.tecnico_responsavel} onChange={e => setFormChamado({...formChamado, tecnico_responsavel: e.target.value})} style={{ width: '100%' }}>
                         <option value="">Deixar em aberto para qualquer técnico</option>
-                        {tecnicosDb.map(t => <option key={t.id} value={t.nome_tecnico}>{t.nome_tecnico}</option>)}
+                        {tecnicosDb?.map(t => <option key={t.id} value={t.nome_tecnico}>{t.nome_tecnico}</option>)}
                       </select>
                     </div>
                   </div>
@@ -1633,23 +1990,26 @@ export default function App() {
                      style={{ backgroundColor: userRole === 'LOJA' ? 'var(--bg-color)' : undefined }} 
                   >
                     <option value="">Selecione...</option>
-                    {filiaisDb.map(f => <option key={f} value={f}>{f}</option>)}
+                    {filiaisDb?.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
 
                 <div>
                   <label>Setor Comercial</label>
-                  <input 
-                     list="setores-db"
-                     type="text" 
-                     value={formEditEquip.setor} 
-                     onChange={(e) => setFormEditEquip({ ...formEditEquip, setor: e.target.value })} 
-                     required 
-                     disabled={isOffline} 
-                  />
+                  <select className="select-input" value={formEditEquip.setor} onChange={(e) => setFormEditEquip({ ...formEditEquip, setor: e.target.value })} required disabled={isOffline}>
+                     <option value="">Selecione o Setor...</option>
+                     {listaSetores?.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
+                  </select>
                 </div>
 
-                <div><label>Tipo</label><select value={formEditEquip.tipo} onChange={(e) => setFormEditEquip({ ...formEditEquip, tipo: e.target.value })} required disabled={isOffline}><option value="Câmara Frigorífica">Câmara Frigorífica</option><option value="Ilha de Congelados">Ilha de Congelados</option><option value="Balcão Refrigerado Aberto">Balcão Refrigerado Aberto</option></select></div>
+                <div>
+                  <label>Tipo</label>
+                  <select className="select-input" value={formEditEquip.tipo} onChange={(e) => setFormEditEquip({ ...formEditEquip, tipo: e.target.value })} required disabled={isOffline}>
+                     <option value="">Selecione o Tipo...</option>
+                     {listaTipos?.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                  </select>
+                </div>
+                
                 <div><label>Data Calibração Oficial</label><input type="date" value={formEditEquip.data_calibracao} onChange={(e) => setFormEditEquip({ ...formEditEquip, data_calibracao: e.target.value })} required disabled={isOffline} /></div>
                 <div><label>Degelo Automático (H)</label><input type="number" min="1" value={formEditEquip.intervalo_degelo} onChange={(e) => setFormEditEquip({ ...formEditEquip, intervalo_degelo: e.target.value })} required disabled={isOffline} /></div>
                 <div><label>Temp. Min (°C)</label><input type="number" step="0.1" value={formEditEquip.temp_min} onChange={(e) => setFormEditEquip({ ...formEditEquip, temp_min: e.target.value })} required disabled={isOffline} /></div>
