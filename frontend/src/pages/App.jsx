@@ -5,23 +5,22 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import './styles/global.css';
-import './components/Layout.css';
+import './App.css';
 
 import { Activity, Thermometer, Droplets, Settings, Leaf, History, Wrench, Archive, Store, Sliders, Users, LogOut, Menu, X, Volume2, VolumeX, Bell, BellOff, Maximize, Moon, MapPin, UserCheck, CheckCircle, AlertTriangle, Info, Edit, Save } from 'lucide-react';
 
 import TermoSyncLogo from './components/TermoSyncLogo';
-import Login from './pages/Login/Login';
-import Dashboard from './pages/Dashboard/Dashboard';
-import Monitoramento from './pages/Monitoramento/Monitoramento';
-import Equipamentos from './pages/Equipamentos/Equipamentos';
-import Relatorios from './pages/Relatorios/Relatorios';
-import HistoricoLogs from './pages/HistoricoLogs/HistoricoLogs';
-import Chamados from './pages/Chamados/Chamados';
-import HistoricoChamados from './pages/HistoricoChamados/HistoricoChamados';
-import GestaoLojas from './pages/GestaoLoja/GestaoLojas';
-import GestaoUsuarios from './pages/GestaoUsuarios/GestaoUsuarios';
-import ParametrosGlobais from './pages/ParametrosGlobais/ParametrosGlobais';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Monitoramento from './pages/Monitoramento';
+import Equipamentos from './pages/Equipamentos';
+import Relatorios from './pages/Relatorios';
+import HistoricoLogs from './pages/HistoricoLogs';
+import Chamados from './pages/Chamados';
+import HistoricoChamados from './pages/HistoricoChamados';
+import GestaoLojas from './pages/GestaoLojas';
+import GestaoUsuarios from './pages/GestaoUsuarios';
+import ParametrosGlobais from './pages/ParametrosGlobais';
 
 const API_URL = 'http://localhost:3000/api';
 const SOCKET_URL = 'http://localhost:3000';

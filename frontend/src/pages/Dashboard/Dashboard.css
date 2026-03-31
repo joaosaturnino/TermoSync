@@ -1,0 +1,26 @@
+.dashboard-grid { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; margin-bottom: 2rem; }
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.summary-card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s; }
+.summary-card:hover { transform: translateY(-2px); }
+.summary-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+.summary-value { font-size: 2.5rem; font-weight: 800; color: var(--text-main); line-height: 1; }
+.val-green { color: var(--success); } .val-red { color: var(--danger); } .val-blue { color: #38bdf8; }
+
+.donut-container { background: var(--card-bg); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+.donut-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: -10px; }
+
+.card-alert { border-left: 6px solid var(--danger); background-color: var(--danger-light); border-radius: 8px; }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 10px; }
+.time-badge { font-size: 0.8rem; color: var(--danger); font-weight: 700; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 12px; }
+.alert-msg { font-size: 1.05rem; color: var(--text-main); margin-bottom: 1.5rem; }
+
+.chart-container { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid var(--border); box-shadow: var(--shadow); height: 400px; width: 100%; transition: background-color 0.3s; }
+
+@media (max-width: 1024px) {
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .summary-cards { grid-template-columns: 1fr; gap: 1rem; }
+  .chart-container { height: 300px; padding: 1rem 0; }
+}

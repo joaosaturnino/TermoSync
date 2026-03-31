@@ -1,0 +1,16 @@
+.timeline-container { position: relative; padding-left: 2rem; margin-top: 1.5rem; }
+.timeline-container::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.timeline-item { position: relative; margin-bottom: 1.5rem; }
+
+.timeline-marker { position: absolute; left: -1.95rem; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid var(--bg-color); box-shadow: 0 0 0 2px var(--border); z-index: 1; }
+.dark-theme .timeline-marker { border-color: var(--card-bg); }
+
+.timeline-content { background: var(--card-bg); padding: 1.2rem 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); transition: transform 0.2s, border-color 0.2s; }
+.timeline-content:hover { transform: translateX(4px); border-color: var(--primary); }
+
+.timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; }
+.timeline-date { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 5px; }
+
+.timeline-body p { margin: 0 0 0.5rem 0; font-size: 0.95rem; line-height: 1.5; color: var(--text-main); }
+.timeline-action { background: rgba(16, 185, 129, 0.1); padding: 0.8rem; border-radius: 8px; border-left: 4px solid var(--success); margin-top: 1rem; }
+.timeline-action p { margin: 0; color: var(--success); font-weight: 600; }
