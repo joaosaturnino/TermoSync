@@ -1,0 +1,168 @@
+/* =========================================
+   ESTILOS PREMIUM: PARÂMETROS GLOBAIS
+   ========================================= */
+
+.parametros-title {
+  margin: 0;
+  font-weight: 800;
+}
+
+.parametros-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.parametros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.parametros-card-title {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.parametros-list-container {
+  max-height: 550px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.parametros-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* =========================================
+   ITEM DE PARÂMETRO (GLASS STYLE)
+   ========================================= */
+.parametro-item {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark-theme .parametro-item {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.parametro-item:hover {
+  transform: translateX(4px);
+  border-color: var(--primary);
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.parametro-item.setor {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.parametro-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.parametro-name {
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.parametro-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* =========================================
+   BADGES DE SLA (NORMAS TÉCNICAS)
+   ========================================= */
+.parametro-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.parametro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.parametro-badge.temp {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.parametro-badge.hum {
+  background-color: rgba(56, 189, 248, 0.1);
+  color: var(--secondary);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.parametro-badge.defrost {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+/* =========================================
+   MODAL E PRESETS
+   ========================================= */
+.preset-box {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.preset-label {
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-select {
+  width: 100%;
+  margin-top: 10px;
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  background: var(--card-bg);
+}
+
+.section-subtitle {
+  margin: 1.5rem 0 1rem 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}

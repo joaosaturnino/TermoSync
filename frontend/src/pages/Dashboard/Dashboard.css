@@ -1,26 +1,209 @@
-.dashboard-grid { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; margin-bottom: 2rem; }
-.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.summary-card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s; }
-.summary-card:hover { transform: translateY(-2px); }
-.summary-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
-.summary-value { font-size: 2.5rem; font-weight: 800; color: var(--text-main); line-height: 1; }
-.val-green { color: var(--success); } .val-red { color: var(--danger); } .val-blue { color: #38bdf8; }
+/* =========================================
+   DASHBOARD - ESTRUTURA PRINCIPAL
+   ========================================= */
+.dashboard-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 320px; 
+  gap: 1.5rem; 
+  margin-bottom: 2.5rem; 
+}
 
-.donut-container { background: var(--card-bg); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
-.donut-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: -10px; }
+/* =========================================
+   CARTÕES DE RESUMO (KPIs)
+   ========================================= */
+.summary-cards { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+  gap: 1.5rem; 
+  margin: 0; 
+}
 
-.card-alert { border-left: 6px solid var(--danger); background-color: var(--danger-light); border-radius: 8px; }
-.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 10px; }
-.time-badge { font-size: 0.8rem; color: var(--danger); font-weight: 700; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 12px; }
-.alert-msg { font-size: 1.05rem; color: var(--text-main); margin-bottom: 1.5rem; }
+.summary-card { 
+  background: var(--card-bg); 
+  border-radius: 16px; 
+  padding: 1.5rem; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-between;
+  box-shadow: var(--shadow-glass); 
+  border: 1px solid var(--border); 
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease; 
+  position: relative;
+  overflow: hidden;
+}
 
-.chart-container { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid var(--border); box-shadow: var(--shadow); height: 400px; width: 100%; transition: background-color 0.3s; }
+.summary-card:hover { 
+  transform: translateY(-4px); 
+  box-shadow: var(--shadow-md);
+}
 
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.summary-title { 
+  font-size: 0.85rem; 
+  color: var(--text-muted); 
+  font-weight: 700; 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px;
+}
+
+.summary-icon-wrapper {
+  padding: 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-value { 
+  font-size: 2.8rem; 
+  font-weight: 800; 
+  color: var(--text-main); 
+  line-height: 1; 
+  z-index: 2;
+}
+
+/* Cores dinâmicas para os valores */
+.val-green { color: var(--success); text-shadow: 0 0 20px rgba(16, 185, 129, 0.4); } 
+.val-red { color: var(--danger); text-shadow: 0 0 20px rgba(239, 68, 68, 0.4); } 
+.val-blue { color: var(--secondary); text-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+
+/* =========================================
+   GRÁFICO DONUT
+   ========================================= */
+.donut-container { 
+  background: var(--card-bg); 
+  border-radius: 16px; 
+  padding: 1.5rem 1rem; 
+  box-shadow: var(--shadow-glass); 
+  border: 1px solid var(--border); 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  height: 100%; 
+  transition: transform 0.3s ease;
+}
+
+.donut-container:hover {
+  transform: translateY(-2px);
+}
+
+.donut-title { 
+  font-size: 0.9rem; 
+  font-weight: 700; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  margin-bottom: -15px; 
+  letter-spacing: 0.5px;
+}
+
+/* =========================================
+   CARTÕES DE ALERTA (TRIAGEM)
+   ========================================= */
+.card-alert { 
+  /* Usa a variável dinamicamente injetada pelo React */
+  border-left: 0;
+  border-bottom: 4px solid var(--alert-color, var(--danger)); 
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(255,255,255,0.02) 100%);
+  border-radius: 16px; 
+  padding: 1.5rem;
+  position: relative;
+}
+
+.dark-theme .card-alert {
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(0,0,0,0.2) 100%);
+}
+
+.card-alert::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 16px;
+  box-shadow: inset 0 0 20px var(--alert-color, transparent);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.card-top { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: flex-start; 
+  margin-bottom: 0.8rem; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+}
+
+.alert-title-group {
+  display: flex; 
+  align-items: center; 
+  gap: 10px;
+}
+
+.alert-icon-box {
+  background-color: color-mix(in srgb, var(--alert-color) 15%, transparent);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+}
+
+.alert-equip-name {
+  font-weight: 800; 
+  font-size: 1.15rem; 
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+.time-badge { 
+  font-size: 0.8rem; 
+  color: var(--text-main); 
+  font-weight: 600; 
+  background: color-mix(in srgb, var(--alert-color) 15%, transparent);
+  padding: 4px 10px; 
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--alert-color) 30%, transparent);
+}
+
+.alert-msg { 
+  font-size: 1rem; 
+  color: var(--text-main); 
+  margin: 1rem 0 1.5rem 0; 
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* =========================================
+   ESTADO VAZIO (PLATAFORMA LIMPA)
+   ========================================= */
+.dashboard-empty {
+  padding: 4rem 2rem;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.pulse-success-icon {
+  animation: pulseSoftGreen 2s infinite;
+  filter: drop-shadow(0 0 10px rgba(16,185,129,0.5));
+}
+
+@keyframes pulseSoftGreen {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* =========================================
+   MEDIA QUERIES
+   ========================================= */
 @media (max-width: 1024px) {
-  .summary-cards { grid-template-columns: repeat(2, 1fr); }
   .dashboard-grid { grid-template-columns: 1fr; }
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
   .summary-cards { grid-template-columns: 1fr; gap: 1rem; }
-  .chart-container { height: 300px; padding: 1rem 0; }
 }

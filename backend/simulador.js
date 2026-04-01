@@ -1,7 +1,6 @@
 /**
- * Robô IoT Simulador (Enterprise Edition)
- * Lógica Original de Física/Temperaturas mantida.
- * ATUALIZADO: Geração de Todos os 6 Alertas (Rede, Metrologia, Porta, Preditiva, etc.) + Chamados.
+ * Robô IoT Simulador (Enterprise Edition - Corrigido)
+ * Lógica de Humidade ajustada para evitar alertas falsos de "Fora de Parâmetro".
  */
 
 const axios = require('axios');
@@ -26,7 +25,6 @@ async function autenticar() {
   }
 }
 
-// Abre a OS e avisa no terminal
 async function criarChamadoSimulado(eq, tipoFalha) {
   const falhas = {
     'MECANICA': 'URGENTE: O compressor parou inesperadamente e a máquina não reage aos comandos remotos.',
@@ -58,7 +56,6 @@ async function criarChamadoSimulado(eq, tipoFalha) {
   }
 }
 
-// Analisa chamados abertos, define urgência e simula o arquivamento ao longo do tempo
 async function gerirChamadosPendentes() {
   try {
     const res = await axios.get(`${API_URL}/chamados`, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
@@ -78,9 +75,7 @@ async function gerirChamadosPendentes() {
           { headers: { Authorization: `Bearer ${tokenAtivo}` } }
         );
       } 
-      else {
-        // 20% de probabilidade de o técnico concluir o trabalho em cada ciclo do simulador
-        if (Math.random() < 0.20) {
+      else if (Math.random() < 0.20) {
           const solucoes = [
             "Compressor substituído e sistema de gás purgado com sucesso.",
             "Detetada fuga de gás na tubagem. Solda efetuada e carga reposta.",
@@ -96,10 +91,7 @@ async function gerirChamadosPendentes() {
             nota_resolucao: `[Técnico Virtual] ${solucaoSorteada}` 
           }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
 
-          console.log(`✅ [OS CONCLUÍDA E ARQUIVADA] -> OS #${c.id}`);
-          console.log(`   👨‍🔧 Resolvido por: ${c.tecnico_responsavel || 'Membro da Equipa Geral'}`);
-          console.log(`   📖 Enviada para a aba 'Histórico (+30 dias)'.\n`);
-        }
+          console.log(`✅ [OS CONCLUÍDA] -> OS #${c.id} Resolvida.`);
       }
     }
   } catch (error) {
@@ -107,77 +99,73 @@ async function gerirChamadosPendentes() {
   }
 }
 
-// LÓGICA DE FÍSICA E ANOMALIAS (Mantendo o ritmo Original de falhas)
 async function simularMaquina(eq) {
   let alertaForcado = null;
   let consumoKwh = 0.1; 
   let motorLigado = eq.motor_ligado ? 1 : 0;
   let emDegelo = eq.em_degelo ? 1 : 0;
 
-  // Anomalia 1: Perda de Eficiência (0.5% original)
   if (motorLigado && !emDegelo && Math.random() < 0.005) { 
-      alertaForcado = 'PERDA_EFICIENCIA'; 
-      consumoKwh = 3.8; 
-      criarChamadoSimulado(eq, 'PERDA_EFICIENCIA'); 
+      alertaForcado = 'PERDA_EFICIENCIA'; consumoKwh = 3.8; criarChamadoSimulado(eq, 'PERDA_EFICIENCIA'); 
   }
-  
-  // Anomalia 2: Porta Aberta (0.5% original)
   if (motorLigado && !emDegelo && !alertaForcado && Math.random() < 0.005) { 
-      alertaForcado = 'PORTA_ABERTA'; 
-      consumoKwh = 4.5; 
-      criarChamadoSimulado(eq, 'PORTA_ABERTA'); 
+      alertaForcado = 'PORTA_ABERTA'; consumoKwh = 4.5; criarChamadoSimulado(eq, 'PORTA_ABERTA'); 
   }
+  if (!alertaForcado && Math.random() < 0.003) { alertaForcado = 'REDE'; if (Math.random() < 0.2) criarChamadoSimulado(eq, 'REDE'); }
+  if (!alertaForcado && Math.random() < 0.003) { alertaForcado = 'METROLOGIA'; criarChamadoSimulado(eq, 'METROLOGIA'); }
 
-  // Anomalia 3: Falha de Rede (Wi-Fi caiu) - Novo
-  if (!alertaForcado && Math.random() < 0.003) { 
-      alertaForcado = 'REDE'; 
-      // Apenas 20% das vezes que a rede cai é que se abre OS (pode ser só instabilidade)
-      if (Math.random() < 0.2) criarChamadoSimulado(eq, 'REDE'); 
-  }
-
-  // Anomalia 4: Erro de Metrologia (Calibração) - Novo
-  if (!alertaForcado && Math.random() < 0.003) { 
-      alertaForcado = 'METROLOGIA'; 
-      criarChamadoSimulado(eq, 'METROLOGIA'); 
-  }
-
-  // Anomalia 5: Falha do Motor vs Ciclo Normal (1% e 8% originais)
   if (motorLigado && !emDegelo && Math.random() < 0.01) {
-    emDegelo = 1; motorLigado = 0; console.log(`❄️ [AÇÃO] Degelo ativado em: ${eq.nome} (${eq.filial})`);
+    emDegelo = 1; motorLigado = 0; console.log(`❄️ [AÇÃO] Degelo em: ${eq.nome}`);
   } else if (motorLigado && !emDegelo && !alertaForcado && Math.random() < 0.01) {
-    motorLigado = 0; console.log(`⚠️ [FALHA MECÂNICA] Motor parou em: ${eq.nome} (${eq.filial})`);
-    criarChamadoSimulado(eq, 'MECANICA'); 
+    motorLigado = 0; criarChamadoSimulado(eq, 'MECANICA'); 
   } else if ((!motorLigado || emDegelo) && Math.random() < 0.08) {
     emDegelo = 0; motorLigado = 1; 
   }
 
-  // Chamados Genéricos Aleatórios (0.2% original)
-  if (Math.random() < 0.002) { 
-      criarChamadoSimulado(eq, 'GENERICO'); 
-  }
-
-  // CÁLCULO TÉRMICO E FÍSICO ORIGINAL MANTIDO
+  // --- CÁLCULO TÉRMICO E DE HUMIDADE CORRIGIDO ---
   let tempAtual = historicoTemperaturas[eq.id] || parseFloat(eq.temp_min) + 1;
-  let umidAtual = historicoUmidades[eq.id] || parseFloat(eq.umidade_min || 50) + 5;
+  
+  // Ajuste: Humidade inicial baseada no mínimo configurado para evitar alertas imediatos
+  const umidMinConfig = parseFloat(eq.umidade_min || 40);
+  let umidAtual = historicoUmidades[eq.id] || umidMinConfig + 15; 
+  
   const fator = parseFloat(eq.temp_min) < 0 ? 1.5 : 0.8; 
 
   if (emDegelo) { 
-      tempAtual += (Math.random() * 0.5 + 0.1); consumoKwh = 2.5; 
+      tempAtual += (Math.random() * 0.5 + 0.1); 
+      umidAtual += (Math.random() * 1.5); // Sobe no degelo
+      consumoKwh = 2.5; 
   } else if (!motorLigado) { 
-      tempAtual += (Math.random() * 0.4 + 0.1); consumoKwh = 0.05; 
+      tempAtual += (Math.random() * 0.4 + 0.1); 
+      umidAtual += (Math.random() * 0.5);
+      consumoKwh = 0.05; 
   } else {
       const ideal = parseFloat(eq.temp_min) + ((parseFloat(eq.temp_max) - parseFloat(eq.temp_min)) / 2);
       if (alertaForcado === 'PORTA_ABERTA') { 
           tempAtual += 1.5; umidAtual += 5; 
       } else if (tempAtual > ideal) { 
-          tempAtual -= (Math.random() * (fator * 1.2) + 0.1); umidAtual -= (Math.random() * 2.5 + 0.5); consumoKwh = (Math.random() * 0.4) + 1.4; 
+          // Correção: Reduzida a velocidade de queda da humidade (era até 3.0, agora é 1.0)
+          tempAtual -= (Math.random() * (fator * 1.2) + 0.1); 
+          umidAtual -= (Math.random() * 0.8 + 0.2); 
+          consumoKwh = (Math.random() * 0.4) + 1.4; 
       } else { 
-          tempAtual += (Math.random() * 0.6 - 0.2); umidAtual += (Math.random() * 1.5 - 0.7); consumoKwh = (Math.random() * 0.2) + 0.5; 
+          tempAtual += (Math.random() * 0.6 - 0.2); 
+          umidAtual += (Math.random() * 1.0 - 0.4); 
+          consumoKwh = (Math.random() * 0.2) + 0.5; 
       }
   }
 
-  if (tempAtual > 30) tempAtual = 30; if (umidAtual > 98) umidAtual = 98; if (umidAtual < 20) umidAtual = 20;
-  historicoTemperaturas[eq.id] = tempAtual; historicoUmidades[eq.id] = umidAtual;
+  // --- TRAVAS DE SEGURANÇA (SAFE ZONES) ---
+  if (tempAtual > 30) tempAtual = 30; 
+  if (umidAtual > 95) umidAtual = 95; 
+
+  // Correção Crítica: O "chão" da humidade agora é dinâmico 
+  // e fica sempre 5% acima do alerta do frontend
+  const floorSeguro = umidMinConfig + 5;
+  if (umidAtual < floorSeguro) umidAtual = floorSeguro;
+
+  historicoTemperaturas[eq.id] = tempAtual; 
+  historicoUmidades[eq.id] = umidAtual;
   
   try {
     await axios.post(`${API_URL}/leituras`, { 
@@ -188,37 +176,22 @@ async function simularMaquina(eq) {
 }
 
 async function executarSimulacao() {
-  if (!tokenAtivo) { 
-    const sucesso = await autenticar(); 
-    if (!sucesso) return; 
-  }
-  
+  if (!tokenAtivo) { const sucesso = await autenticar(); if (!sucesso) return; }
   try {
     const resEquip = await axios.get(`${API_URL}/equipamentos`, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
     const equipamentos = resEquip.data;
-    
-    // Processamento por lotes de 15 para não afogar o servidor
     const TAMANHO_LOTE = 15;
     for (let i = 0; i < equipamentos.length; i += TAMANHO_LOTE) {
       const lote = equipamentos.slice(i, i + TAMANHO_LOTE);
       await Promise.all(lote.map(eq => simularMaquina(eq)));
     }
-
-    // Gestão de OS no final de cada ronda
     await gerirChamadosPendentes();
-
-  } catch (error) { 
-    if (error.response?.status === 401) {
-      console.log('⚠️ Token expirado ou inválido. A forçar novo login...');
-      tokenAtivo = ''; 
-    }
-  }
+  } catch (error) { if (error.response?.status === 401) tokenAtivo = ''; }
 }
 
 async function iniciarLoopSeguro() {
   await executarSimulacao();
-  const tempoEspera = tokenAtivo ? 15000 : 5000;
-  setTimeout(iniciarLoopSeguro, tempoEspera);
+  setTimeout(iniciarLoopSeguro, tokenAtivo ? 15000 : 5000);
 }
 
 iniciarLoopSeguro();

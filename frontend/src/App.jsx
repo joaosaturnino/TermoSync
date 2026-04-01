@@ -1,14 +1,22 @@
-/**
- * O ORQUESTRADOR: App.jsx (Pós-Refatoração)
- */
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+
+// 🔴 IMPORTAÇÕES DO PDF E CALENDÁRIO
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import 'react-datepicker/dist/react-datepicker.css';
+
+// 🔴 IMPORTAÇÕES DO NOVO CSS MODULAR
 import './styles/global.css';
 import './components/Layout.css';
 
-import { Activity, Thermometer, Droplets, Settings, Leaf, History, Wrench, Archive, Store, Sliders, Users, LogOut, Menu, X, Volume2, VolumeX, Bell, BellOff, Maximize, Moon, MapPin, UserCheck, CheckCircle, AlertTriangle, Info, Edit, Save } from 'lucide-react';
+import { 
+  Activity, Thermometer, Droplets, Settings, Leaf, History, Wrench, Archive, 
+  Store, Sliders, Users, LogOut, Menu, X, Volume2, VolumeX, Bell, BellOff, 
+  Maximize, Minimize, Moon, Sun, MapPin, UserCheck, CheckCircle, AlertTriangle, 
+  AlertOctagon, Info, Edit, Save, PlusCircle, ShieldCheck 
+} from 'lucide-react';
 
 import TermoSyncLogo from './components/TermoSyncLogo';
 import Login from './pages/Login/Login';
@@ -36,17 +44,27 @@ export default function App() {
   const [nomeGerente, setNomeGerente] = useState(localStorage.getItem('nome_gerente') || '');
   const [nomeCoordenador, setNomeCoordenador] = useState(localStorage.getItem('nome_coordenador') || '');
   
-  const [abaAtiva, setAbaAtiva] = useState('dashboard');
+  const [abaAtiva, setAbaAtiva] = useState(localStorage.getItem('abaAtiva') || 'dashboard');
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('abaAtiva', abaAtiva);
+    }
+  }, [abaAtiva, token]);
+
   const [menuAberto, setMenuAberto] = useState(false);
+  const [menuRecolhido, setMenuRecolhido] = useState(false); 
+
   const [isLoginLoading, setIsLoginLoading] = useState(false); 
   const [loginErro, setLoginErro] = useState(''); 
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') !== 'light');
   const [somAtivoState, setSomAtivoState] = useState(true);
   const somAtivoRef = useRef(true);
+  const [alertasNaTela, setAlertasNaTela] = useState(true);
+  const alertasNaTelaRef = useRef(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [latencia, setLatencia] = useState(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [permPush, setPermPush] = useState(Notification.permission);
 
   const [equipamentos, setEquipamentos] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
@@ -66,16 +84,29 @@ export default function App() {
   const [equipamentoFiltro, setEquipamentoFiltro] = useState('');
   const [termoPesquisa, setTermoPesquisa] = useState('');
   
-  const [formEditEquip, setFormEditEquip] = useState({});
-  const [equipEditando, setEquipEditando] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', onConfirm: null });
+
+  const [formEditEquip, setFormEditEquip] = useState({});
+  const [equipEditando, setEquipEditando] = useState(null);
 
   const lastAlertIdRef = useRef(-1);
   const abaAtivaRef = useRef(abaAtiva);
   useEffect(() => { abaAtivaRef.current = abaAtiva; }, [abaAtiva]);
 
-  const api = useMemo(() => axios.create({ baseURL: API_URL, headers: token ? { Authorization: `Bearer ${token}` } : {} }), [token]);
+  const fazerLogout = useCallback(() => { 
+    setToken(''); localStorage.clear(); setUserRole('LOJA'); setUserFilial(''); setFilialAtiva('Todas'); setNomeGerente(''); setNomeCoordenador(''); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
+    setAbaAtiva('dashboard'); setMenuAberto(false);
+  }, []);
+
+  const api = useMemo(() => {
+    const instance = axios.create({ baseURL: API_URL, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    instance.interceptors.response.use((response) => response, (error) => {
+        if (error.response && error.response.status === 401) fazerLogout();
+        return Promise.reject(error);
+      });
+    return instance;
+  }, [token, fazerLogout]);
 
   const showToast = useCallback((message, type = 'success') => { setToast({ show: true, message, type }); setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 7000); }, []);
 
@@ -89,10 +120,31 @@ export default function App() {
     try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gainNode = ctx.createGain(); osc.connect(gainNode); gainNode.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime); gainNode.gain.setValueAtTime(0.1, ctx.currentTime); osc.start(); osc.stop(ctx.currentTime + 0.5); } catch (e) { }
   }, []);
 
-  const solicitarPermissaoPush = () => { if ("Notification" in window) { Notification.requestPermission().then(perm => { setPermPush(perm); if (perm === "granted") showToast("Notificações OS ativadas!", "success"); }); } };
-  const enviarPushNotificationOS = useCallback((titulo, corpo) => { if ("Notification" in window && Notification.permission === "granted") { new Notification(titulo, { body: corpo, icon: '/favicon.ico' }); } }, []);
+  const alternarAlertasTela = useCallback(() => {
+    const novo = !alertasNaTela;
+    setAlertasNaTela(novo);
+    alertasNaTelaRef.current = novo;
+    if (novo) showToast('Notificações visuais ativadas.', 'success');
+    else showToast('Notificações visuais silenciadas.', 'info');
+  }, [alertasNaTela, showToast]);
 
-  const toggleFullScreen = () => { if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(()=>null); setIsFullScreen(true); } else { if (document.exitFullscreen) { document.exitFullscreen(); setIsFullScreen(false); } } };
+  const toggleFullScreen = () => { 
+    if (!document.fullscreenElement) { 
+      document.documentElement.requestFullscreen()
+        .then(() => setIsFullScreen(true))
+        .catch(() => showToast("Não é possível abrir em tela cheia neste ecrã.", "warning")); 
+    } else { 
+      if (document.exitFullscreen) { 
+        document.exitFullscreen().then(() => setIsFullScreen(false)); 
+      } 
+    } 
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullScreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => { if (isDarkMode) { document.body.classList.add('dark-theme'); localStorage.setItem('theme', 'dark'); } else { document.body.classList.remove('dark-theme'); localStorage.setItem('theme', 'light'); } }, [isDarkMode]);
 
@@ -109,26 +161,16 @@ export default function App() {
     try {
       const res = await axios.post(`${API_URL}/login`, { usuario: usuarioInput, senha: senhaInput });
       setToken(res.data.token); setUserRole(res.data.role); setUserFilial(res.data.filial); setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
-      
       setAbaAtiva('dashboard'); setMenuAberto(false);
       setNomeGerente(res.data.nome_gerente || ''); setNomeCoordenador(res.data.nome_coordenador || '');
-      
       let identityName = usuarioInput; let roleTitle = 'Gestor de Loja';
       if (res.data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
       else if (res.data.role === 'MANUTENCAO') { identityName = res.data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
       else if (res.data.role === 'LOJA') { if (res.data.nome_gerente) { identityName = res.data.nome_gerente; roleTitle = 'Gerente da Loja'; } else if (res.data.nome_coordenador) { identityName = res.data.nome_coordenador; roleTitle = 'Coordenador da Loja'; } else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; } }
-
       setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(usuarioInput);
       localStorage.setItem('token', res.data.token); localStorage.setItem('userRole', res.data.role); localStorage.setItem('userFilial', res.data.filial); localStorage.setItem('nome_gerente', res.data.nome_gerente || ''); localStorage.setItem('nome_coordenador', res.data.nome_coordenador || ''); localStorage.setItem('nomeLogado', identityName); localStorage.setItem('papelLogado', roleTitle); localStorage.setItem('loginAtivo', usuarioInput);
-
       showToast(`Bem-vindo! Acesso: ${identityName}`, 'success');
-      try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch(e){}
     } catch (error) { setLoginErro('Credenciais inválidas.'); showToast('Acesso Negado.', 'error'); } finally { setIsLoginLoading(false); }
-  };
-
-  const fazerLogout = () => { 
-    setToken(''); localStorage.clear(); setUserRole('LOJA'); setUserFilial(''); setFilialAtiva('Todas'); setNomeGerente(''); setNomeCoordenador(''); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
-    setAbaAtiva('dashboard'); setMenuAberto(false);
   };
 
   const carregarChamados = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get('/chamados'); setChamados(Array.isArray(res.data) ? res.data : []); } catch (e) { } }, [token, isOffline, api]);
@@ -147,10 +189,20 @@ export default function App() {
       if (isHistorico) setHistoricoAlertas(Array.isArray(resHist.data) ? resHist.data : []);
       const dadosNotificacoes = Array.isArray(resNotif.data) ? resNotif.data : [];
       const idMaisAlto = dadosNotificacoes.length > 0 ? Math.max(...dadosNotificacoes.map(n => n.id)) : 0;
-      if (lastAlertIdRef.current !== -1 && idMaisAlto > lastAlertIdRef.current) { const novos = dadosNotificacoes.filter(n => n.id > lastAlertIdRef.current); if (novos.length > 0) { const isDegelo = novos[0].tipo_alerta === 'DEGELO'; if (somAtivoRef.current && !isDegelo) tocarAlarme(); showToast(`${isDegelo ? '❄️' : '🚨'} ${novos[0].mensagem}`, isDegelo ? 'info' : 'error'); if (!isDegelo && somAtivoRef.current) enviarPushNotificationOS('Alerta TermoSync', novos[0].mensagem); } }
+      
+      if (lastAlertIdRef.current !== -1 && idMaisAlto > lastAlertIdRef.current) { 
+        const novos = dadosNotificacoes.filter(n => n.id > lastAlertIdRef.current); 
+        if (novos.length > 0) { 
+          const isDegelo = novos[0].tipo_alerta === 'DEGELO'; 
+          if (somAtivoRef.current && !isDegelo) tocarAlarme(); 
+          if (alertasNaTelaRef.current) {
+            showToast(`${isDegelo ? '❄️' : '🚨'} ${novos[0].mensagem}`, isDegelo ? 'info' : 'error'); 
+          }
+        } 
+      }
       lastAlertIdRef.current = idMaisAlto; setNotificacoes(dadosNotificacoes); localStorage.setItem('cache_equipamentos', JSON.stringify(resEquip.data)); localStorage.setItem('cache_notificacoes', JSON.stringify(dadosNotificacoes));
-    } catch (error) { if (error.response?.status === 401) fazerLogout(); }
-  }, [token, isOffline, api, tocarAlarme, showToast, enviarPushNotificationOS, carregarParametrosGerais]); 
+    } catch (error) {}
+  }, [token, isOffline, api, tocarAlarme, showToast, carregarParametrosGerais]); 
 
   const carregarRelatorios = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get(`/relatorios?data_inicio=${dataInicio.toISOString()}&data_fim=${dataFim.toISOString()}`); setRelatorios(Array.isArray(res.data) ? res.data : []); } catch (error) {} }, [token, isOffline, api, dataInicio, dataFim]);
 
@@ -176,12 +228,66 @@ export default function App() {
 
   const editarEquipamento = (eq) => {
     if (isOffline) return showToast('Ação bloqueada.', 'warning');
-    setEquipEditando(eq.id); setFormEditEquip({ nome: eq.nome, tipo: eq.tipo, temp_min: eq.temp_min, temp_max: eq.temp_max, umidade_min: eq.umidade_min || '', umidade_max: eq.umidade_max || '', intervalo_degelo: eq.intervalo_degelo, duracao_degelo: eq.duracao_degelo, setor: eq.setor, filial: eq.filial, data_calibracao: eq.data_calibracao ? new Date(eq.data_calibracao).toISOString().split('T')[0] : '' });
+    setEquipEditando(eq.id);
+    setFormEditEquip({ nome: eq.nome, tipo: eq.tipo, temp_min: eq.temp_min, temp_max: eq.temp_max, umidade_min: eq.umidade_min || '', umidade_max: eq.umidade_max || '', intervalo_degelo: eq.intervalo_degelo, duracao_degelo: eq.duracao_degelo, setor: eq.setor, filial: eq.filial, data_calibracao: eq.data_calibracao ? new Date(eq.data_calibracao).toISOString().split('T')[0] : '' });
   };
-  const salvarEdicaoEquipamento = async (e) => { e.preventDefault(); if (isOffline) return; try { await api.put(`/equipamentos/${equipEditando}/edit`, formEditEquip); showToast('Atualizado.', 'success'); setEquipEditando(null); carregarDadosBase(); } catch (e) { showToast('Erro.', 'error'); } };
-  const pedirExclusao = (id, nome) => { setModalConfig({ isOpen: true, title: 'Remover Máquina', message: `Remover "${nome}" permanentemente?`, isPrompt: false, onConfirm: async () => { try { await api.delete(`/equipamentos/${id}`); showToast('Removido.', 'success'); carregarDadosBase(); } catch (e) { showToast('Ação não autorizada.', 'error'); } }}); };
-  const pedirNotaResolucao = (id) => { setModalConfig({ isOpen: true, title: 'Registro de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => { try { await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); showToast('Arquivado no log.', 'success'); } catch (e) { showToast('Erro.', 'error'); } }}); };
-  const resolverTodasNotificacoes = () => { setModalConfig({ isOpen: true, title: 'Limpeza do Painel', message: 'Arquivar todos os alarmes pendentes?', isPrompt: false, onConfirm: async () => { try { await api.put(`/notificacoes/resolver-todas`); showToast('Painel Limpo.', 'success'); } catch (e) { showToast('Erro.', 'error'); } }}); };
+
+  const salvarEdicaoEquipamento = async (e) => {
+    e.preventDefault(); if (isOffline) return;
+    try { await api.put(`/equipamentos/${equipEditando}/edit`, formEditEquip); showToast('Atualizado.', 'success'); setEquipEditando(null); carregarDadosBase(); } catch (e) { showToast('Erro.', 'error'); }
+  };
+
+  const pedirExclusao = (id, nome) => {
+    setModalConfig({ isOpen: true, title: 'Remover Máquina', message: `Remover "${nome}" permanentemente?`, isPrompt: false, onConfirm: async () => { try { await api.delete(`/equipamentos/${id}`); showToast('Removido.', 'success'); carregarDadosBase(); } catch (e) { showToast('Ação não autorizada.', 'error'); } }});
+  };
+
+  const gerarExportacao = (tipo) => {
+    let fd = abaAtiva === 'historico' ? historicoFiltradoLista : (equipamentoFiltro ? relatorios.filter(r => r.nome === equipamentoFiltro) : relatorios);
+    if (fd.length === 0) return showToast("Sem dados para exportar.", "warning");
+    if (tipo === 'pdf') {
+      const doc = new jsPDF();
+      doc.setFontSize(18); doc.text(abaAtiva === 'historico' ? "Auditoria de Ocorrências" : "Auditoria de Qualidade e ESG", 14, 20);
+      doc.setFontSize(11); doc.text(`Emitido: ${new Date().toLocaleString()} | Âmbito: ${filialAtiva}`, 14, 28);
+      let head = abaAtiva === 'historico' ? [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]] : [["Data", "Local / Eq.", "Temp", "Hum", "Consumo"]];
+      let body = abaAtiva === 'historico' ? fd.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao]) : fd.map(r => [new Date(r.data_hora).toLocaleString(), `${r.filial} - ${r.nome}`, `${r.temperatura}°C`, `${r.umidade}%`, `${r.consumo_kwh}kWh`]);
+      autoTable(doc, { head, body, startY: 40, theme: 'grid', headStyles: { fillColor: [5, 150, 105] } });
+      const finalY = doc.lastAutoTable.finalY || 40; doc.text("__________________________________________", 14, finalY + 30); doc.text(`Assinatura do Auditor - (${userRole})`, 14, finalY + 38);
+      doc.save(`Auditoria_${new Date().getTime()}.pdf`);
+    } else {
+      let csv = abaAtiva === 'historico' ? "Data,Equipamento,Setor,Ocorrencia,Tecnico\n" : "Data,Filial,Equipamento,Temp,Hum,Consumo(kWh)\n";
+      fd.forEach(row => { csv += abaAtiva === 'historico' ? `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n` : `"${new Date(row.data_hora).toLocaleString()}","${row.filial}","${row.nome}","${row.temperatura}","${row.umidade}","${row.consumo_kwh}"\n`; });
+      const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' }));
+      link.download = `Dados_${new Date().getTime()}.csv`; link.click();
+    }
+    showToast('Documento Gerado.', 'success');
+  };
+
+  const gerarLoteOS = (listaChamados) => {
+    if (!listaChamados || listaChamados.length === 0) return showToast("Nenhuma OS para imprimir.", "warning");
+    const doc = new jsPDF();
+    listaChamados.forEach((c, index) => {
+      if (index > 0) doc.addPage();
+      doc.setFontSize(18); doc.text(`Ordem de Serviço (OS) - ${c.status}`, 14, 20);
+      doc.setFontSize(11);
+      doc.text(`Máquina/Ativo: ${c.equipamento_nome}`, 14, 32);
+      doc.text(`Filial / Loja: ${c.filial}`, 14, 40);
+      doc.text(`Solicitante: ${c.solicitante_nome || c.aberto_por || 'N/A'}`, 14, 48);
+      doc.text(`Técnico Acionado: ${c.tecnico_responsavel || 'Equipe Geral'}`, 14, 56);
+      doc.text(`Urgência: ${c.urgencia || 'Padrão'}`, 14, 64);
+      doc.text(`Abertura: ${new Date(c.data_abertura).toLocaleString()}`, 14, 72);
+      doc.setFontSize(12); doc.text("Descrição do Relato:", 14, 88);
+      doc.setFontSize(10); doc.text(doc.splitTextToSize(c.descricao || 'Sem descrição.', 180), 14, 96);
+      if (c.status === 'Concluído') {
+        doc.setFontSize(12); doc.text("Resolução Técnica (Laudo):", 14, 130);
+        doc.setFontSize(10); doc.text(doc.splitTextToSize(c.nota_resolucao || 'Sem nota.', 180), 14, 138);
+        doc.text(`Concluído em: ${new Date(c.data_conclusao).toLocaleString()}`, 14, 160);
+      }
+      doc.text("__________________________________________", 14, 200);
+      doc.text("Assinatura do Técnico / Responsável", 14, 208);
+    });
+    doc.save(`Lote_OS_${new Date().getTime()}.pdf`);
+    showToast('Lote de OS exportado com sucesso!', 'success');
+  };
 
   const listaFiliais = useMemo(() => { if (userRole === 'LOJA') return [userFilial]; return ['Todas', ...(filiaisDb || [])]; }, [filiaisDb, userRole, userFilial]);
   const equipamentosDaFilial = useMemo(() => filialAtiva === 'Todas' ? equipamentos : equipamentos.filter(eq => (eq.filial || 'Loja Principal') === filialAtiva), [equipamentos, filialAtiva]);
@@ -220,6 +326,19 @@ export default function App() {
   const equipamentoSelecionado = useMemo(() => equipamentosDaFilial?.find(e => e.nome === equipamentoFiltro), [equipamentosDaFilial, equipamentoFiltro]);
   const dadosDonutStatus = useMemo(() => [ { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' } ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
 
+  const pedirNotaResolucao = (id) => { setModalConfig({ isOpen: true, title: 'Registro de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => { try { await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); showToast('Arquivado no log.', 'success'); } catch (e) { showToast('Erro.', 'error'); } }}); };
+  const resolverTodasNotificacoes = () => { setModalConfig({ isOpen: true, title: 'Limpeza do Painel', message: 'Arquivar todos os alarmes pendentes?', isPrompt: false, onConfirm: async () => { try { await api.put(`/notificacoes/resolver-todas`); showToast('Painel Limpo.', 'success'); } catch (e) { showToast('Erro.', 'error'); } }}); };
+
+  // LÓGICA DE ESTADO SIMPLIFICADA (Antes do return principal)
+  const getStatusConexao = () => {
+    if (isOffline) return { level: 'offline', bars: 0, text: 'Offline' };
+    if (latencia === 0) return { level: 'slow', bars: 1, text: 'A ligar...' };
+    if (latencia < 60) return { level: 'excellent', bars: 3, text: 'Excelente' };
+    if (latencia < 150) return { level: 'good', bars: 2, text: 'Estável' };
+    return { level: 'slow', bars: 1, text: 'Lenta' };
+  };
+  const statusConn = getStatusConexao();
+
   if (!token) return <Login isOffline={isOffline} isLoginLoading={isLoginLoading} fazerLogin={fazerLogin} loginErro={loginErro} />;
 
   return (
@@ -228,57 +347,91 @@ export default function App() {
 
       {toast.show && ( <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 99999, backgroundColor: toast.type === 'error' ? '#ef4444' : (toast.type === 'info' ? '#38bdf8' : '#10b981'), color: '#ffffff', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', gap: '14px', maxWidth: '400px', borderLeft: '4px solid rgba(255,255,255,0.5)', animation: 'slideIn 0.4s ease-out' }}> {toast.type === 'success' ? <CheckCircle size={26} /> : (toast.type === 'error' ? <AlertTriangle size={26} /> : <Info size={26} />)} <span style={{ fontWeight: '600', fontSize: '0.95rem', lineHeight: '1.4' }}>{toast.message}</span> </div> )}
 
-      <div className={`sidebar ${menuAberto ? 'open' : ''}`}>
+      <div className={`sidebar ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`}>
         <div className="sidebar-header" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ background: 'white', borderRadius: '8px', padding: '4px', display: 'flex' }}><TermoSyncLogo size={24} color="var(--primary)" /></div>
-          <h2>TermoSync</h2><button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={24} color="white" /></button>
+          <h2 className="hide-on-collapse">TermoSync</h2>
+          <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={24} color="white" /></button>
         </div>
-        <div style={{ padding: '0 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="hide-on-collapse" style={{ padding: '0 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '900', fontSize: '1.2rem', textTransform: 'uppercase' }}>{nomeLogado ? nomeLogado.charAt(0) : (loginAtivo ? loginAtivo.charAt(0) : 'U')}</div>
           <div style={{ flex: 1, overflow: 'hidden' }}><div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeLogado || loginAtivo || 'Utilizador'}</div><div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', fontWeight: '600' }}>@{loginAtivo} • {papelLogado}</div></div>
         </div>
-        <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
+        <div className="hide-on-collapse" style={{ padding: '0 1rem', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '5px', textTransform: 'uppercase' }}>{userRole !== 'LOJA' ? <><MapPin size={14}/> Rede de Lojas</> : <><UserCheck size={14}/> Acesso Local</>}</div>
-            {userRole !== 'LOJA' ? (<select className="select-input" value={filialAtiva} onChange={(e) => setFilialAtiva(e.target.value)} style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>{listaFiliais?.map(f => <option key={f} value={f} style={{ color: 'black' }}>{f === 'Todas' ? 'Visão Global Integrada' : f}</option>)}</select>) : (<div style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', fontSize: '0.9rem' }}>{userFilial}</div>)}
+            {userRole !== 'LOJA' ? (<select className="select-input" value={filialAtiva} onChange={(e) => setFilialAtiva(e.target.value)} style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>{listaFiliais?.map(f => <option key={f} value={f}>{f === 'Todas' ? 'Visão Global Integrada' : f}</option>)}</select>) : (<div style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', fontSize: '0.9rem' }}>{userFilial}</div>)}
         </div>
         <nav className="sidebar-nav">
-          <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}><Activity size={20} /> Painel Central {notificacoesDaFilial?.length > 0 && <span className="badge">{notificacoesDaFilial.length}</span>}</button>
-          <button className={`nav-item ${abaAtiva === 'motores' ? 'active' : ''}`} onClick={() => { setAbaAtiva('motores'); setMenuAberto(false); }}><Thermometer size={20} /> Monitorização Térmica</button>
-          <button className={`nav-item ${abaAtiva === 'umidade' ? 'active' : ''}`} onClick={() => { setAbaAtiva('umidade'); setMenuAberto(false); }}><Droplets size={20} /> Monitorização Humidade</button>
-          <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}><Settings size={20} /> Metrologia & Instalações</button>
-          <button className={`nav-item ${abaAtiva === 'relatorios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('relatorios'); setMenuAberto(false); }}><Leaf size={20} /> Sustentabilidade e ESG</button>
-          <button className={`nav-item ${abaAtiva === 'historico' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico'); setMenuAberto(false); }}><History size={20} /> Auditoria RDC (Logs)</button>
-          <button className={`nav-item ${abaAtiva === 'chamados' ? 'active' : ''}`} onClick={() => { setAbaAtiva('chamados'); setMenuAberto(false); }}><Wrench size={20} /> Chamados Técnicos</button>
-          <button className={`nav-item ${abaAtiva === 'historico_chamados' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico_chamados'); setMenuAberto(false); }}><Archive size={20} /> Histórico de Chamados</button>
-          {userRole === 'ADMIN' && (<><div style={{ marginTop: '1rem', marginBottom: '0.5rem', paddingLeft: '1.5rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Sistema</div><button className={`nav-item ${abaAtiva === 'lojas' ? 'active' : ''}`} onClick={() => { setAbaAtiva('lojas'); setMenuAberto(false); }}><Store size={20} /> Gestão de Lojas</button><button className={`nav-item ${abaAtiva === 'parametros' ? 'active' : ''}`} onClick={() => { setAbaAtiva('parametros'); setMenuAberto(false); }}><Sliders size={20} /> Parâmetros Globais</button><button className={`nav-item ${abaAtiva === 'usuarios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('usuarios'); setMenuAberto(false); }}><Users size={20} /> Gestão de Acessos</button></>)}
+          <button className={`nav-item ${abaAtiva === 'dashboard' ? 'active' : ''}`} onClick={() => { setAbaAtiva('dashboard'); setMenuAberto(false); }}><Activity size={20} /> <span className="nav-item-text">Painel Central</span> {notificacoesDaFilial?.length > 0 && <span className="badge">{notificacoesDaFilial.length}</span>}</button>
+          <button className={`nav-item ${abaAtiva === 'motores' ? 'active' : ''}`} onClick={() => { setAbaAtiva('motores'); setMenuAberto(false); }}><Thermometer size={20} /> <span className="nav-item-text">Monitorização Térmica</span></button>
+          <button className={`nav-item ${abaAtiva === 'umidade' ? 'active' : ''}`} onClick={() => { setAbaAtiva('umidade'); setMenuAberto(false); }}><Droplets size={20} /> <span className="nav-item-text">Monitorização Humidade</span></button>
+          <button className={`nav-item ${abaAtiva === 'equipamentos' ? 'active' : ''}`} onClick={() => { setAbaAtiva('equipamentos'); setMenuAberto(false); }}><Settings size={20} /> <span className="nav-item-text"> Central de Máquinas</span></button>
+          <button className={`nav-item ${abaAtiva === 'relatorios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('relatorios'); setMenuAberto(false); }}><Leaf size={20} /> <span className="nav-item-text">Sustentabilidade e ESG</span></button>
+          <button className={`nav-item ${abaAtiva === 'historico' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico'); setMenuAberto(false); }}><History size={20} /> <span className="nav-item-text">Auditoria RDC (Logs)</span></button>
+          <button className={`nav-item ${abaAtiva === 'chamados' ? 'active' : ''}`} onClick={() => { setAbaAtiva('chamados'); setMenuAberto(false); }}><Wrench size={20} /> <span className="nav-item-text">Chamados Técnicos</span></button>
+          <button className={`nav-item ${abaAtiva === 'historico_chamados' ? 'active' : ''}`} onClick={() => { setAbaAtiva('historico_chamados'); setMenuAberto(false); }}><Archive size={20} /> <span className="nav-item-text">Histórico de Chamados</span></button>
+          {userRole === 'ADMIN' && (<><div className="hide-on-collapse" style={{ marginTop: '1rem', marginBottom: '0.5rem', paddingLeft: '1.5rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Sistema</div><button className={`nav-item ${abaAtiva === 'lojas' ? 'active' : ''}`} onClick={() => { setAbaAtiva('lojas'); setMenuAberto(false); }}><Store size={20} /> <span className="nav-item-text">Gestão de Lojas</span></button><button className={`nav-item ${abaAtiva === 'parametros' ? 'active' : ''}`} onClick={() => { setAbaAtiva('parametros'); setMenuAberto(false); }}><Sliders size={20} /> <span className="nav-item-text">Parâmetros Globais</span></button><button className={`nav-item ${abaAtiva === 'usuarios' ? 'active' : ''}`} onClick={() => { setAbaAtiva('usuarios'); setMenuAberto(false); }}><Users size={20} /> <span className="nav-item-text">Gestão de Acessos</span></button></>)}
         </nav>
-        <div style={{ marginTop: 'auto', padding: '1.5rem 1rem' }}><button className="btn btn-outline w-100" style={{ color: '#cbd5e1', borderColor: 'rgba(255,255,255,0.2)' }} onClick={fazerLogout}><LogOut size={18} style={{ marginRight: '8px' }} /> Encerrar Sessão</button></div>
+        <div style={{ marginTop: 'auto', padding: '1.5rem 1rem' }}>
+          <button className="btn w-100 btn-logout" onClick={fazerLogout}>
+            <LogOut size={18} style={{ marginRight: '8px' }} className="logout-icon" /> <span className="nav-item-text">Encerrar Sessão</span>
+          </button>
+        </div>
       </div>
 
       {menuAberto && <div className="overlay" onClick={() => setMenuAberto(false)}></div>}
 
       <div className="main-content">
         <header className="header">
-          <button className="menu-btn" onClick={() => setMenuAberto(true)}><Menu size={24} /></button>
-          <h2 className="page-title"> {abaAtiva === 'dashboard' ? 'Centro de Operações' : abaAtiva === 'relatorios' ? 'Inteligência e Sustentabilidade' : abaAtiva === 'usuarios' ? 'Administração de Acessos' : abaAtiva === 'parametros' ? 'Configurações do Sistema' : abaAtiva === 'lojas' ? 'Cadastro de Lojas' : abaAtiva === 'chamados' ? 'Manutenção Corretiva' : abaAtiva === 'historico_chamados' ? 'Histórico de Manutenções Antigas' : 'Gestão Comercial'} </h2>
+          <button className="menu-btn" onClick={() => {
+            if (window.innerWidth <= 768) setMenuAberto(true);
+            else setMenuRecolhido(!menuRecolhido);
+          }}>
+            <Menu size={24} />
+          </button>
+          
+          <h2 className="page-title"> {abaAtiva === 'dashboard' ? 'Central de Operações' : abaAtiva === 'relatorios' ? 'Inteligência e Sustentabilidade' : abaAtiva === 'usuarios' ? 'Administração de Usuários' : abaAtiva === 'parametros' ? 'Configurações do Sistema' : abaAtiva === 'lojas' ? 'Cadastro de Lojas' : abaAtiva === 'chamados' ? 'Manutenção Corretiva' : abaAtiva === 'historico_chamados' ? 'Histórico de Manutenções Antigas' : 'Gestão de Máquinas'} </h2>
+          
           <div className="user-info">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-color)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>{isOffline ? <><span className="status-dot" style={{ backgroundColor: 'var(--danger)' }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--danger)' }}>Offline</span></> : <><span className={`status-dot ${notificacoesDaFilial?.length > 0 ? 'pulse-danger' : ''}`} style={{ backgroundColor: latencia === 0 ? 'var(--text-muted)' : (latencia < 80 ? 'var(--success)' : 'var(--warning)') }}></span><span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)' }}>{latencia === 0 ? 'Ligando...' : `Latência: ${latencia}ms`}</span></>}</div>
-            <button className="btn-icon" onClick={alternarSom} title="Ligar/Desligar Alarmes" style={{ color: somAtivoState ? 'var(--primary)' : 'var(--text-muted)' }}>{somAtivoState ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
-            <button className="btn-icon" onClick={solicitarPermissaoPush} title="Permitir Push Nativos" style={{ color: permPush === 'granted' ? 'var(--success)' : 'var(--warning)' }}>{permPush === 'granted' ? <Bell size={20} /> : <BellOff size={20} />}</button>
-            <button className="btn-icon" onClick={toggleFullScreen}><Maximize size={20} /></button>
-            <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)}><Moon size={20} /></button>
+            
+            {/* MÓDULO DE CONEXÃO DISCRETO */}
+            <div className={`telemetry-badge-simple status-${statusConn.level}`} title="Qualidade da rede do supermercado">
+              <div className="signal-bars-simple">
+                 <div className={`bar ${statusConn.bars >= 1 ? 'active' : ''}`}></div>
+                 <div className={`bar ${statusConn.bars >= 2 ? 'active' : ''}`}></div>
+                 <div className={`bar ${statusConn.bars >= 3 ? 'active' : ''}`}></div>
+              </div>
+              <span className="conn-text">{statusConn.text}</span>
+              {!isOffline && latencia > 0 && <span className="conn-ms">{latencia}ms</span>}
+            </div>
+            
+            <button className="btn-icon" onClick={alternarSom} title={somAtivoState ? "Silenciar Alarmes" : "Ligar Alarmes"} style={{ color: somAtivoState ? 'var(--primary)' : 'var(--text-muted)' }}>
+              {somAtivoState ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+            
+            <button className="btn-icon" onClick={alternarAlertasTela} title={alertasNaTela ? "Ocultar Alertas Visuais" : "Mostrar Alertas Visuais"} style={{ color: alertasNaTela ? 'var(--primary)' : 'var(--text-muted)' }}>
+              {alertasNaTela ? <Bell size={20} /> : <BellOff size={20} />}
+            </button>
+            
+            <button className="btn-icon" onClick={toggleFullScreen} title={isFullScreen ? "Sair da Tela Cheia" : "Tela Cheia"}>
+              {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </button>
+            
+            <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title={isDarkMode ? "Mudar para Fundo Claro" : "Mudar para Fundo Escuro"}>
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </header>
 
         <main className="content-area">
           {abaAtiva === 'dashboard' && ( <Dashboard qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} /> )}
-          {abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} userRole={userRole} /> )}
-          {abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} userRole={userRole} /> )}
+          {abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
+          {abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
           {abaAtiva === 'equipamentos' && ( <Equipamentos api={api} showToast={showToast} isOffline={isOffline} userRole={userRole} userFilial={userFilial} filiaisDb={filiaisDb} listaSetores={listaSetores} listaTipos={listaTipos} carregarDadosBase={carregarDadosBase} equipamentosFiltradosLista={equipamentosFiltradosLista} editarEquipamento={editarEquipamento} pedirExclusao={pedirExclusao} /> )}
           {abaAtiva === 'relatorios' && ( <Relatorios totalEnergia={totalEnergia} slaCompliance={slaCompliance} kpis={kpis} mktValueProcessado={mktValueProcessado} dataInicio={dataInicio} setDataInicio={setDataInicio} dataFim={dataFim} setDataFim={setDataFim} isOffline={isOffline} equipamentoFiltro={equipamentoFiltro} setEquipamentoFiltro={setEquipamentoFiltro} equipamentosDaFilial={equipamentosDaFilial} gerarExportacao={gerarExportacao} dadosGraficoFiltrados={dadosGraficoFiltrados} isDarkMode={isDarkMode} equipamentoSelecionado={equipamentoSelecionado} ultimasLeiturasRaw={ultimasLeiturasRaw} /> )}
           {abaAtiva === 'historico' && ( <HistoricoLogs historicoFiltradoLista={historicoFiltradoLista} gerarExportacao={gerarExportacao} /> )}
-          {abaAtiva === 'chamados' && ( <Chamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} equipamentosDaFilial={equipamentosDaFilial} nomeGerente={nomeGerente} nomeCoordenador={nomeCoordenador} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} /> )}
-          {abaAtiva === 'historico_chamados' && ( <HistoricoChamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} /> )}
+          {abaAtiva === 'chamados' && ( <Chamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} equipamentosDaFilial={equipamentosDaFilial} nomeGerente={nomeGerente} nomeCoordenador={nomeCoordenador} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} gerarLoteOS={gerarLoteOS} /> )}
+          {abaAtiva === 'historico_chamados' && ( <HistoricoChamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} gerarLoteOS={gerarLoteOS} /> )}
           {abaAtiva === 'lojas' && userRole === 'ADMIN' && ( <GestaoLojas api={api} showToast={showToast} lojasCadastradas={lojasCadastradas} carregarLojas={carregarLojas} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
           {abaAtiva === 'usuarios' && userRole === 'ADMIN' && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
           {abaAtiva === 'parametros' && userRole === 'ADMIN' && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
@@ -286,8 +439,8 @@ export default function App() {
       </div>
 
       {equipEditando && (
-        <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '10vh' }}>
-          <div className="modal-content" style={{ maxWidth: '600px', width: '100%' }}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <h3><Edit size={20} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Editar Ativo IoT</h3>
             <form onSubmit={salvarEdicaoEquipamento}>
               <div className="form-grid">
@@ -307,8 +460,8 @@ export default function App() {
       )}
 
       {modalConfig.isOpen && (
-        <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '10vh' }}>
-          <div className="modal-content" style={{ width: '100%', maxWidth: '400px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
             <h3>{modalConfig.title}</h3><p>{modalConfig.message}</p>
             {modalConfig.isPrompt && (<input type="text" style={{ width: '100%', marginBottom: '1rem' }} value={modalConfig.promptValue} onChange={(e) => setModalConfig({...modalConfig, promptValue: e.target.value})} placeholder="Insira o relatório da intervenção..." autoFocus />)}
             <div className="modal-actions"><button className="btn btn-outline" onClick={() => setModalConfig({...modalConfig, isOpen: false})}>Cancelar</button><button className="btn btn-primary" onClick={() => { modalConfig.onConfirm(modalConfig.promptValue); setModalConfig({...modalConfig, isOpen: false}); }}>Confirmar</button></div>

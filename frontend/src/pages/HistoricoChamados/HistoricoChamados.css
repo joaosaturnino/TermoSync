@@ -1,0 +1,159 @@
+/* =========================================
+   ESTILOS PREMIUM: HISTÓRICO DE CHAMADOS
+   ========================================= */
+
+.historico-chamados-title {
+  margin: 0;
+}
+
+.historico-filter-select {
+  min-width: 170px;
+}
+
+.btn-print-history {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--text-muted);
+  border-color: transparent;
+}
+
+.btn-print-history:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text-main);
+}
+
+/* =========================================
+   CARTÃO DE ARQUIVO (HISTÓRICO)
+   ========================================= */
+.historico-card {
+  position: relative;
+  border-bottom: 4px solid var(--text-muted);
+  border-left: none;
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(255,255,255,0.02) 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  opacity: 0.85; /* Aspeto de arquivo/passado */
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  filter: grayscale(20%); /* Remove um pouco a cor para dar ar de arquivo */
+}
+
+.dark-theme .historico-card {
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(0,0,0,0.2) 100%);
+}
+
+.historico-card:hover {
+  opacity: 1;
+  filter: grayscale(0%);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.historico-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  box-shadow: inset 0 0 20px var(--text-muted);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.historico-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.historico-equip-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historico-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: rgba(100, 116, 139, 0.15);
+  color: var(--text-muted);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.historico-desc-box {
+  background: rgba(0,0,0,0.02);
+  border-left: 3px solid var(--border);
+  padding: 12px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 1.2rem;
+  font-style: italic;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.dark-theme .historico-desc-box {
+  background: rgba(255,255,255,0.02);
+}
+
+/* Grelha de Metadados com Ícones */
+.historico-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 1.2rem;
+}
+
+.historico-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.historico-meta-item strong {
+  color: var(--text-main);
+}
+
+/* =========================================
+   ÁREA DE RESOLUÇÃO (PASSADA)
+   ========================================= */
+.historico-resolucao {
+  margin-top: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.05);
+  border: 1px dashed rgba(100, 116, 139, 0.3);
+}
+
+.historico-resolucao-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.historico-resolucao-text {
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.historico-resolucao-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

@@ -1,21 +1,204 @@
-.date-filter-group {
-  display: flex; align-items: center; gap: 8px; background: var(--bg-color);
-  padding: 6px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;
-}
-.date-separator { color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
+/* =========================================
+   ESTILOS PREMIUM: INTELIGÊNCIA ESG
+   ========================================= */
 
-.react-datepicker-wrapper { width: 100%; flex: 1; }
-.react-datepicker__input-container input {
-  padding: 0.5rem; font-size: 0.9rem; font-weight: 600; text-align: center; border-radius: 6px; cursor: pointer; width: 100%;
-}
-.date-filter-group .react-datepicker__input-container input { border: none; background: transparent; padding: 0.3rem; }
-
-.chart-container {
-  background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;
-  border: 1px solid var(--border); box-shadow: var(--shadow); height: 400px; width: 100%; transition: background-color 0.3s;
+/* Grelha de KPIs Glassmorphism */
+.kpi-relatorios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-@media (max-width: 768px) {
-  .date-filter-group { flex-direction: column; align-items: stretch; }
-  .chart-container { height: 300px; padding: 1rem 0; }
+.kpi-relatorios-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-glass);
+  border: 1px solid var(--border);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
+
+.kpi-relatorios-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.kpi-relatorios-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+
+.kpi-relatorios-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.kpi-relatorios-icon-box {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+}
+
+.kpi-relatorios-value {
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+/* Cores néon para os valores principais */
+.kpi-relatorios-value.kpi-neon-green { color: var(--success); text-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+.kpi-relatorios-value.kpi-neon-red { color: var(--danger); text-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+.kpi-relatorios-value.kpi-neon-blue { color: var(--info); text-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+
+.kpi-relatorios-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 5px;
+  display: block;
+}
+
+/* =========================================
+   PAINEL DE CONTROLOS UNIFICADO
+   ========================================= */
+.relatorios-controls-card {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.relatorios-controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.controls-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Estilização discreta do DatePicker */
+.date-picker-custom {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.date-picker-custom:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.dark-theme .date-picker-custom {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.relatorios-export-group {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+/* =========================================
+   VISUALIZAÇÃO DE DADOS (GRÁFICO E TABELA)
+   ========================================= */
+.relatorios-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1200px) {
+  .relatorios-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.chart-relatorios-container {
+  min-height: 400px;
+  height: 100%;
+}
+
+.chart-loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+/* Tabela Premium Clean */
+.table-raw-container {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* SCROLLBAR DISCRETA PARA A TABELA */
+.table-raw-container::-webkit-scrollbar {
+  width: 5px;
+}
+.table-raw-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-raw-container::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 10px;
+}
+
+.dark-theme .table {
+  background-color: transparent;
+}
+
+.dark-theme .table tbody tr {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark-theme .table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.val-green { color: var(--success); font-weight: 700; }
+.val-red { color: var(--danger); font-weight: 700; }
+.val-blue { color: var(--info); font-weight: 700; }

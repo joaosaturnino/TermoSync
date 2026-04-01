@@ -1,16 +1,166 @@
-.timeline-container { position: relative; padding-left: 2rem; margin-top: 1.5rem; }
-.timeline-container::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
-.timeline-item { position: relative; margin-bottom: 1.5rem; }
+/* =========================================
+   ESTILOS PREMIUM: TIMELINE DE LOGS (RDC)
+   ========================================= */
 
-.timeline-marker { position: absolute; left: -1.95rem; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid var(--bg-color); box-shadow: 0 0 0 2px var(--border); z-index: 1; }
-.dark-theme .timeline-marker { border-color: var(--card-bg); }
+.timeline-container { 
+  position: relative; 
+  padding-left: 2.5rem; 
+  margin-top: 1rem; 
+}
 
-.timeline-content { background: var(--card-bg); padding: 1.2rem 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); transition: transform 0.2s, border-color 0.2s; }
-.timeline-content:hover { transform: translateX(4px); border-color: var(--primary); }
+/* A linha vertical da Timeline */
+.timeline-container::before { 
+  content: ''; 
+  position: absolute; 
+  left: 0.75rem; 
+  top: 0; 
+  bottom: 0; 
+  width: 2px; 
+  background: linear-gradient(180deg, var(--border) 0%, rgba(0,0,0,0) 100%); 
+}
 
-.timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; }
-.timeline-date { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.dark-theme .timeline-container::before { 
+  background: linear-gradient(180deg, var(--border) 0%, rgba(255,255,255,0) 100%); 
+}
 
-.timeline-body p { margin: 0 0 0.5rem 0; font-size: 0.95rem; line-height: 1.5; color: var(--text-main); }
-.timeline-action { background: rgba(16, 185, 129, 0.1); padding: 0.8rem; border-radius: 8px; border-left: 4px solid var(--success); margin-top: 1rem; }
-.timeline-action p { margin: 0; color: var(--success); font-weight: 600; }
+.timeline-item { 
+  position: relative; 
+  margin-bottom: 2rem; 
+  transition: all 0.3s ease; 
+}
+
+/* O ponto marcador na Timeline */
+.timeline-marker { 
+  position: absolute; 
+  left: -2.15rem; 
+  top: 1.5rem; 
+  width: 16px; 
+  height: 16px; 
+  border-radius: 50%; 
+  background: var(--primary); 
+  border: 3px solid var(--bg-color); 
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.5); 
+  z-index: 1; 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efeito de brilho ao passar o rato no cartão */
+.timeline-item:hover .timeline-marker {
+  transform: scale(1.25);
+  box-shadow: 0 0 15px rgba(5, 150, 105, 0.9);
+  background: var(--success);
+}
+
+/* O Cartão do Log */
+.timeline-content { 
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(255,255,255,0.01) 100%); 
+  padding: 1.5rem; 
+  border-radius: 16px; 
+  border: 1px solid var(--border); 
+  box-shadow: var(--shadow-glass); 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+}
+
+.dark-theme .timeline-content { 
+  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(0,0,0,0.1) 100%); 
+}
+
+.timeline-item:hover .timeline-content { 
+  transform: translateX(6px); 
+  border-color: rgba(5, 150, 105, 0.3); 
+  box-shadow: var(--shadow-md); 
+}
+
+.timeline-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 1rem; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+  border-bottom: 1px solid var(--border); 
+  padding-bottom: 1rem; 
+}
+
+.timeline-date { 
+  font-size: 0.85rem; 
+  color: var(--text-main); 
+  font-weight: 700; 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  background: rgba(0,0,0,0.03); 
+  padding: 6px 12px; 
+  border-radius: 8px; 
+  border: 1px solid var(--border);
+}
+
+.dark-theme .timeline-date { 
+  background: rgba(255,255,255,0.03); 
+}
+
+.timeline-body { 
+  margin-bottom: 1.2rem; 
+}
+
+.timeline-equip-title {
+  font-weight: 800; 
+  font-size: 1.15rem; 
+  color: var(--text-main);
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  margin: 0 0 0.8rem 0;
+}
+
+.timeline-alert-msg {
+  background: rgba(239, 68, 68, 0.05); 
+  border-left: 3px solid var(--danger);
+  padding: 12px; 
+  border-radius: 0 8px 8px 0; 
+  margin: 0;
+  color: var(--text-main); 
+  font-size: 0.95rem; 
+  display: flex; 
+  align-items: flex-start; 
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.timeline-action { 
+  background: rgba(16, 185, 129, 0.05); 
+  padding: 12px; 
+  border-radius: 10px; 
+  border: 1px dashed rgba(16, 185, 129, 0.3); 
+  margin-top: 1rem; 
+}
+
+.timeline-action-title {
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  color: var(--success);
+  font-weight: 700; 
+  font-size: 0.85rem; 
+  margin-bottom: 6px;
+}
+
+.timeline-action-text { 
+  margin: 0; 
+  color: var(--text-main); 
+  font-size: 0.95rem; 
+}
+
+/* Botão de Exportar Especial */
+.btn-export-log {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-export-log:hover {
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
+  color: white;
+}

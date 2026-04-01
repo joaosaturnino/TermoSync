@@ -1,0 +1,175 @@
+/* =========================================
+   ESTILOS PREMIUM: GESTÃO DE USUÁRIOS
+   ========================================= */
+
+.gestao-usuarios-title {
+  margin: 0;
+}
+
+.gestao-usuarios-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* =========================================
+   PERFIL E AVATAR NA TABELA
+   ========================================= */
+.user-profile-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: white;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-login-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+.user-identity-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* =========================================
+   BADGES DE PERMISSÃO (ROLES)
+   ========================================= */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.role-badge.admin {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.role-badge.tech {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.role-badge.store {
+  background-color: rgba(56, 189, 248, 0.1);
+  color: var(--info);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+/* Badge de Âmbito (Filial) */
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background-color: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.dark-theme .scope-badge {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* =========================================
+   BOTÕES DE AÇÃO NA TABELA
+   ========================================= */
+.btn-action {
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-action.edit {
+  color: var(--info);
+  border-color: transparent;
+  background: rgba(59, 130, 246, 0.05);
+  margin-right: 8px;
+}
+
+.btn-action.edit:hover {
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-action.delete {
+  color: var(--danger);
+  border-color: transparent;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.btn-action.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  transform: translateY(-2px);
+}
+
+/* =========================================
+   MODAL DE USUÁRIOS E ALERTAS
+   ========================================= */
+.gestao-usuarios-form-grid {
+  grid-template-columns: 1fr;
+}
+
+.password-hint {
+  font-size: 0.75rem;
+  color: var(--warning);
+  margin-left: 5px;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.tecnico-warning-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background-color: rgba(56, 189, 248, 0.1);
+  border-radius: 12px;
+  margin-top: 5px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.tecnico-warning-text {
+  font-size: 0.85rem;
+  color: var(--info);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.gestao-usuarios-modal-actions {
+  margin-top: 1.5rem;
+}

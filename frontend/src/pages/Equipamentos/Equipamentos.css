@@ -1,0 +1,179 @@
+/* =========================================
+   ESTILOS PREMIUM: EQUIPAMENTOS
+   ========================================= */
+
+.equipamentos-card {
+  margin-bottom: 2rem;
+  overflow: visible; /* Permite que o brilho do botão saia do cartão */
+}
+
+.equipamentos-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.equipamentos-card-title {
+  margin-top: 0;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* =========================================
+   BOTÃO SMART (PADRÃO ANVISA)
+   ========================================= */
+.btn-anvisa {
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: var(--secondary);
+  font-weight: 700;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-anvisa:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%);
+  border-color: var(--secondary);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+  transform: translateY(-2px);
+  color: var(--secondary);
+}
+
+.equipamentos-form-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
+/* =========================================
+   ELEMENTOS DA TABELA PREMIUM
+   ========================================= */
+
+/* Anel de Luz (Status Néon) */
+.status-ring {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 10px;
+  background-color: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  vertical-align: middle;
+}
+
+.status-ring.pulse {
+  animation: pulseNeon 2s infinite;
+}
+
+@keyframes pulseNeon {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.equipamento-nome-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.equipamento-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Badges de Calibração */
+.calib-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.calib-badge.ok {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.calib-badge.critical {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  animation: pulseNeon 2s infinite;
+}
+
+/* Tags de Limites Operacionais (SLA) */
+.limites-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.limit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  width: fit-content;
+}
+
+.dark-theme .limit-tag {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Botões de Ação na Tabela (Editar/Excluir) */
+.btn-action {
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-action.edit {
+  color: var(--info);
+  border-color: transparent;
+  background: rgba(59, 130, 246, 0.05);
+  margin-right: 8px;
+}
+
+.btn-action.edit:hover {
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-action.delete {
+  color: var(--danger);
+  border-color: transparent;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.btn-action.delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+  transform: translateY(-2px);
+}

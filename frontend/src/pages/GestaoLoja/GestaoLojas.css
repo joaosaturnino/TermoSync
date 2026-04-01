@@ -1,0 +1,140 @@
+/* =========================================
+   ESTILOS PREMIUM: GESTÃO DE LOJAS
+   ========================================= */
+
+.gestao-lojas-title {
+  margin: 0;
+}
+
+.gestao-lojas-card {
+  margin-top: 1.5rem;
+}
+
+/* =========================================
+   ELEMENTOS DA TABELA
+   ========================================= */
+.loja-name-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.loja-icon-wrapper {
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  color: var(--primary);
+}
+
+/* Badges de Liderança (Gerente/Coordenador) */
+.leadership-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leader-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.leader-badge.manager {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.leader-badge.coordinator {
+  background-color: rgba(56, 189, 248, 0.1);
+  color: var(--secondary);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.leader-badge.missing {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+}
+
+.dark-theme .leader-badge.missing {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Linhas de Contacto */
+.contact-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contact-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.contact-line svg {
+  color: var(--text-main);
+  opacity: 0.7;
+}
+
+/* =========================================
+   BOTÕES DE AÇÃO NA TABELA
+   ========================================= */
+.btn-action {
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-action.edit {
+  color: var(--info);
+  border-color: transparent;
+  background: rgba(59, 130, 246, 0.05);
+  margin-right: 8px;
+}
+
+.btn-action.edit:hover {
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-action.delete {
+  color: var(--danger);
+  border-color: transparent;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.btn-action.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  transform: translateY(-2px);
+}
+
+/* =========================================
+   MODAL
+   ========================================= */
+.gestao-lojas-modal {
+  align-items: flex-start;
+  padding-top: 10vh;
+}
+
+.gestao-lojas-modal-content {
+  max-width: 500px;
+  width: 100%;
+}
+
+.gestao-lojas-form-grid {
+  grid-template-columns: 1fr;
+}

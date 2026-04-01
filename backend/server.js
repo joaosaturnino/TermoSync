@@ -1,6 +1,6 @@
 /**
  * Servidor Backend - TermoSync Enterprise (Ultimate Edition)
- * ATUALIZADO: Auto-Patch no Banco de Dados + Correção de Erros Mascarados
+ * ATUALIZADO: Auto-Patch no Banco de Dados + Correção de Erros Mascarados + Medidor de Latência
  */
 
 require('dotenv').config();
@@ -15,6 +15,18 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] } });
+
+/* ====================================================
+   CONFIGURAÇÃO DOS WEBSOCKETS (TEMPO REAL E LATÊNCIA)
+   ==================================================== */
+io.on('connection', (socket) => {
+  // Ouve o pedido de latência enviado pelo frontend (App.jsx) e devolve o sinal imediatamente
+  socket.on('medir_latencia', (timestamp, callback) => {
+    if (typeof callback === 'function') {
+      callback(timestamp);
+    }
+  });
+});
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' })); 
@@ -147,7 +159,6 @@ app.post('/api/setores', verificarToken, async (req, res) => {
     await pool.execute('INSERT INTO setores (nome) VALUES (?)', [req.body.nome]);
     io.emit('atualizacao_dados'); res.status(201).send();
   } catch (error) { 
-    // 🔴 Exibindo o erro real do SQL, caso ocorra, em vez de mensagem genérica
     res.status(500).json({ error: error.message }); 
   }
 });
@@ -186,7 +197,7 @@ app.post('/api/tipos-refrigeracao', verificarToken, async (req, res) => {
   try {
     const { nome, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo } = req.body;
     
-    // Prevenção extra: Se o front falhar ao mandar o número, o backend assume o valor padrão e salva de qualquer jeito.
+    // Prevenção extra
     const tMin = temp_min !== undefined ? temp_min : 0;
     const tMax = temp_max !== undefined ? temp_max : 8;
     const uMin = umidade_min !== undefined ? umidade_min : 60;
@@ -200,7 +211,6 @@ app.post('/api/tipos-refrigeracao', verificarToken, async (req, res) => {
     );
     io.emit('atualizacao_dados'); res.status(201).send();
   } catch (error) { 
-    // 🔴 Exibindo o erro real do SQL, caso ocorra (Removemos a mensagem hardcoded que mascarava)
     res.status(500).json({ error: error.message }); 
   }
 });
@@ -233,7 +243,7 @@ app.delete('/api/tipos-refrigeracao/:id', verificarToken, async (req, res) => {
 });
 
 /* ====================================================
-   RESTANTES ROTAS PADRÃO (Equipamentos, Leituras, etc)
+   RESTANTES ROTAS PADRÃO
    ==================================================== */
 
 app.get('/api/tecnicos', verificarToken, async (req, res) => {
