@@ -32,7 +32,6 @@
   margin: 0 auto; 
   width: 100%; 
 }
-
 /* =========================================
    CABEÇALHO FLUTUANTE (FLOATING HEADER)
    ========================================= */
@@ -259,6 +258,8 @@
 .nav-item.active { background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%); color: #ffffff; font-weight: 700; box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.15); border: 1px solid rgba(255, 255, 255, 0.1); }
 .nav-item.active svg { opacity: 1; color: #38bdf8; }
 .nav-item.active::before { content: ''; position: absolute; left: -1rem; top: 50%; transform: translateY(-50%); height: 60%; width: 4px; background-color: #38bdf8; border-radius: 0 4px 4px 0; box-shadow: 0 0 12px rgba(56, 189, 248, 0.8); }
+
+.nav-group-label { padding: 0 1.8rem; font-size: 0.65rem; font-weight: 800; color: rgba(255, 255, 255, 0.3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.8rem; }
 
 .badge { background: var(--danger); color: white; padding: 0.1rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: bold; margin-left: auto; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
 

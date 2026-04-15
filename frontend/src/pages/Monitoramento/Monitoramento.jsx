@@ -116,7 +116,7 @@ const max = parseFloat(isTemp ? (eq.temp_max ?? 15) : (eq.umidade_max ?? 85));
                   <MapPin size={14}/> {eq.filial || 'Unidade Local'}
                 </span>
                 {!temDados ? (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--warning)', fontWeight: '800' }}>AGUARDANDO DADOS IOT...</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--warning)', fontWeight: '800' }}>AGUARDANDO DADOS DOS SENSORES...</span>
                 ) : isFora && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: '800', letterSpacing: '0.5px' }}>FORA DE PARÂMETROS</span>
                 )}

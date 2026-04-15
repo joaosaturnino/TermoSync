@@ -13,6 +13,19 @@
   font-family: 'Inter', sans-serif;
 }
 
+/* Grelha de Fundo (Grid IoT) */
+.login-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: 0;
+  pointer-events: none;
+}
+
 /* Formas de Fundo Animadas */
 .login-background-shapes {
   position: absolute;
@@ -22,9 +35,9 @@
 
 .shape {
   position: absolute;
-  filter: blur(100px);
+  filter: blur(120px);
   border-radius: 50%;
-  opacity: 0.4;
+  opacity: 0.35;
   animation: float 15s infinite ease-in-out alternate;
 }
 
@@ -32,65 +45,66 @@
   background: var(--primary);
   width: 500px;
   height: 500px;
-  top: -150px;
-  left: -100px;
+  top: -10%;
+  left: -5%;
 }
 
 .shape-2 {
-  background: #38bdf8;
-  width: 400px;
-  height: 400px;
-  bottom: -100px;
-  right: -50px;
-  animation-delay: -7s;
+  background: #0ea5e9;
+  width: 450px;
+  height: 450px;
+  bottom: -15%;
+  right: -5%;
+  animation-delay: -5s;
 }
 
 @keyframes float {
-  from { transform: translate(0, 0) rotate(0deg); }
-  to { transform: translate(40px, 60px) rotate(15deg); }
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, 80px) scale(1.1); }
 }
 
-/* Caixa de Login Glassmorphism Escura */
+/* Caixa de Login Glassmorphism Ultra-Premium */
 .login-box {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 3.5rem 2.5rem;
-  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 3.5rem 3rem;
+  border-radius: 24px;
   width: 100%;
-  max-width: 420px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 440px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.1);
   z-index: 1;
   text-align: center;
+}
+
+.login-logo-wrapper {
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(16, 185, 129, 0.1);
 }
 
 .login-header {
   margin-bottom: 2.5rem;
 }
 
-.login-logo-wrapper {
-  background: #1e293b; /* Fundo do ícone escuro */
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-}
-
 .login-header h2 {
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
-  color: #f8fafc; /* Texto sempre branco */
-  margin-bottom: 0.5rem;
+  color: #ffffff;
+  margin-bottom: 0.4rem;
   letter-spacing: -0.5px;
 }
 
 .login-header p {
-  color: #94a3b8; /* Texto secundário cinza claro */
+  color: #94a3b8;
   font-size: 0.95rem;
   font-weight: 500;
 }
@@ -99,11 +113,13 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.2rem;
+  text-align: left;
 }
 
 .input-with-icon {
   position: relative;
+  width: 100%;
 }
 
 .input-icon {
@@ -111,87 +127,152 @@
   left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #64748b;
   transition: all 0.3s ease;
   pointer-events: none;
 }
 
-/* INPUTS NATIVAMENTE ESCUROS */
+.password-toggle {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #f8fafc;
+}
+
+/* INPUTS ESCUROS PREMIUM */
 .input-with-icon input {
   width: 100%;
-  padding: 1.1rem 1.1rem 1.1rem 3.5rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.4);
-  color: #f8fafc !important; /* Letra branca fixa */
-  font-size: 1rem;
+  padding: 1.1rem 2.8rem 1.1rem 3.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff !important; 
+  font-size: 0.95rem;
+  font-weight: 500;
   transition: all 0.3s ease;
 }
 
-/* INPUTS EM FOCO (Ficam brancos e o texto fica escuro para ser lido) */
-.input-with-icon input:focus {
-  border-color: var(--primary);
-  background: #ffffff;
-  color: #1e293b !important; /* Letra escura quando o fundo fica branco */
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+.input-with-icon input::placeholder {
+  color: #475569;
 }
 
-/* AUTOFILL DO NAVEGADOR (Impede que as cores se quebrem ao guardar a senha) */
+/* O Focus agora adiciona um Glow em vez de ficar branco */
+.input-with-icon input:focus {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+}
+
+.input-with-icon input:focus + .input-icon {
+  color: var(--primary);
+}
+
+/* Corrige o fundo amarelo/branco do Autofill do Chrome */
 .input-with-icon input:-webkit-autofill,
 .input-with-icon input:-webkit-autofill:hover, 
 .input-with-icon input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #1e293b !important; /* Letra escura no autofill */
-  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important; /* Fundo branco limpo */
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
+  border-color: rgba(255, 255, 255, 0.1);
   transition: background-color 5000s ease-in-out 0s;
-  border-color: var(--primary);
 }
 
-.input-with-icon input:focus + .input-icon,
-.input-with-icon input:-webkit-autofill + .input-icon {
+/* Link Esqueceu a Senha */
+.forgot-password {
+  display: block;
+  text-align: right;
+  font-size: 0.8rem;
   color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: -0.5rem;
+  transition: opacity 0.2s ease;
+}
+
+.forgot-password:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
 /* Botão Login Master */
 .login-btn {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   padding: 1.1rem;
   font-weight: 700;
-  font-size: 1.05rem;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--primary) 0%, #059669 100%);
-  border: none;
+  font-size: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   transition: all 0.3s ease;
   color: white;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: all 0.5s ease;
 }
 
 .login-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
-.login-btn:active {
+.login-btn:hover:not(:disabled)::after {
+  left: 150%;
+}
+
+.login-btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
+/* Tratamento de Erro */
 .login-error-container {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 0.85rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 0.5rem;
 }
 
 .login-footer {
   margin-top: 2rem;
-  font-size: 0.8rem;
-  color: #94a3b8;
-  opacity: 0.7;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
