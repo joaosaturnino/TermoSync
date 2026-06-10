@@ -7,9 +7,10 @@ import {
   UserX, MapPin, Clock, PieChart, FileSpreadsheet, Lock, Unlock, CheckCircle2, 
   AlertTriangle, TrendingUp, DownloadCloud, Calendar, Percent, Banknote, 
   Eraser, Network, Copy, Check, AlertOctagon, TerminalSquare, Loader2, 
-  ChevronDown, ChevronUp, Receipt, Cloud, HardDrive, Radio, ServerCrash, ZapOff, Sliders
+  ChevronDown, ChevronUp, Receipt, Cloud, HardDrive, Radio, ServerCrash, ZapOff, Sliders, Map as MapIcon, 
+  Zap, Flame, AlertCircle, Wifi
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, YAxis } from 'recharts';
+import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, YAxis, BarChart, Bar, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './PainelDesenvolvedor.css';
@@ -35,13 +36,13 @@ const BootScreen = ({ onComplete }) => {
 
     const runBootSequence = async () => {
       const sequence = [
-        { text: "TermoSync Enterprise OS [Build 10.5.22621 - TCC Edition]", delay: 100, color: '#94a3b8' },
-        { text: "(c) TermoSync Corporation. NOC & SysAdmin Core.", delay: 100, color: '#94a3b8' },
+        { text: "TermoSync Enterprise OS [Build 10.5.22621 - Edição TCC]", delay: 100, color: '#94a3b8' },
+        { text: "(c) TermoSync Corporation. Centro de Operações de Rede & SysAdmin.", delay: 100, color: '#94a3b8' },
         { text: " ", delay: 100 },
-        { text: "Initializing Core Processors...", delay: 200 },
-        { text: "CPU: AMD EPYC 9754 128-Core Processor @ 3.2GHz", delay: 100 },
-        { text: "Memory: 1048576 MB RAM - SECURE ECC VERIFIED", delay: 50 },
-        { text: "Scanning local network for edge devices (IoT)...", delay: 300 }
+        { text: "Inicializando Processadores Principais...", delay: 200 },
+        { text: "CPU: AMD EPYC 9754 Processador de 128-Núcleos @ 3.2GHz", delay: 100 },
+        { text: "Memória: 1048576 MB RAM - SECURE ECC VERIFICADO", delay: 50 },
+        { text: "Mapeando rede local por dispositivos edge (IoT)...", delay: 300 }
       ];
 
       for (let i = 0; i < 8; i++) {
@@ -49,15 +50,15 @@ const BootScreen = ({ onComplete }) => {
       }
 
       sequence.push(
-        { text: "[  OK  ] Hardware watchdogs engaged.", delay: 150 },
-        { text: "Establishing secure WSS uplink to master cluster... [ 104.28.192.12 ]", delay: 250 },
-        { text: "[  OK  ] Uplink established. TLS 1.3 Tunnel encrypted.", delay: 100, color: '#10b981' },
-        { text: "Mounting Multi-Tenant MySQL Volumes...", delay: 200 },
-        { text: "Decrypting master access tokens (AES-256): [████████████████████] 100%", delay: 350 },
-        { text: "Waking Network Operations Center (NOC) daemons...", delay: 200 },
-        { text: "[ WARN ] SUPERVISOR MODE ACTIVATED.", delay: 400, color: '#eab308', isBold: true },
-        { text: "[ WARN ] IDS ENGAGING ZERO-TRUST PROTOCOL.", delay: 300, color: '#ef4444', isBold: true },
-        { text: "SYSTEM RESTRICTED. ROOT IDENTIFICATION REQUIRED.", delay: 150, color: '#cbd5e1', isBold: true }
+        { text: "[  OK  ] Watchdogs de hardware acionados.", delay: 150 },
+        { text: "Estabelecendo uplink WSS seguro para o cluster master... [ 104.28.192.12 ]", delay: 250 },
+        { text: "[  OK  ] Uplink estabelecido. Túnel TLS 1.3 criptografado.", delay: 100, color: '#10b981' },
+        { text: "Montando Volumes MySQL Multi-Tenant...", delay: 200 },
+        { text: "Descriptografando tokens de acesso master (AES-256): [████████████████████] 100%", delay: 350 },
+        { text: "Iniciando daemons do Network Operations Center (NOC)...", delay: 200 },
+        { text: "[ AVISO ] MODO SUPERVISOR ATIVADO.", delay: 400, color: '#eab308', isBold: true },
+        { text: "[ AVISO ] IDS INICIANDO PROTOCOLO ZERO-TRUST.", delay: 300, color: '#ef4444', isBold: true },
+        { text: "SISTEMA RESTRITO. IDENTIFICAÇÃO ROOT NECESSÁRIA.", delay: 150, color: '#cbd5e1', isBold: true }
       );
 
       for (let i = 0; i < sequence.length; i++) {
@@ -85,21 +86,21 @@ const BootScreen = ({ onComplete }) => {
     setLogs(prev => [...prev, { text: `root@termosync:~$ ${typed.replace(/./g, '*')}`, color: '#10b981' }]);
     
     await new Promise(r => setTimeout(r, 400));
-    setLogs(prev => [...prev, { text: "Verifying cryptographic signature...", color: '#94a3b8' }]);
+    setLogs(prev => [...prev, { text: "Verificando assinatura criptográfica...", color: '#94a3b8' }]);
     
     await new Promise(r => setTimeout(r, 600));
     
     if (typed.toLowerCase() === 'root') {
-      setLogs(prev => [...prev, { text: "Hash [0x9A4B...21F] -> MATCH", color: '#10b981' }]);
+      setLogs(prev => [...prev, { text: "Hash [0x9A4B...21F] -> CORRESPONDÊNCIA", color: '#10b981' }]);
       await new Promise(r => setTimeout(r, 300));
-      setLogs(prev => [...prev, { text: "[  OK  ] AUTHENTICATION SUCCESSFUL.", color: '#10b981', isBold: true }]);
-      setLogs(prev => [...prev, { text: "Unlocking SaaS modules and elevating privileges...", color: '#94a3b8' }]);
+      setLogs(prev => [...prev, { text: "[  OK  ] AUTENTICAÇÃO BEM-SUCEDIDA.", color: '#10b981', isBold: true }]);
+      setLogs(prev => [...prev, { text: "Desbloqueando módulos SaaS e elevando privilégios...", color: '#94a3b8' }]);
       await new Promise(r => setTimeout(r, 800));
       onComplete();
     } else {
-      setLogs(prev => [...prev, { text: "Hash [0x9A4B...21F] -> MISMATCH", color: '#ef4444' }]);
+      setLogs(prev => [...prev, { text: "Hash [0x9A4B...21F] -> INCOMPATÍVEL", color: '#ef4444' }]);
       await new Promise(r => setTimeout(r, 300));
-      setLogs(prev => [...prev, { text: "[ FAIL ] ACCESS DENIED. INCIDENT LOGGED IN SOC.", color: '#ef4444', isBold: true }]);
+      setLogs(prev => [...prev, { text: "[ FALHA ] ACESSO NEGADO. INCIDENTE REGISTRADO NO SOC.", color: '#ef4444', isBold: true }]);
       await new Promise(r => setTimeout(r, 500));
       setShowInput(true);
       setIsProcessing(false);
@@ -119,7 +120,7 @@ const BootScreen = ({ onComplete }) => {
             <span className="boot-prompt">root@termosync:~$</span>
             <div className="boot-input-wrapper">
               <input ref={inputRef} type="password" value={passcode} onChange={e => setPasscode(e.target.value)} className="boot-input" autoComplete="off" disabled={isProcessing} />
-              <span className="boot-cursor-blink" style={{ left: `${passcode.length * 9.5}px` }}></span>
+              <span className="boot-cursor-blink"></span>
             </div>
           </form>
         )}
@@ -145,6 +146,9 @@ export default function PainelDesenvolvedor({ api, abaAtiva, isDevAuthenticated,
 
   return (
     <div className={`dev-os-container anim-fade-in ${sysConfig?.maintenanceMode ? 'lockdown-mode' : ''}`}>
+      {abaAtiva === 'dev_panel' && <div className="noc-scanlines"></div>}
+      {abaAtiva === 'dev_panel' && <div className="noc-cyber-grid"></div>}
+
       {sysConfig?.maintenanceMode && (
         <div className="maintenance-banner">
           <AlertOctagon size={18} className="pulse-icon" /> SISTEMA EM MODO DE MANUTENÇÃO (OFFLINE) <AlertOctagon size={18} className="pulse-icon" />
@@ -152,9 +156,6 @@ export default function PainelDesenvolvedor({ api, abaAtiva, isDevAuthenticated,
       )}
       <div className="dev-os-workspace">
         <div className="dev-os-content">
-          {/* NOC TACTICAL GRID OVERLAY */}
-          {abaAtiva === 'dev_panel' && <div className="noc-cyber-grid"></div>}
-          
           {abaAtiva === 'empresas' && <GestaoEmpresas api={api} showToast={showToast} setModalConfig={setModalConfig} />}
           {abaAtiva === 'dev_panel' && <TelaNOC api={api} showToast={showToast} sysConfig={sysConfig} updateSysConfig={updateSysConfig} tocarAlarme={tocarAlarme} usuariosLista={usuariosLista} addLog={addLog} setModalConfig={setModalConfig} />}
           {abaAtiva === 'saas' && <TelaSaaS api={api} sysConfig={sysConfig} updateSysConfig={updateSysConfig} filiaisDb={filiaisDb} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} />}
@@ -170,7 +171,7 @@ export default function PainelDesenvolvedor({ api, abaAtiva, isDevAuthenticated,
 }
 
 // ============================================================================
-// 3. TELA NOC (DASHBOARD GRAFANA/DATADOG STYLE - GOD TIER V2)
+// 3. TELA NOC (CYBER COMMAND V8)
 // ============================================================================
 const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, addLog }) => {
   const [scopeType, setScopeType] = useState('ROLE');
@@ -178,21 +179,30 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
   
   const [metrics, setMetrics] = useState({ cpu: 12, ram: 42, ping: 14, reqs: 342, dbQps: 154, bandwidth: 24.5 });
   const [metricHistory, setMetricHistory] = useState(Array.from({ length: 20 }, () => ({ time: '', cpu: 0, ram: 0, bw: 0, db: 0 })));
+  
   const [apiTraffic, setApiTraffic] = useState([]);
   const [threats, setThreats] = useState([]);
+  const [incidents, setIncidents] = useState([]); 
+  const [latencyData, setLatencyData] = useState([]); 
+  
   const [clusterNodes, setClusterNodes] = useState([
-    { id: 1, name: 'sa-east-1a (Master)', role: 'Primary DB & Node', status: 'online', ping: 12 },
-    { id: 2, name: 'sa-east-1b (Replica)', role: 'Read Replica', status: 'online', ping: 14 },
-    { id: 3, name: 'us-east-1 (Failover)', role: 'Disaster Recovery', status: 'standby', ping: 118 },
-    { id: 4, name: 'redis-cache-tier', role: 'In-Memory Cache', status: 'online', ping: 2 }
+    { id: 1, name: 'sa-east-1a (Master)', role: 'BD Primário & Nó', status: 'online', ping: 12 },
+    { id: 2, name: 'sa-east-1b (Replica)', role: 'Réplica de Leitura', status: 'online', ping: 14 },
+    { id: 3, name: 'us-east-1 (Failover)', role: 'Recuperação de Desastres', status: 'standby', ping: 118 }
   ]);
+
+  const [heatGrid, setHeatGrid] = useState(Array.from({length: 100}, () => Math.floor(Math.random() * 2)));
+  const [actionLoading, setActionLoading] = useState(null);
 
   const trafficContainerRef = useRef(null);
   const wafContainerRef = useRef(null);
+  const incidentsContainerRef = useRef(null);
+  
   const [uptimeStr, setUptimeStr] = useState('--:--:--');
   const [serverStartTime, setServerStartTime] = useState(null);
 
-  // Busca Uptime Real do Node.js
+  const locs = ['SP, BR', 'FRA, DE', 'ASH, US', 'TOK, JP', 'LON, UK', 'SYD, AU'];
+
   useEffect(() => {
     let isMounted = true;
     const fetchRealUptime = async () => {
@@ -224,12 +234,13 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     return () => clearInterval(iUptime);
   }, [serverStartTime]);
 
-  // Motores de Simulação do NOC Visual
   useEffect(() => {
     const i1 = setInterval(() => {
       if(sysConfig.maintenanceMode) {
         setMetrics({ cpu: 1, ram: 15, ping: 5, reqs: 0, dbQps: 0, bandwidth: 0 });
         setMetricHistory(prev => [...prev.slice(1), { time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit' }), cpu: 1, ram: 15, bw: 0, db: 0 }]);
+        setHeatGrid(prev => [...prev.slice(1), 0]);
+        setLatencyData([]);
         return;
       }
       const newCpu = Math.floor(Math.random() * 20) + 15;
@@ -242,42 +253,80 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
       setMetricHistory(prev => [...prev.slice(1), { time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit' }), cpu: newCpu, ram: newRam, bw: newBw, db: newDb }]);
       
       setClusterNodes(prev => prev.map(n => ({ ...n, ping: n.status === 'standby' ? Math.floor(Math.random() * 20) + 110 : Math.floor(Math.random() * 10) + 5 })));
+      setHeatGrid(prev => [...prev.slice(1), Math.floor(Math.random() * 5)]);
+
+      setLatencyData([
+        { range: '10ms', count: Math.floor(Math.random() * 200) + 300 },
+        { range: '50ms', count: Math.floor(Math.random() * 100) + 150 },
+        { range: '100ms', count: Math.floor(Math.random() * 50) + 50 },
+        { range: '200ms', count: Math.floor(Math.random() * 20) + 10 },
+        { range: '500ms+', count: Math.floor(Math.random() * 5) }
+      ]);
     }, 2000);
 
     const i2 = setInterval(() => {
       if(sysConfig.maintenanceMode) return;
       const rotas = [
-        { method: 'GET', route: '/api/v1/telemetry/sync', color: '#10b981', status: '200 OK' }, 
-        { method: 'POST', route: '/api/v1/auth/verify', color: '#f59e0b', status: '201 CREATED' }, 
-        { method: 'WSS', route: '/ws/stream/events', color: '#a855f7', status: '101 SWITCH' }, 
-        { method: 'GET', route: '/api/v1/assets/img', color: '#38bdf8', status: '304 CACHE' }
+        { method: 'MQTT', route: 'telemetry/esp32/temp_hum', color: '#10b981', status: 'ACK' }, 
+        { method: 'POST', route: '/api/v1/auth/verify', color: '#f59e0b', status: '201 OK' }, 
+        { method: 'WSS', route: '/ws/stream/events', color: '#a855f7', status: '101 SW' }, 
+        { method: 'GET', route: '/api/v1/sys/health', color: '#38bdf8', status: '304 CA' }
       ];
       const r = rotas[Math.floor(Math.random() * rotas.length)];
-      setApiTraffic(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), method: r.method, color: r.color, route: r.route, status: r.status, ip: `192.168.${Math.floor(Math.random()*10)}.${Math.floor(Math.random() * 255)}`, ms: Math.floor(Math.random() * 40)+5 }]);
-    }, 350);
+      const geo = locs[Math.floor(Math.random() * locs.length)];
+      setApiTraffic(prev => [...prev.slice(-40), { id: Date.now() + Math.random(), method: r.method, color: r.color, route: r.route, status: r.status, geo, ip: `192.168.${Math.floor(Math.random()*10)}.${Math.floor(Math.random() * 255)}`, ms: Math.floor(Math.random() * 40)+5 }]);
+    }, 250);
 
     const i3 = setInterval(() => {
       if(sysConfig.maintenanceMode) return;
-      const ataques = ['SQL_INJECTION', 'DDOS_SYN_FLOOD', 'BRUTE_FORCE_JWT', 'PATH_TRAVERSAL'];
+      const ataques = ['TENTATIVA_INJEÇÃO_SQL', 'DDOS_SYN_FLOOD', 'BRUTE_FORCE_JWT', 'PATH_TRAVERSAL'];
       const ips = [`45.33.${Math.floor(Math.random() * 255)}.12`, `188.166.${Math.floor(Math.random() * 255)}.55`, `104.28.${Math.floor(Math.random() * 255)}.1`];
-      const atk = `[IDS BLOCK] SIG_MATCH: ${ataques[Math.floor(Math.random() * ataques.length)]} -> DROP PKT from ${ips[Math.floor(Math.random() * ips.length)]}`;
-      setThreats(prev => [...prev.slice(-15), { id: Date.now(), text: atk }]);
-    }, 4500);
+      const geo = locs[Math.floor(Math.random() * locs.length)];
+      const atk = `[BLOQUEIO IDS] ASSINATURA: ${ataques[Math.floor(Math.random() * ataques.length)]} -> PACOTE DESCARTADO de ${ips[Math.floor(Math.random() * ips.length)]} (${geo})`;
+      setThreats(prev => [...prev.slice(-20), { id: Date.now(), text: atk }]);
+    }, 3500);
 
-    return () => { clearInterval(i1); clearInterval(i2); clearInterval(i3); };
+    const i4 = setInterval(() => {
+      if(sysConfig.maintenanceMode) return;
+      if (Math.random() > 0.6) {
+        const errors = [
+          { msg: 'Aviso: Sobrecarga temporária na API conectora.', type: 'warning' },
+          { msg: 'Crítico: Latência do Cluster MySQL Master > 200ms.', type: 'critical' },
+          { msg: 'Aviso: Memória Cache Redis atingindo 85% de capacidade.', type: 'warning' },
+          { msg: 'Nó Edge [Filial SP] não envia Heartbeat há 2 min.', type: 'warning' },
+          { msg: 'Queda de comunicação com Broker MQTT. Tentando reconectar.', type: 'critical' }
+        ];
+        const err = errors[Math.floor(Math.random() * errors.length)];
+        setIncidents(prev => [...prev.slice(-15), { id: Date.now(), ...err, time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit', minute: '2-digit', hour: '2-digit' }) }]);
+      }
+    }, 5000);
+
+    return () => { clearInterval(i1); clearInterval(i2); clearInterval(i3); clearInterval(i4); };
   }, [sysConfig.maintenanceMode]);
 
   useEffect(() => { if (trafficContainerRef.current) trafficContainerRef.current.scrollTop = trafficContainerRef.current.scrollHeight; }, [apiTraffic]);
   useEffect(() => { if (wafContainerRef.current) wafContainerRef.current.scrollTop = wafContainerRef.current.scrollHeight; }, [threats]);
+  useEffect(() => { if (incidentsContainerRef.current) incidentsContainerRef.current.scrollTop = incidentsContainerRef.current.scrollHeight; }, [incidents]);
   useEffect(() => { if (scopeType === 'ROLE') setActiveScope('GLOBAL'); else setActiveScope(usuariosLista?.[0]?.usuario || ''); }, [scopeType, usuariosLista]);
 
   const regrasAtivas = (scopeType === 'USER' ? sysConfig?.regras?.USERS?.[activeScope] : sysConfig?.regras?.[activeScope]) || { modulosOcultos: [], features: {} };
-  const handleToggleModulo = (id) => { updateSysConfig(scopeType, activeScope, 'modulosOcultos', id); addLog(`[UI_MATRIX] Módulo '${id}' reconfigurado.`, 'warning'); };
-  const handleToggleFeature = (key) => { updateSysConfig(scopeType, activeScope, 'features', key, !(regrasAtivas?.features?.[key] ?? true)); addLog(`[API_FLAG] Política '${key}' alterada.`, 'warning'); };
+  const handleToggleModulo = (id) => { updateSysConfig(scopeType, activeScope, 'modulosOcultos', id); addLog(`[MATRIZ_UI] Módulo '${id}' reconfigurado.`, 'warning'); };
+  const handleToggleFeature = (key) => { updateSysConfig(scopeType, activeScope, 'features', key, !(regrasAtivas?.features?.[key] ?? true)); addLog(`[FLAG_API] Política '${key}' alterada.`, 'warning'); };
+
+  const executarAcaoEmergencia = (acao) => {
+    setActionLoading(acao);
+    addLog(`[EMERGÊNCIA] Protocolo acionado: ${acao}`, 'error');
+    setTimeout(() => {
+      setActionLoading(null);
+      showToast(`Protocolo ${acao} executado.`, 'success');
+      addLog(`[SISTEMA] Comando '${acao}' finalizado com sucesso.`, 'success');
+      if (acao === 'LIMPAR CACHE REDIS') setIncidents([]);
+    }, 2000);
+  };
 
   const TODOS_MODULOS = [
     { id: 'dashboard', nome: 'Dashboard Operacional' }, { id: 'mapa', nome: 'Planta Digital (Heatmap)' }, 
-    { id: 'motores', nome: 'Monitoramento Térmico' }, { id: 'umidade', nome: 'Monitoramento Umidade' },
+    { id: 'motores', nome: 'Monitoramento Térmico' }, { id: 'umidade', nome: 'Monitoramento de Umidade' },
     { id: 'kanban', nome: 'Gestão Ágil (Kanban)' }, { id: 'metrologia', nome: 'Controle Metrológico' }, 
     { id: 'equipamentos', nome: 'Máquinas (Hardware IoT)' }, { id: 'chamados', nome: 'Gestão de Incidentes' }, 
     { id: 'relatorios', nome: 'Relatórios Executivos' }, { id: 'historico', nome: 'Auditoria de Logs' }, 
@@ -285,14 +334,12 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     { id: 'simulador', nome: 'Simulador Edge' }
   ];
 
-  // Cálculo Defcon WAF
-  const defconLevel = threats.length > 10 ? 'CRITICAL' : (threats.length > 5 ? 'ELEVATED' : 'SECURE');
-  const defconColor = defconLevel === 'CRITICAL' ? '#ef4444' : (defconLevel === 'ELEVATED' ? '#f59e0b' : '#10b981');
+  const defconLevel = threats.length > 15 ? 'CRÍTICO' : (threats.length > 8 ? 'ELEVADO' : 'SEGURO');
+  const defconColor = defconLevel === 'CRÍTICO' ? '#ef4444' : (defconLevel === 'ELEVADO' ? '#f59e0b' : '#10b981');
 
-  // Mini-Sparklines componentizados para os cards do HUD
   const RenderSparkline = ({ dataKey, color }) => (
-    <div className="sparkline-container">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="sparkline-box">
+      <ResponsiveContainer width="100%" height="100%" minHeight={40}>
         <AreaChart data={metricHistory}>
           <defs><linearGradient id={`color_${dataKey}`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={color} stopOpacity={0.6}/><stop offset="95%" stopColor={color} stopOpacity={0}/></linearGradient></defs>
           <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fillOpacity={1} fill={`url(#color_${dataKey})`} isAnimationActive={false} />
@@ -302,145 +349,196 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
   );
 
   return (
-    <div className="noc-dashboard-wrapper anim-fade-in dev-tela-scroll">
+    <div className="noc-dashboard-wrapper dev-tela-scroll">
       
-      {/* 1. TOPO: VITAL SIGNS C/ MICRO-SPARKLINES */}
-      <div className="noc-hud-grid">
-        <div className="noc-mini-card" style={{'--card-color': '#10b981'}}>
+      {/* GLOBAL DEFCON BAR */}
+      <div className="noc-defcon-bar anim-stagger-1" style={{ '--theme-color': defconColor }}>
+        <div className="defcon-title">
+          <Globe size={18} color={defconColor} /> TERMOSYNC COMMAND CENTER
+        </div>
+        <div className="defcon-status-group">
+          <div className="defcon-badge" style={{ color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}><Wifi size={14} /> CLUSTER: ONLINE</div>
+          <div className="defcon-badge" style={{ color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)' }}><Server size={14} /> NÓS ATIVOS: {clusterNodes.length}</div>
+          <div className="defcon-badge" style={{ color: defconColor, borderColor: defconColor, boxShadow: `0 0 10px rgba(${defconColor === '#ef4444' ? '239,68,68' : '245,158,11'}, 0.3)` }}><ShieldAlert size={14} /> DEFCON: {defconLevel}</div>
+        </div>
+      </div>
+
+      <div className="noc-hud-grid anim-stagger-1">
+        <div className="noc-hud-card" style={{'--card-color': '#10b981'}}>
            <div className="noc-mini-header">
-             <span className="noc-kpi-title"><Cpu size={14}/> CPU LOAD</span>
-             <span className="noc-kpi-value">{metrics.cpu}<span className="noc-kpi-unit">%</span></span>
+             <span className="noc-kpi-title"><Cpu size={14}/> USO DE CPU</span>
+             <span className="noc-kpi-trend up-good">+1.2% ▲</span>
            </div>
+           <div className="noc-kpi-value">{metrics.cpu}<span className="noc-kpi-unit">%</span></div>
            <RenderSparkline dataKey="cpu" color="#10b981" />
         </div>
-        <div className="noc-mini-card" style={{'--card-color': '#f59e0b'}}>
+        <div className="noc-hud-card" style={{'--card-color': '#f59e0b'}}>
            <div className="noc-mini-header">
-             <span className="noc-kpi-title"><HardDrive size={14}/> MEMORY</span>
-             <span className="noc-kpi-value" style={{color: '#f59e0b'}}>{metrics.ram}<span className="noc-kpi-unit">%</span></span>
+             <span className="noc-kpi-title"><HardDrive size={14}/> MEMÓRIA (RAM)</span>
+             <span className="noc-kpi-trend up-bad">+5.4% ▲</span>
            </div>
+           <div className="noc-kpi-value" style={{color: '#f59e0b'}}>{metrics.ram}<span className="noc-kpi-unit">%</span></div>
            <RenderSparkline dataKey="ram" color="#f59e0b" />
         </div>
-        <div className="noc-mini-card" style={{'--card-color': '#38bdf8'}}>
+        <div className="noc-hud-card" style={{'--card-color': '#38bdf8'}}>
            <div className="noc-mini-header">
-             <span className="noc-kpi-title"><Globe size={14}/> BANDWIDTH</span>
-             <span className="noc-kpi-value">{metrics.bandwidth}<span className="noc-kpi-unit">Mb/s</span></span>
+             <span className="noc-kpi-title"><Globe size={14}/> TRÁFEGO</span>
+             <span className="noc-kpi-trend down-good">-0.8% ▼</span>
            </div>
+           <div className="noc-kpi-value" style={{color: '#38bdf8'}}>{metrics.bandwidth}<span className="noc-kpi-unit">Mb/s</span></div>
            <RenderSparkline dataKey="bw" color="#38bdf8" />
         </div>
-        <div className="noc-mini-card" style={{'--card-color': '#a855f7'}}>
+        <div className="noc-hud-card" style={{'--card-color': '#a855f7'}}>
            <div className="noc-mini-header">
-             <span className="noc-kpi-title"><Database size={14}/> DB QUERIES</span>
-             <span className="noc-kpi-value">{metrics.dbQps}<span className="noc-kpi-unit">QPS</span></span>
+             <span className="noc-kpi-title"><Database size={14}/> QUERIES DB</span>
+             <span className="noc-kpi-trend up-good">+12% ▲</span>
            </div>
+           <div className="noc-kpi-value" style={{color: '#a855f7'}}>{metrics.dbQps}<span className="noc-kpi-unit">QPS</span></div>
            <RenderSparkline dataKey="db" color="#a855f7" />
         </div>
-        <div className="noc-mini-card" style={{'--card-color': '#ef4444'}}>
+        <div className="noc-hud-card" style={{'--card-color': '#ef4444'}}>
            <div className="noc-mini-header" style={{flexDirection: 'column', alignItems: 'center', margin: 'auto', gap: '8px'}}>
-             <span className="noc-kpi-title" style={{justifyContent: 'center'}}><Radio size={14}/> NODE.JS UPTIME</span>
-             <span className="noc-kpi-value" style={{fontSize: '1.4rem'}}>{uptimeStr}</span>
+             <span className="noc-kpi-title" style={{justifyContent: 'center'}}><Radio size={14}/> UPTIME CORE</span>
+             <span className="noc-kpi-value" style={{justifyContent: 'center', fontSize: 'clamp(1.2rem, 3vw, 1.6rem)', color: '#ef4444', margin: 'auto 0'}}>{uptimeStr}</span>
            </div>
         </div>
       </div>
 
-      {/* 2. MEIO: GRÁFICOS E TOPOLOGIA (2/3 Infra | 1/3 Status) */}
-      <div className="noc-main-grid">
-        
-        {/* Oscilloscope principal (Cyber Card) */}
-        <div className="cyber-card" style={{ '--theme-color': '#38bdf8', padding: '1.2rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card-header flex-between" style={{ color: '#38bdf8', marginBottom: '10px' }}>
+      <div className="noc-main-grid anim-stagger-2">
+        <div className="cyber-panel" style={{ '--theme-color': '#38bdf8' }}>
+          <div className="cyber-panel-header">
              <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
                <span className={sysConfig.maintenanceMode ? '' : 'traffic-indicator-live'} style={{background: '#38bdf8', boxShadow: '0 0 5px #38bdf8'}}></span>
-               <h3>Network Oscilloscope</h3>
+               Osciloscópio de Rede & Latência
              </div>
              <span style={{fontSize: '0.8rem', color: '#10b981', fontWeight: '900', fontFamily: 'JetBrains Mono', background: 'rgba(16,185,129,0.1)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.3)'}}>{sysConfig.maintenanceMode ? '0' : metrics.reqs} REQ/s</span>
           </div>
-          <div className="noc-chart-box" style={{flex: 1}}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metricHistory} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.6}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.6}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <YAxis tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
-                <RechartsTooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', fontSize: '10px' }} />
-                <Area type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorCpu)" isAnimationActive={false} />
-                <Area type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRam)" isAnimationActive={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+          
+          <div className="noc-chart-grid">
+            <div className="noc-chart-box">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+                <AreaChart data={metricHistory} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCpuBig" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.6}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorRamBig" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.6}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <YAxis tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                  <RechartsTooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '0', color: 'white', fontSize: '10px' }} />
+                  <Area type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorCpuBig)" isAnimationActive={false} />
+                  <Area type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRamBig)" isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="noc-histogram-box">
+               <span style={{fontSize: '0.65rem', fontWeight: 'bold', color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px'}}>Distribuição de Latência (API)</span>
+               <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+                <BarChart data={latencyData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="range" tick={{fontSize: 9, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 9, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                  <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                    {latencyData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index > 2 ? '#ef4444' : '#38bdf8'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Data Blocks - Topology */}
-        <div className="cyber-card" style={{ '--theme-color': '#10b981', padding: '1.2rem', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card-header" style={{ color: '#10b981', marginBottom: '10px' }}>
-            <div style={{display:'flex', gap:'8px', alignItems:'center'}}><Network size={18} /><h3>Cluster Topology</h3></div>
+        <div className="cyber-panel" style={{ '--theme-color': '#10b981' }}>
+          <div className="cyber-panel-header" style={{ color: '#10b981' }}>
+            <div style={{display:'flex', gap:'8px', alignItems:'center'}}><Network size={18} /> Topologia & Telemetria</div>
           </div>
           <div className="cluster-topology-grid">
             {clusterNodes.map(node => (
               <div key={node.id} className="cluster-data-block" style={{'--status-color': node.status === 'online' ? '#10b981' : '#f59e0b'}}>
                 <div className="block-header">
-                  <span className="block-name"><Server size={12} color="var(--status-color)"/> {node.name}</span>
+                  <span className="block-name"><Server size={14} color="var(--status-color)"/> {node.name}</span>
                   <span className="block-ping">{node.ping}ms</span>
                 </div>
-                <span className="block-role">{node.role}</span>
-                <div className="block-activity">
-                  <span className="rx-tx" style={{color: '#38bdf8'}}>Rx {Math.floor(Math.random()*100)}</span>
-                  <span className="rx-tx" style={{color: '#a855f7'}}>Tx {Math.floor(Math.random()*100)}</span>
+                <span className="block-role" style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>{node.role}</span>
+                <div className="block-activity" style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                  <span className="rx-tx" style={{color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold'}}>Rx {Math.floor(Math.random()*100)}</span>
+                  <span className="rx-tx" style={{color: '#a855f7', fontSize: '0.7rem', fontWeight: 'bold'}}>Tx {Math.floor(Math.random()*100)}</span>
                 </div>
               </div>
             ))}
           </div>
+          <div style={{marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)'}}>
+            <span style={{fontSize: '0.65rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '1px'}}>Densidade de Pacotes IoT (MQTT)</span>
+            <div className="heatmap-grid">
+              {heatGrid.map((val, idx) => (
+                <div key={idx} className={`heatmap-cell heat-${val}`}></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 3. TERMINAIS GÊMEOS: ROUTING E WAF */}
-      <div className="noc-terminals-grid">
-        <div className="terminal-window">
-          <div className="terminal-window-header">
-            <div className="mac-dots"><span></span><span></span><span></span></div>
-            <div className="terminal-window-title">bash - Ingress Traffic (Tail -f)</div>
+      <div className="noc-terminals-grid anim-stagger-3">
+        
+        <div className="cyber-terminal">
+          <div className="cyber-terminal-header">
+            <div className="cyber-terminal-title">BASH - ROTEAMENTO (LIVE)</div>
           </div>
-          <div className="traffic-terminal" ref={trafficContainerRef}>
+          <div className="terminal-scroll" ref={trafficContainerRef}>
             {sysConfig.maintenanceMode ? (
-               <div style={{color: 'var(--text-muted)', textAlign: 'center', margin: 'auto', fontStyle: 'italic'}}>Network Routing Suspended</div>
+               <div style={{color: 'var(--text-muted)', textAlign: 'center', margin: 'auto', fontStyle: 'italic'}}>Rotas BGP Suspensas</div>
             ) : (
               apiTraffic.map((pkt) => (
-                <div key={pkt.id} className="traffic-line">
-                  <span className="traffic-method" style={{color: pkt.color}}>{pkt.method}</span> 
-                  <span className="traffic-status" style={{color: '#10b981'}}>{pkt.status}</span>
-                  <span className="traffic-route">{pkt.route}</span> 
-                  <span className="traffic-ms">{pkt.ms}ms</span>
-                  <span className="traffic-ip">{pkt.ip}</span>
+                <div key={pkt.id} className="terminal-line">
+                  <span className="log-method" style={{color: pkt.color}}>{pkt.method}</span> 
+                  <span className="log-geo">[{pkt.geo}]</span>
+                  <span className="log-route text-truncate">{pkt.route}</span> 
+                  <span className="log-ms">{pkt.ms}ms</span>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="terminal-window" style={{borderColor: 'rgba(239, 68, 68, 0.4)', boxShadow: 'inset 0 0 30px rgba(239,68,68,0.1)'}}>
-          <div className="terminal-window-header" style={{borderBottomColor: 'rgba(239, 68, 68, 0.4)'}}>
-            <div className="mac-dots"><span></span><span></span><span></span></div>
-            <div className="terminal-window-title" style={{color: '#ef4444', display: 'flex', justifyContent: 'space-between', width: '100%'}}>
-              <span>bash - WAF / IDS Security Logs</span>
-              <span className="defcon-badge" style={{background: `rgba(${defconColor === '#ef4444' ? '239,68,68' : (defconColor==='#f59e0b'?'245,158,11':'16,185,129')}, 0.2)`, color: defconColor, border: `1px solid ${defconColor}`}}>THREAT LVL: {defconLevel}</span>
+        <div className="cyber-terminal" style={{borderColor: 'rgba(245, 158, 11, 0.4)', boxShadow: 'inset 0 0 30px rgba(245, 158, 11, 0.1)'}}>
+          <div className="cyber-terminal-header" style={{borderBottomColor: 'rgba(245, 158, 11, 0.4)'}}>
+            <div className="cyber-terminal-title" style={{color: '#f59e0b'}}><AlertCircle size={14} /> ALERTAS ATIVOS</div>
+          </div>
+          <div className="terminal-scroll" ref={incidentsContainerRef}>
+            {incidents.length === 0 ? (
+               <div style={{color: '#10b981', textAlign: 'center', margin: 'auto', fontWeight: 'bold', fontSize: '0.8rem'}}>Nenhum incidente crítico no momento.</div>
+            ) : (
+              incidents.map((inc) => (
+                <div key={inc.id} className={`incident-card ${inc.type}`}>
+                  <div className="incident-header"><span>{inc.time}</span><span>{inc.type === 'critical' ? 'CRÍTICO' : 'AVISO'}</span></div>
+                  <div className="incident-desc">{inc.msg}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="cyber-terminal" style={{borderColor: defconLevel === 'CRÍTICO' ? '#ef4444' : 'rgba(239, 68, 68, 0.4)', boxShadow: defconLevel === 'CRÍTICO' ? 'inset 0 0 50px rgba(239,68,68,0.3)' : 'inset 0 0 30px rgba(0,0,0,0.8)'}}>
+          <div className="cyber-terminal-header" style={{borderBottomColor: 'rgba(239, 68, 68, 0.4)'}}>
+            <div className="cyber-terminal-title" style={{color: '#ef4444', display: 'flex', justifyContent: 'space-between', width: '100%'}}>
+              <span>LOGS SEGURANÇA WAF</span>
+              <span className="defcon-badge" style={{background: `rgba(${defconColor === '#ef4444' ? '239,68,68' : (defconColor==='#f59e0b'?'245,158,11':'16,185,129')}, 0.2)`, color: defconColor, border: `1px solid ${defconColor}`}}>NÍVEL: {defconLevel}</span>
             </div>
           </div>
-          <div className="traffic-terminal" ref={wafContainerRef} style={{ color: '#ef4444' }}>
-            {threats.map((pkt) => <div key={pkt.id} className="traffic-line traffic-error"><span style={{ marginRight: '4px' }}>✖</span> {pkt.text}</div>)}
+          <div className="terminal-scroll" ref={wafContainerRef} style={{ color: '#ef4444' }}>
+            {threats.map((pkt) => <div key={pkt.id} className="terminal-line log-error"><span style={{ marginRight: '4px' }}>✖</span> {pkt.text}</div>)}
           </div>
         </div>
       </div>
 
-      {/* 4. SWITCHBOARD: CONTROLES DE IAM E UI */}
-      <div className="noc-control-grid">
+      <div className="switchboard-grid anim-stagger-3">
         
-        {/* Controle de Escopo */}
-        <div className="dev-scope-manager switchboard-panel">
-          <div style={{fontSize: '0.75rem', fontWeight: '900', color: 'var(--primary)', marginBottom: '4px', display: 'flex', alignItems:'center', gap:'6px', textTransform: 'uppercase', letterSpacing: '1px'}}><ShieldCheck size={16}/> IDENTITY ACCESS (IAM)</div>
+        <div className="switch-panel">
+          <div className="switch-panel-title" style={{color: '#38bdf8'}}><ShieldCheck size={14}/> GESTÃO DE IDENTIDADE (IAM)</div>
           <div className="scope-types">
-            <button className={scopeType === 'ROLE' ? 'active' : ''} onClick={() => setScopeType('ROLE')}>By Role</button>
-            <button className={scopeType === 'USER' ? 'active' : ''} onClick={() => setScopeType('USER')}>By User</button>
+            <button className={scopeType === 'ROLE' ? 'active' : ''} onClick={() => setScopeType('ROLE')}>POR CARGO</button>
+            <button className={scopeType === 'USER' ? 'active' : ''} onClick={() => setScopeType('USER')}>POR USUÁRIO</button>
           </div>
           <div className="scope-targets" style={{marginTop: 'auto'}}>
             {scopeType === 'ROLE' && (
@@ -459,17 +557,16 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
           </div>
         </div>
 
-        {/* UI Restrictions */}
-        <div className="dev-scope-manager switchboard-panel">
-          <div style={{fontSize: '0.75rem', fontWeight: '900', color: '#10b981', marginBottom: '4px', display: 'flex', alignItems:'center', justifyContent: 'space-between', textTransform: 'uppercase', letterSpacing: '1px'}}>
-            <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Settings2 size={16}/> UI RENDERING MATRIX</div>
+        <div className="switch-panel">
+          <div className="switch-panel-title" style={{color: '#10b981'}}>
+            <div style={{display:'flex', gap:'6px'}}><Settings2 size={14}/> MATRIZ DE UI</div>
             <span className="status-badge" style={{background: 'rgba(0,0,0,0.5)', color: 'white', padding: '2px 6px', fontSize: '0.65rem'}}>{TODOS_MODULOS.length - (regrasAtivas?.modulosOcultos?.length || 0)}/{TODOS_MODULOS.length}</span>
           </div>
           <div className="modulos-list">
             {TODOS_MODULOS.map(m => {
               const isAtivo = !regrasAtivas?.modulosOcultos?.includes(m.id);
               return (
-                <div key={m.id} className={`modulo-item ${!isAtivo ? 'desativado' : ''}`}>
+                <div key={m.id} className={`hardware-toggle ${!isAtivo ? 'disabled' : ''}`}>
                   <span>{m.nome}</span>
                   <button className={`btn-toggle-ui ${isAtivo ? 'on' : 'off'}`} onClick={() => handleToggleModulo(m.id)}>{isAtivo ? 'ON' : 'OFF'}</button>
                 </div>
@@ -478,21 +575,38 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
           </div>
         </div>
 
-        {/* API Feature Flags */}
-        <div className="dev-scope-manager switchboard-panel">
-          <div style={{fontSize: '0.75rem', fontWeight: '900', color: '#f59e0b', marginBottom: '4px', display: 'flex', alignItems:'center', gap:'6px', textTransform: 'uppercase', letterSpacing: '1px'}}><Sliders size={16}/> API FEATURE FLAGS</div>
+        <div className="switch-panel">
+          <div className="switch-panel-title" style={{color: '#f59e0b'}}><Sliders size={14}/> SINALIZADORES DE API</div>
           <div className="feature-flags-list">
             {['Permitir Exportações', 'Ativar Alertas de Áudio', 'Fluxo de Telemetria', 'Habilitar Chat', 'Forçar Modo Escuro'].map(f => {
               const ativo = regrasAtivas?.features?.[f] ?? (f !== 'Forçar Modo Escuro');
               return (
-                <div key={f} className="feature-item" onClick={() => handleToggleFeature(f)}>
-                  <span>{f}</span> {ativo ? <ToggleRight size={24} color="var(--success)" /> : <ToggleLeft size={24} color="var(--text-muted)" />}
+                <div key={f} className="hardware-toggle" onClick={() => handleToggleFeature(f)} style={{cursor: 'pointer'}}>
+                  <span>{f}</span> {ativo ? <ToggleRight size={20} color="var(--success)" /> : <ToggleLeft size={20} color="var(--text-muted)" />}
                 </div>
               );
             })}
-            <div className="feature-item" onClick={() => { addLog('[NOC] Regras BGP / Geofencing atualizadas.', 'warning'); showToast('Filtro de IP Regional aplicado.', 'info'); }}>
-              <span style={{ color: '#38bdf8' }}><Globe size={16} style={{marginRight: '6px', verticalAlign: 'middle'}}/> IP Geofencing</span> <ToggleLeft size={24} color="var(--text-muted)" />
+            <div className="hardware-toggle" onClick={() => { addLog('[NOC] Regras BGP / Geofencing atualizadas.', 'warning'); showToast('Filtro de IP Regional aplicado.', 'info'); }} style={{cursor: 'pointer'}}>
+              <span style={{ color: '#38bdf8' }}><Globe size={14} style={{marginRight: '6px', verticalAlign: 'middle'}}/> IP Geofencing</span> <ToggleLeft size={20} color="var(--text-muted)" />
             </div>
+          </div>
+        </div>
+        
+        <div className="switch-panel">
+          <div className="switch-panel-title" style={{color: '#ef4444'}}><Flame size={14}/> PROTOCOLOS DE EMERGÊNCIA</div>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', height: '100%'}}>
+            <button className="btn-emergency warning" onClick={() => executarAcaoEmergencia('LIMPAR CACHE REDIS')} disabled={actionLoading !== null || sysConfig.maintenanceMode}>
+               {actionLoading === 'LIMPAR CACHE REDIS' ? <Loader2 size={16} className="spin"/> : <RefreshCw size={16}/>} 
+               {actionLoading === 'LIMPAR CACHE REDIS' ? 'EXECUTANDO...' : 'LIMPAR CACHE REDIS'}
+            </button>
+            <button className="btn-emergency" onClick={() => executarAcaoEmergencia('FORÇAR FAILOVER BGP')} disabled={actionLoading !== null || sysConfig.maintenanceMode}>
+               {actionLoading === 'FORÇAR FAILOVER BGP' ? <Loader2 size={16} className="spin"/> : <Network size={16}/>} 
+               {actionLoading === 'FORÇAR FAILOVER BGP' ? 'REDIRECIONANDO...' : 'FORÇAR FAILOVER BGP'}
+            </button>
+            <button className="btn-emergency" onClick={() => executarAcaoEmergencia('REINICIAR PODS DOCKER')} disabled={actionLoading !== null || sysConfig.maintenanceMode}>
+               {actionLoading === 'REINICIAR PODS DOCKER' ? <Loader2 size={16} className="spin"/> : <ServerCrash size={16}/>} 
+               {actionLoading === 'REINICIAR PODS DOCKER' ? 'REINICIANDO NÓS...' : 'REINICIAR PODS DOCKER'}
+            </button>
           </div>
         </div>
 
@@ -502,7 +616,7 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
 };
 
 // ============================================================================
-// 4. TELA SISTEMA (BROADCASTING + MANUTENÇÃO + EXPORTAÇÃO REAL)
+// 4. TELA DE CONTROLE DO SISTEMA
 // ============================================================================
 const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setModalConfig }) => {
   const [globalBanner, setGlobalBanner] = useState(sysConfig?.regras?.GLOBAL?.features?.globalBanner || '');
@@ -546,7 +660,7 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
 
   const exportarTabelaReal = async (nomeTabela) => {
     setIsExporting(nomeTabela);
-    addLog(`[DB] Iniciando dump estruturado da tabela: ${nomeTabela}...`, 'info');
+    addLog(`[DB] Iniciando extração estruturada da tabela: ${nomeTabela}...`, 'info');
     showToast(`Buscando ${nomeTabela} no banco de dados...`, 'info');
     
     try {
@@ -582,77 +696,95 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
   return (
     <div className="dev-tela-scroll">
       <div className="dev-grid-main">
+        
         <div className="dev-col-left">
-          <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--warning)', position: 'relative', overflow: 'hidden' }}>
+          <div className="sys-control-card warning">
             {sysConfig.maintenanceMode && <div className="hazard-stripes"></div>}
-            <div className="dev-card-header" style={{color: 'var(--warning)'}}>
-              <Radio size={20}/><h3>Controle de Operações Globais</h3>
+            
+            <div className="dev-card-header" style={{color: '#f59e0b', flexWrap: 'wrap'}}>
+              <Radio size={24}/><h3>Controle de Operações Globais</h3>
             </div>
             
             <div style={{position: 'relative', zIndex: 2}}>
-              <p className="text-muted" style={{fontSize: '0.8rem', marginBottom: '10px'}}>Comunicado Global (Transmissão em Massa):</p>
+              
+              <div className={`sys-status-banner ${sysConfig.maintenanceMode ? 'sys-status-offline' : 'sys-status-online'}`}>
+                {sysConfig.maintenanceMode ? <AlertOctagon size={20} /> : <ShieldCheck size={20} />}
+                STATUS CORE: {sysConfig.maintenanceMode ? 'LOCKDOWN (OFFLINE)' : 'OPERACIONAL (ONLINE)'}
+              </div>
+
+              <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '10px', fontWeight: 'bold'}}>Transmissão Global (Broadcast Tático):</p>
+              
               <textarea 
-                className="w-100 green-phosphor crt-terminal" 
-                style={{padding: '15px', borderRadius: '8px', minHeight: '90px', marginBottom: '15px', resize: 'vertical'}}
+                className="transmit-box" 
                 value={globalBanner}
                 onChange={e => setGlobalBanner(e.target.value)}
-                placeholder="> INSERIR AVISO DE MANUTENÇÃO AQUI_"
+                placeholder="> INSERIR DIRETIVA GLOBAL AQUI_"
+                spellCheck="false"
               />
-              <button className="btn btn-primary w-100" onClick={() => { updateSysConfig('ROLE', 'GLOBAL', 'features', 'globalBanner', globalBanner); showToast('Comunicado emitido.', 'success'); addLog('Mensagem Global transmitida na rede.', 'info'); }} style={{fontWeight: '900', padding: '14px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '1px'}}>
+              
+              <button className="btn btn-primary w-100" onClick={() => { updateSysConfig('ROLE', 'GLOBAL', 'features', 'globalBanner', globalBanner); showToast('Comunicado emitido.', 'success'); addLog('Mensagem Global transmitida na rede.', 'info'); }} style={{fontWeight: '900', padding: '14px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '30px', backgroundColor: '#f59e0b', color: '#020617', border: 'none'}}>
                 <Send size={18} style={{marginRight: '8px'}}/> TRANSMITIR MENSAGEM
               </button>
 
-              <hr style={{margin: '25px 0', borderColor: 'rgba(255,255,255,0.05)'}} />
-
-              <p className="text-muted" style={{fontSize: '0.8rem', marginBottom: '10px'}}>Interruptor de Segurança (Kill Switch / Lockdown):</p>
+              <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '10px', fontWeight: 'bold'}}>Interruptor de Segurança Crítica:</p>
+              
               <button 
                 className={`btn w-100 ${sysConfig.maintenanceMode ? 'btn-success' : 'btn-danger pulse-danger-btn'}`} 
                 onClick={handleMaintenance}
-                style={{ padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'white', border: 'none', fontWeight: '900', letterSpacing: '1px', borderRadius: '10px' }}
+                style={{ padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'white', border: 'none', fontWeight: '900', letterSpacing: '1px', borderRadius: '8px', flexWrap: 'wrap' }}
               >
-                {sysConfig.maintenanceMode ? <><Unlock size={22} /> DESBLOQUEAR SISTEMA (ONLINE)</> : <><AlertOctagon size={22} /> INICIAR LOCKDOWN CRÍTICO (OFFLINE)</>}
+                {sysConfig.maintenanceMode ? <><Unlock size={22} /> DESBLOQUEAR SISTEMA</> : <><Lock size={22} /> INICIAR LOCKDOWN CRÍTICO</>}
               </button>
+
             </div>
           </div>
         </div>
 
         <div className="dev-col-right">
-          <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--primary)' }}>
-             <div className="dev-card-header" style={{color: 'var(--primary)'}}><Database size={20}/><h3>Ferramentas de Extração (MySQL Dump)</h3></div>
-             <p className="text-muted" style={{fontSize: '0.8rem', marginBottom: '15px'}}>Extraia dados brutos das instâncias corporativas do banco de dados em formato CSV para backup físico local.</p>
+          
+          <div className="sys-control-card primary">
+             <div className="dev-card-header" style={{color: '#38bdf8', flexWrap: 'wrap'}}>
+               <Database size={24}/><h3>Pipelines de Extração (MySQL)</h3>
+             </div>
+             <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '20px', lineHeight: '1.5'}}>Extraia blocos brutos das partições MySQL para backups frios locais (formato CSV nativo).</p>
+             
              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               <button onClick={() => exportarTabelaReal('equipamentos')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '14px', alignItems: 'center', fontWeight: '800'}}>
-                 {isExporting === 'equipamentos' ? <Loader2 size={18} className="spin" /> : <Server size={18} color="var(--primary)"/>} 
-                 {isExporting === 'equipamentos' ? 'EXTRAINDO...' : 'Tabela: Equipamentos Edge (IoT)'}
+               <button onClick={() => exportarTabelaReal('equipamentos')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '16px', alignItems: 'center', fontWeight: '800', borderRadius: '8px'}}>
+                 {isExporting === 'equipamentos' ? <Loader2 size={18} className="spin" /> : <Server size={18} color="#38bdf8"/>} 
+                 {isExporting === 'equipamentos' ? 'EXTRAINDO...' : 'DUMP DA TABELA: EQUIPAMENTOS EDGE'}
                </button>
-               <button onClick={() => exportarTabelaReal('leituras_telemetria')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '14px', alignItems: 'center', fontWeight: '800'}}>
-                 {isExporting === 'leituras_telemetria' ? <Loader2 size={18} className="spin" /> : <Activity size={18} color="#f59e0b"/>} 
-                 {isExporting === 'leituras_telemetria' ? 'EXTRAINDO...' : 'Tabela: Telemetria Contínua'}
+               <button onClick={() => exportarTabelaReal('leituras_telemetria')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '16px', alignItems: 'center', fontWeight: '800', borderRadius: '8px'}}>
+                 {isExporting === 'leituras_telemetria' ? <Loader2 size={18} className="spin" /> : <Activity size={18} color="#10b981"/>} 
+                 {isExporting === 'leituras_telemetria' ? 'EXTRAINDO...' : 'DUMP DA TABELA: TELEMETRIA CONTÍNUA'}
                </button>
-               <button onClick={() => exportarTabelaReal('audit_logs')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '14px', alignItems: 'center', fontWeight: '800'}}>
+               <button onClick={() => exportarTabelaReal('audit_logs')} disabled={isExporting !== null} className="btn btn-outline w-100" style={{display: 'flex', gap: '12px', justifyContent: 'flex-start', padding: '16px', alignItems: 'center', fontWeight: '800', borderRadius: '8px'}}>
                  {isExporting === 'audit_logs' ? <Loader2 size={18} className="spin" /> : <ShieldCheck size={18} color="#a855f7"/>} 
-                 {isExporting === 'audit_logs' ? 'EXTRAINDO...' : 'Tabela: Auditoria SOC (Log Imutável)'}
+                 {isExporting === 'audit_logs' ? 'EXTRAINDO...' : 'DUMP DA TABELA: AUDITORIA SOC'}
                </button>
              </div>
           </div>
 
-          <div className="dev-card glass-card danger-zone" style={{ borderTop: '4px solid #ef4444' }}>
-            <div className="dev-card-header" style={{color: '#ef4444', position: 'relative', zIndex: 2}}><ServerCrash size={20}/><h3>Rotina Destrutiva (Purge)</h3></div>
-            <p className="text-muted" style={{fontSize: '0.8rem', marginBottom: '15px', position: 'relative', zIndex: 2}}>Esta operação forçará o banco de dados a deletar partições antigas de telemetria (+90 dias) para liberar armazenamento em disco.</p>
+          <div className="sys-control-card danger">
+            <div className="dev-card-header" style={{color: '#ef4444', position: 'relative', zIndex: 2, flexWrap: 'wrap'}}>
+              <ServerCrash size={24}/><h3>Purga Base de Dados</h3>
+            </div>
+            <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '15px', position: 'relative', zIndex: 2, lineHeight: '1.5'}}>
+              Operação destrutiva: Força a liberação de inodes no disco apagando registros de telemetria com mais de 90 dias (irreversível).
+            </p>
             
-            <div style={{marginBottom: '20px', position: 'relative', zIndex: 2}}>
-               <div className="storage-info">
-                 <span>Armazenamento DB (MySQL)</span>
-                 <span>{storageUsed}%</span>
+            <div style={{marginBottom: '25px', position: 'relative', zIndex: 2}}>
+               <div className="storage-info" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                 <span style={{ color: '#cbd5e1' }}>Consumo Volume DB</span>
+                 <span style={{ color: storageUsed > 80 ? '#ef4444' : '#10b981' }}>{storageUsed}% / 100%</span>
                </div>
-               <div className="storage-bar-bg">
+               <div className="storage-bar-bg" style={{ height: '10px' }}>
                  <div className="storage-bar-fill" style={{ width: `${storageUsed}%`, background: storageUsed > 80 ? '#ef4444' : '#10b981' }}></div>
                </div>
             </div>
 
-            <button className="btn btn-outline w-100" onClick={handlePurge} disabled={isPurging} style={{color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', display: 'flex', justifyContent: 'center', gap: '10px', padding: '16px', fontWeight: '900', position: 'relative', zIndex: 2, background: 'rgba(239,68,68,0.1)', letterSpacing: '1px'}}>
+            <button className="btn btn-outline w-100" onClick={handlePurge} disabled={isPurging} style={{color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', display: 'flex', justifyContent: 'center', gap: '10px', padding: '16px', fontWeight: '900', position: 'relative', zIndex: 2, background: 'rgba(239,68,68,0.1)', letterSpacing: '1px', borderRadius: '8px', flexWrap: 'wrap'}}>
                {isPurging ? <Loader2 size={18} className="spin"/> : <Eraser size={18}/>} 
-               {isPurging ? 'EXECUTANDO PURGE...' : 'EXECUTAR PURGE DE DADOS (+90 DIAS)'}
+               {isPurging ? 'EXECUTANDO PURGA...' : 'INICIAR PURGA DE DADOS (+90 DIAS)'}
             </button>
             <div className="hazard-stripes"></div>
           </div>
@@ -667,13 +799,13 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
 // ============================================================================
 const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLog, setModalConfig }) => {
   const handleMudarPlano = (loja, plano) => { updateSysConfig(null, loja, 'saas_plan', null, plano); addLog(`[SAAS] Contrato de ${loja} alterado para ${plano}.`, plano === 'SUSPENSO' ? 'error' : 'success'); showToast(`Licença de ${loja} atualizada.`, plano === 'SUSPENSO' ? 'error' : 'success'); };
-  const handleMudarRetencao = (loja, dias) => { addLog(`[CLOUD] Limite de retenção de ${loja} ajustado para ${dias}.`, 'info'); showToast(`Cluster de dados de ${loja} ajustado.`, 'success'); };
+  const handleMudarRetencao = (loja, dias) => { addLog(`[CLOUD] Limite de retenção de ${loja} ajustado para ${dias} dias.`, 'info'); showToast(`Cluster de dados de ${loja} ajustado.`, 'success'); };
 
   const handleForcarLogout = (loja) => {
     setModalConfig({
       isOpen: true,
       title: 'Forçar Logout Remoto',
-      message: `Tem certeza de que deseja acionar o Kill Switch para o tenant ${loja}? Todos os usuários locais serão desconectados instantaneamente.`,
+      message: `Tem certeza de que deseja acionar o Kill Switch para a organização ${loja}? Todos os usuários locais serão desconectados instantaneamente.`,
       onConfirm: () => {
         localStorage.setItem('termosync_force_logout', `${loja}_${Date.now()}`);
         addLog(`[SECURITY] Sinal de KILL SWITCH disparado para: ${loja}.`, 'error');
@@ -689,7 +821,7 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
     const key = 'sk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     setChavesAPI(prev => ({ ...prev, [loja]: key }));
     addLog(`[API] Nova chave gerada para ${loja}.`, 'success');
-    showToast(`API Key gerada.`, 'success');
+    showToast(`Chave API gerada.`, 'success');
   };
 
   const copyToClipboard = (loja, key) => {
@@ -716,59 +848,61 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
       <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid #a855f7' }}>
         <div className="dev-card-header" style={{ color: '#a855f7', padding: '1.5rem', marginBottom: 0 }}><ShieldAlert size={20} /><h3>Contas Corporativas e Integrações API</h3></div>
         
-        <div className="saas-table-header saas-grid-cols">
-          <div>Tenant / Cliente</div><div>Storage Cloud</div><div style={{ textAlign: 'center' }}>Chaves API (Webhooks)</div><div style={{ textAlign: 'center' }}>Licença (Acesso)</div><div style={{ textAlign: 'right' }}>Ações</div>
-        </div>
-        
-        <div style={{maxHeight: '500px', overflowY: 'auto'}}>
-          {filiaisDb?.map((filial, index) => {
-            const planoAtual = sysConfig.planos?.[filial] || 'FREE';
-            const isSuspenso = planoAtual === 'SUSPENSO';
-            const storagePercent = isSuspenso ? 0 : (planoAtual === 'FREE' ? 85 : (planoAtual === 'PRO' ? 45 : 15));
-            const storageColor = storagePercent > 80 ? 'var(--danger)' : (storagePercent > 50 ? 'var(--warning)' : 'var(--success)');
+        <div className="table-responsive-wrapper">
+          <div className="saas-table-header saas-grid-cols">
+            <div>Organização / Cliente</div><div>Armazenamento em Nuvem</div><div style={{ textAlign: 'center' }}>Chaves API (Webhooks)</div><div style={{ textAlign: 'center' }}>Licença (Acesso)</div><div style={{ textAlign: 'right' }}>Ações</div>
+          </div>
+          
+          <div style={{maxHeight: '65vh', overflowY: 'auto', paddingRight: '8px', paddingBottom: '20px'}}>
+            {filiaisDb?.map((filial, index) => {
+              const planoAtual = sysConfig.planos?.[filial] || 'FREE';
+              const isSuspenso = planoAtual === 'SUSPENSO';
+              const storagePercent = isSuspenso ? 0 : (planoAtual === 'FREE' ? 85 : (planoAtual === 'PRO' ? 45 : 15));
+              const storageColor = storagePercent > 80 ? 'var(--danger)' : (storagePercent > 50 ? 'var(--warning)' : 'var(--success)');
 
-            return (
-              <div className={`saas-client-row saas-grid-cols ${isSuspenso ? 'row-suspended' : ''}`} key={index}>
-                <div style={{ color: isSuspenso ? 'var(--danger)' : 'white', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {isSuspenso ? <ZapOff size={16} /> : <Store size={16} />} {filial}
-                </div>
+              return (
+                <div className={`saas-client-row saas-grid-cols ${isSuspenso ? 'row-suspended' : ''}`} key={index}>
+                  <div className="text-truncate" style={{ color: isSuspenso ? 'var(--danger)' : 'white', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.1rem' }}>
+                    {isSuspenso ? <ZapOff size={18} /> : <Store size={18} />} {filial}
+                  </div>
 
-                <div style={{ paddingRight: '15px' }}>
-                  <div className="storage-bar-bg"><div className="storage-bar-fill" style={{ width: `${storagePercent}%`, backgroundColor: storageColor }}></div></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Cloud size={10} /> {storagePercent}%</span>
-                    <select disabled={isSuspenso} onChange={(e) => handleMudarRetencao(filial, e.target.value)} style={{ background: 'transparent', border: 'none', fontSize: '0.65rem', color: '#38bdf8', outline: 'none', cursor: 'pointer', fontWeight: '800' }}>
-                      <option value="30">30 Dias</option><option value="90">90 Dias</option><option value="365">1 Ano</option>
+                  <div style={{ paddingRight: '15px' }}>
+                    <div className="storage-bar-bg"><div className="storage-bar-fill" style={{ width: `${storagePercent}%`, backgroundColor: storageColor }}></div></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Cloud size={12} /> {storagePercent}%</span>
+                      <select disabled={isSuspenso} onChange={(e) => handleMudarRetencao(filial, e.target.value)} style={{ background: 'transparent', border: 'none', fontSize: '0.8rem', color: '#38bdf8', outline: 'none', cursor: 'pointer', fontWeight: '800' }}>
+                        <option value="30">30 Dias</option><option value="90">90 Dias</option><option value="365">1 Ano</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {chavesAPI[filial] ? (
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(168, 85, 247, 0.3)', maxWidth: '100%' }}>
+                        <span className="text-truncate" style={{ fontFamily: 'JetBrains Mono', fontSize: '0.9rem', color: '#a855f7', padding: '10px 14px', fontWeight: 'bold', maxWidth: '140px' }}>{chavesAPI[filial].substring(0, 10)}...</span>
+                        <button onClick={() => copyToClipboard(filial, chavesAPI[filial])} style={{ background: '#a855f7', border: 'none', color: 'white', padding: '10px 14px', cursor: 'pointer' }}>
+                          {copiedKey === filial ? <Check size={16}/> : <Copy size={16}/>}
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn-icon-small" title="Gerar Chave API" onClick={() => gerarChaveAPI(filial)} disabled={isSuspenso}><Key size={16} /></button>
+                    )}
+                  </div>
+
+                  <div style={{textAlign: 'center', padding: '0 10px'}}>
+                    <select value={planoAtual} onChange={(e) => handleMudarPlano(filial, e.target.value)} className="plan-dropdown">
+                      <option value="FREE">FREE (Básico)</option><option value="PRO">PRO (Avançado)</option><option value="ENTERPRISE">ENTERPRISE (Total)</option><option value="SUSPENSO">⚠️ LOCKDOWN</option>
                     </select>
                   </div>
-                </div>
 
-                <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {chavesAPI[filial] ? (
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                      <span style={{ fontFamily: 'JetBrains Mono', fontSize: '0.75rem', color: '#a855f7', padding: '6px 10px', fontWeight: 'bold' }}>{chavesAPI[filial].substring(0, 10)}...</span>
-                      <button onClick={() => copyToClipboard(filial, chavesAPI[filial])} style={{ background: '#a855f7', border: 'none', color: 'white', padding: '6px 10px', cursor: 'pointer' }}>
-                        {copiedKey === filial ? <Check size={14}/> : <Copy size={14}/>}
-                      </button>
-                    </div>
-                  ) : (
-                    <button className="btn-icon-small" title="Gerar API Key" onClick={() => gerarChaveAPI(filial)} disabled={isSuspenso}><Key size={14} /></button>
-                  )}
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button className="btn-icon-small" title="Acessar Como Cliente (Impersonate)" onClick={() => loginAs(filial)}><UserCheck size={18} /></button>
+                    <button className="btn-icon-small danger-text" title="Forçar Logout Remoto (Kill Switch)" onClick={() => handleForcarLogout(filial)}><Power size={18} /></button>
+                  </div>
                 </div>
-
-                <div style={{textAlign: 'center', padding: '0 10px'}}>
-                  <select value={planoAtual} onChange={(e) => handleMudarPlano(filial, e.target.value)} className="plan-dropdown">
-                    <option value="FREE">FREE (Básica)</option><option value="PRO">PRO (Avançada)</option><option value="ENTERPRISE">ENTERPRISE (Total)</option><option value="SUSPENSO">⚠️ LOCKDOWN</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                  <button className="btn-icon-small" title="Acessar Como Cliente (Impersonate)" onClick={() => loginAs(filial)}><UserCheck size={16} /></button>
-                  <button className="btn-icon-small danger-text" title="Forçar Logout Remoto (Kill Switch)" onClick={() => handleForcarLogout(filial)}><Power size={16} /></button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -834,7 +968,7 @@ const TelaBilling = ({ sysConfig, filiaisDb, showToast, addLog, updateSysConfig,
     setModalConfig({
       isOpen: true,
       title: 'Confirmar Liquidação de Fatura',
-      message: `Você confirma o recebimento do pagamento do tenant ${filial}? Isso alterará o status para PAGO e reativará automaticamente o acesso do cliente caso ele esteja bloqueado.`,
+      message: `Você confirma o recebimento do pagamento da organização ${filial}? Isso alterará o status para PAGO e reativará automaticamente o acesso do cliente caso ele esteja bloqueado.`,
       onConfirm: () => {
         setFaturasPagasManualmente(prev => [...prev, filial]);
         const planoAtual = sysConfig.planos?.[filial];
@@ -879,7 +1013,7 @@ const TelaBilling = ({ sysConfig, filiaisDb, showToast, addLog, updateSysConfig,
       doc.setFillColor(240, 240, 240); doc.rect(10, 65, 190, 8, 'F'); doc.rect(10, 65, 190, 8);
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("TOMADOR DE SERVIÇOS", 12, 70);
       doc.setFontSize(11); doc.text(filial.toUpperCase(), 12, 80);
-      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.text("CNPJ: 98.765.432/0001-10", 12, 85); doc.text(`Tenant - ${filial}`, 12, 90); doc.line(10, 95, 200, 95);
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.text("CNPJ: 98.765.432/0001-10", 12, 85); doc.text(`Organização - ${filial}`, 12, 90); doc.line(10, 95, 200, 95);
       doc.setFillColor(240, 240, 240); doc.rect(10, 95, 190, 8, 'F'); doc.rect(10, 95, 190, 8);
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("DISCRIMINAÇÃO DOS SERVIÇOS", 12, 100); doc.setFont("helvetica", "normal");
       const obs = `Licenciamento SaaS TermoSync IoT.\nPlano: ${sysConfig.planos?.[filial] || 'PRO'}.\nEncargos: R$ ${(fatura.multa + fatura.juros).toFixed(2)} (Atraso/Juros).`;
@@ -935,14 +1069,25 @@ const TelaBilling = ({ sysConfig, filiaisDb, showToast, addLog, updateSysConfig,
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '1.5rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '1.5rem', marginBottom: '1rem' }} className="dev-grid-main">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="dev-card glass-card saas-kpi-card" style={{ margin: 0, borderLeft: '4px solid #10b981' }}><div className="kpi-icon-wrapper" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}><TrendingUp size={28} /></div><div className="kpi-data"><span className="kpi-label">MRR ESTIMADO (MENSAL)</span><span className="kpi-value" style={{color: 'white', fontFamily: 'JetBrains Mono'}}>R$ {metricasFinanceiras.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div></div>
-          <div className="dev-card glass-card saas-kpi-card" style={{ margin: 0, borderLeft: '4px solid #ef4444' }}><div className="kpi-icon-wrapper" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)' }}><AlertTriangle size={28} /></div><div className="kpi-data"><span className="kpi-label">DÍVIDA DE CLIENTES</span><span className="kpi-value" style={{ color: 'var(--danger)', fontFamily: 'JetBrains Mono' }}>R$ {metricasFinanceiras.inadimplencia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div></div>
+          <div className="dev-card glass-card saas-kpi-card" style={{ margin: 0, borderLeft: '4px solid #10b981', display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '15px', borderRadius: '12px' }}><TrendingUp size={32} /></div>
+            <div>
+              <span style={{fontSize: '0.8rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px'}}>MRR ESTIMADO (MENSAL)</span>
+              <div style={{color: 'white', fontFamily: 'JetBrains Mono', fontSize: '2rem', fontWeight: '900'}}>R$ {metricasFinanceiras.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            </div>
+          </div>
+          <div className="dev-card glass-card saas-kpi-card" style={{ margin: 0, borderLeft: '4px solid #ef4444', display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '12px' }}><AlertTriangle size={32} /></div>
+            <div>
+              <span style={{fontSize: '0.8rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px'}}>DÍVIDA DE CLIENTES</span>
+              <div style={{ color: 'var(--danger)', fontFamily: 'JetBrains Mono', fontSize: '2rem', fontWeight: '900' }}>R$ {metricasFinanceiras.inadimplencia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            </div>
+          </div>
         </div>
-
         <div className="dev-card glass-card" style={{ margin: 0, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card-header" style={{ color: '#10b981', marginBottom: '10px' }}><LineChart size={18} /> <h3 style={{ fontSize: '0.9rem' }}>Evolução do MRR (6 Meses)</h3></div>
+          <div className="dev-card-header" style={{ color: '#10b981', marginBottom: '10px' }}><LineChart size={20} /> <h3 style={{ fontSize: '1rem' }}>Evolução do MRR (6 Meses)</h3></div>
           <div className="chart-container" style={{ flex: 1, margin: 0, minHeight: '140px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dadosGraficoReceita} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
@@ -960,37 +1105,39 @@ const TelaBilling = ({ sysConfig, filiaisDb, showToast, addLog, updateSysConfig,
       <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="dev-card-header" style={{ color: '#eab308', padding: '1.5rem', marginBottom: 0 }}><Receipt size={20} /><h3>Faturas Emitidas (Ciclo Atual)</h3></div>
         
-        <div className="saas-table-header billing-grid-cols">
-          <div>Cliente Pagador</div><div>Plano Base</div><div>Multa/Juros</div><div>Total (R$)</div><div style={{ textAlign: 'center' }}>Status</div><div style={{ textAlign: 'center' }}>Ações de Faturação</div>
-        </div>
+        <div className="table-responsive-wrapper">
+          <div className="saas-table-header billing-grid-cols">
+            <div>Cliente Pagador</div><div>Plano Base</div><div>Multa/Juros</div><div>Total (R$)</div><div style={{ textAlign: 'center' }}>Status</div><div style={{ textAlign: 'center' }}>Ações de Faturamento</div>
+          </div>
 
-        <div style={{maxHeight: '400px', overflowY: 'auto'}}>
-          {filiaisDb?.map((filial, index) => {
-            const planoAtual = sysConfig.planos?.[filial] || 'FREE';
-            const fatura = getDetalhesFatura(filial, planoAtual, planoAtual === 'SUSPENSO');
-            if (!fatura) return null;
-            const isLate = fatura.status === 'VENCIDA' || fatura.status === 'ATRASADA';
+          <div style={{maxHeight: '65vh', overflowY: 'auto', paddingRight: '8px', paddingBottom: '20px'}}>
+            {filiaisDb?.map((filial, index) => {
+              const planoAtual = sysConfig.planos?.[filial] || 'FREE';
+              const fatura = getDetalhesFatura(filial, planoAtual, planoAtual === 'SUSPENSO');
+              if (!fatura) return null;
+              const isLate = fatura.status === 'VENCIDA' || fatura.status === 'ATRASADA';
 
-            return (
-              <div className={`saas-client-row billing-grid-cols ${isLate ? 'row-suspended' : ''}`} key={index}>
-                <div style={{fontWeight: '800', color: 'white'}}>{filial}</div>
-                <div style={{ color: 'var(--text-muted)' }}>R$ {fatura.base.toFixed(2)}</div>
-                <div style={{ color: isLate ? 'var(--danger)' : 'var(--text-muted)' }}>R$ {(fatura.multa + fatura.juros).toFixed(2)}</div>
-                <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1rem', fontFamily: 'JetBrains Mono' }}>R$ {fatura.total.toFixed(2)}</div>
-                <div style={{ textAlign: 'center' }}><span className={`status-badge ${isLate ? 'danger' : 'success'}`}>{fatura.status}</span></div>
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  {!fatura.foiPaga && <button className="btn-icon-small" title="Confirmar Pagamento Manual" onClick={() => confirmarPagamento(filial)} style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}><CheckCircle2 size={16} /></button>}
-                  <button className="btn-icon-small" title="Gerar NF-e (PDF)" onClick={() => gerarNotaFiscalPDF(filial, fatura)} disabled={isGenerating !== null}>
-                    {isGenerating === `NFe_${filial}` ? <Loader2 size={16} className="spin" /> : <FileText size={16} />}
-                  </button>
-                  <button className="btn-icon-small" title="Gerar Boleto (PDF)" onClick={() => gerarBoletoPDF(filial, fatura)} disabled={isGenerating !== null}>
-                     {isGenerating === `Boleto_${filial}` ? <Loader2 size={16} className="spin" /> : <Banknote size={16} />}
-                  </button>
-                  {isLate && !fatura.foiPaga && <button className="btn-icon-small danger-text" title="Notificar Cobrança" onClick={() => { addLog(`Aviso de cobrança enviado a ${filial}.`, 'warning'); showToast('Aviso disparado.', 'info'); }}><Mail size={16} /></button>}
+              return (
+                <div className={`saas-client-row billing-grid-cols ${isLate ? 'row-suspended' : ''}`} key={index}>
+                  <div className="text-truncate" style={{fontWeight: '900', color: 'white', fontSize: '1.1rem'}}>{filial}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>R$ {fatura.base.toFixed(2)}</div>
+                  <div style={{ color: isLate ? 'var(--danger)' : 'var(--text-muted)', fontSize: '1rem' }}>R$ {(fatura.multa + fatura.juros).toFixed(2)}</div>
+                  <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.3rem', fontFamily: 'JetBrains Mono' }}>R$ {fatura.total.toFixed(2)}</div>
+                  <div style={{ textAlign: 'center' }}><span className={`status-badge ${isLate ? 'danger' : 'success'}`}>{fatura.status}</span></div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    {!fatura.foiPaga && <button className="btn-icon-small" title="Confirmar Pagamento Manual" onClick={() => confirmarPagamento(filial)} style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}><CheckCircle2 size={18} /></button>}
+                    <button className="btn-icon-small" title="Gerar NF-e (PDF)" onClick={() => gerarNotaFiscalPDF(filial, fatura)} disabled={isGenerating !== null}>
+                      {isGenerating === `NFe_${filial}` ? <Loader2 size={18} className="spin" /> : <FileText size={18} />}
+                    </button>
+                    <button className="btn-icon-small" title="Gerar Boleto (PDF)" onClick={() => gerarBoletoPDF(filial, fatura)} disabled={isGenerating !== null}>
+                       {isGenerating === `Boleto_${filial}` ? <Loader2 size={18} className="spin" /> : <Banknote size={18} />}
+                    </button>
+                    {isLate && !fatura.foiPaga && <button className="btn-icon-small danger-text" title="Notificar Cobrança" onClick={() => { addLog(`Aviso de cobrança enviado a ${filial}.`, 'warning'); showToast('Aviso disparado.', 'info'); }}><Mail size={18} /></button>}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -998,7 +1145,7 @@ const TelaBilling = ({ sysConfig, filiaisDb, showToast, addLog, updateSysConfig,
 };
 
 // ============================================================================
-// 7. TELA SOC (AUDITORIA E ZERO-TRUST)
+// 8. TELA SOC (AUDITORIA E ZERO-TRUST)
 // ============================================================================
 const TelaSOC = ({ api, showToast, addLog, setModalConfig }) => {
   const [activeSessions, setActiveSessions] = useState([]);
@@ -1056,54 +1203,56 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig }) => {
       <div className="dev-grid-main">
         <div className="dev-col-left">
           <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid #a855f7' }}>
-            <div className="dev-card-header flex-between" style={{color: '#a855f7', padding: '1.5rem', marginBottom: 0}}>
-              <div style={{display:'flex', gap:'8px', alignItems:'center'}}><FingerprintIcon size={20}/><h3>Sessões JWT Ativas</h3></div>
+            <div className="dev-card-header flex-between" style={{color: '#a855f7', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap'}}>
+              <div style={{display:'flex', gap:'8px', alignItems:'center'}}><FingerprintIcon size={24}/><h3>Sessões JWT Ativas</h3></div>
               <span className="status-badge" style={{background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)'}}>Zero-Trust Ativado</span>
             </div>
             
-            <div className="saas-table-header soc-grid-cols">
-              <div>Usuário</div><div>IP / Location</div><div>Login</div><div style={{textAlign: 'right'}}>Ação</div>
-            </div>
-            
-            <div style={{maxHeight: '500px', overflowY: 'auto'}}>
-              {isLoading && <div style={{padding: '3rem', display: 'flex', justifyContent: 'center', color: 'var(--text-muted)'}}><Loader2 className="spin" size={32} /></div>}
-              {!isLoading && activeSessions.map((s) => (
-                <div key={s.id} className="saas-client-row soc-grid-cols">
-                  <div><div style={{fontWeight: '800', color: 'white'}}>{s.usuario}</div><div style={{fontSize: '0.7rem', color: '#a855f7', marginTop: '2px'}}>{s.role}</div></div>
-                  <div><div style={{fontFamily: 'JetBrains Mono', color: 'var(--text-muted)'}}>{s.ip === '::1' ? 'Localhost' : s.ip}</div><div style={{fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px'}}><MapPin size={10}/>{s.location}</div></div>
-                  <div style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>{s.loginTime}</div>
-                  <div style={{display: 'flex', justifyContent: 'flex-end'}}><button className="btn-icon-small danger-text" title="Derrubar Conexão (Revoke)" onClick={() => handleRevoke(s.id, s.usuario)}><UserX size={16} /></button></div>
-                </div>
-              ))}
-              {!isLoading && activeSessions.length === 0 && <div style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)'}}>Nenhuma sessão ativa encontrada.</div>}
+            <div className="table-responsive-wrapper">
+              <div className="saas-table-header soc-grid-cols">
+                <div>Usuário</div><div>IP / Localização</div><div>Login</div><div style={{textAlign: 'right'}}>Ação</div>
+              </div>
+              
+              <div style={{maxHeight: '65vh', overflowY: 'auto', paddingRight: '8px', paddingBottom: '20px'}}>
+                {isLoading && <div style={{padding: '3rem', display: 'flex', justifyContent: 'center', color: 'var(--text-muted)'}}><Loader2 className="spin" size={32} /></div>}
+                {!isLoading && activeSessions.map((s) => (
+                  <div key={s.id} className="saas-client-row soc-grid-cols">
+                    <div><div className="text-truncate" style={{fontWeight: '900', color: 'white', fontSize: '1.1rem'}}>{s.usuario}</div><div style={{fontSize: '0.85rem', color: '#a855f7', marginTop: '4px'}}>{s.role}</div></div>
+                    <div><div style={{fontFamily: 'JetBrains Mono', color: 'var(--text-muted)', fontSize: '1rem'}}>{s.ip === '::1' ? 'Localhost' : s.ip}</div><div style={{fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px'}}><MapPin size={12}/>{s.location}</div></div>
+                    <div style={{color: 'var(--text-muted)', fontSize: '0.95rem'}}>{s.loginTime}</div>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}><button className="btn-icon-small danger-text" title="Derrubar Conexão (Revoke)" onClick={() => handleRevoke(s.id, s.usuario)}><UserX size={18} /></button></div>
+                  </div>
+                ))}
+                {!isLoading && activeSessions.length === 0 && <div style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)'}}>Nenhuma sessão ativa encontrada.</div>}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="dev-col-right">
           <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--info)' }}>
-            <div className="dev-card-header flex-between" style={{color: 'var(--info)'}}>
-              <div style={{display:'flex', gap:'8px', alignItems:'center'}}><History size={20}/><h3>Ledger de Auditoria</h3></div>
+            <div className="dev-card-header flex-between" style={{color: 'var(--info)', flexWrap: 'wrap'}}>
+              <div style={{display:'flex', gap:'8px', alignItems:'center'}}><History size={24}/><h3>Registro de Auditoria</h3></div>
               <div className="status-badge" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${score > 80 ? '#10b981' : (score > 50 ? '#f59e0b' : '#ef4444')}` }}>
-                {score > 80 ? <ShieldCheck size={14} color="#10b981"/> : <ShieldAlert size={14} color={score > 50 ? '#f59e0b' : '#ef4444'}/>}
-                <span style={{ fontSize: '0.8rem', fontWeight: '900', color: score > 80 ? '#10b981' : (score > 50 ? '#f59e0b' : '#ef4444') }}>Score: {score}%</span>
+                {score > 80 ? <ShieldCheck size={16} color="#10b981"/> : <ShieldAlert size={16} color={score > 50 ? '#f59e0b' : '#ef4444'}/>}
+                <span style={{ fontSize: '0.9rem', fontWeight: '900', color: score > 80 ? '#10b981' : (score > 50 ? '#f59e0b' : '#ef4444') }}>Pontuação: {score}%</span>
               </div>
             </div>
             
-            <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px'}}>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '55vh', overflowY: 'auto', paddingRight: '10px', marginBottom: '20px'}}>
               {isLoading && <div style={{textAlign: 'center', color: 'var(--text-muted)', padding: '2rem'}}><Loader2 className="spin" size={32}/></div>}
               {!isLoading && auditLogs.map((log, idx) => (
-                <div key={idx} style={{background: 'rgba(0,0,0,0.3)', borderLeft: `4px solid var(--${log.severity})`, padding: '12px 16px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
-                    <span style={{color: `var(--${log.severity})`, fontWeight: '900', fontSize: '0.85rem'}}>{log.action}</span>
-                    <span style={{color: 'var(--text-muted)', fontSize: '0.75rem'}}>Alvo: <span style={{color: 'white', fontWeight: 'bold'}}>{log.target}</span> | Ator: <span style={{color: 'white', fontWeight: 'bold'}}>{log.actor}</span></span>
+                <div key={idx} style={{background: 'rgba(0,0,0,0.3)', borderLeft: `4px solid var(--${log.severity})`, padding: '16px 20px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '200px'}}>
+                    <span style={{color: `var(--${log.severity})`, fontWeight: '900', fontSize: '0.95rem'}}>{log.action}</span>
+                    <span style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>Alvo: <span style={{color: 'white', fontWeight: 'bold'}}>{log.target}</span> | Ator: <span style={{color: 'white', fontWeight: 'bold'}}>{log.actor}</span></span>
                   </div>
-                  <div style={{fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', textAlign: 'right', fontWeight: 'bold'}}><Clock size={12}/> {log.time}</div>
+                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', textAlign: 'right', fontWeight: 'bold'}}><Clock size={14}/> {log.time}</div>
                 </div>
               ))}
             </div>
-            <button className="btn btn-outline w-100" style={{padding: '14px', display: 'flex', justifyContent: 'center', gap: '10px', fontWeight: '900', borderRadius: '10px', letterSpacing: '0.5px'}} onClick={exportarLogsCSV}>
-              <DownloadCloud size={18}/> EXPORTAR LOGS (CSV)
+            <button className="btn btn-outline w-100" style={{padding: '16px', display: 'flex', justifyContent: 'center', gap: '10px', fontWeight: '900', borderRadius: '10px', letterSpacing: '0.5px'}} onClick={exportarLogsCSV}>
+              <DownloadCloud size={20}/> EXPORTAR LOGS (CSV)
             </button>
           </div>
         </div>
@@ -1113,7 +1262,7 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig }) => {
 };
 
 // ============================================================================
-// 8. TELA BI E RELATÓRIOS
+// 9. TELA BI E RELATÓRIOS
 // ============================================================================
 const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
   const [isProcessing, setIsProcessing] = useState(null);
@@ -1178,7 +1327,7 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
       doc.text(`Emissão: ${new Date().toLocaleString()} | Uso Interno`, 15, 36);
       autoTable(doc, { head: [head], body: body, startY: 45, headStyles: { fillColor: cor }, styles: { fontSize: 9 } });
       doc.save(`TermoSync_Report_${tipo}_${Date.now()}.pdf`);
-      showToast('Relatório PDF baixado.', 'success');
+      showToast('Relatório PDF exportado.', 'success');
     } catch (e) { showToast('Erro no PDF.', 'error'); }
     setIsProcessing(null);
   };
@@ -1196,13 +1345,13 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob); link.download = `Data_${tipo}_${Date.now()}.csv`;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      showToast('CSV baixado.', 'success');
+      showToast('CSV exportado.', 'success');
     } catch (e) { showToast('Erro no CSV.', 'error'); }
     setIsProcessing(null);
   };
 
   const modulosBI = [
-    { id: 'FINOPS_BILLING', titulo: 'Core Financeiro (RevOps)', desc: 'Relação completa de MRR, inadimplência e faturas.', icon: DollarSign, color: '#10b981' },
+    { id: 'FINOPS_BILLING', titulo: 'Core Financeiro (RevOps)', desc: 'Relação completa de MRR, dívidas e faturas.', icon: DollarSign, color: '#10b981' },
     { id: 'AUDITORIA_SOC', titulo: 'Auditoria Zero-Trust (SOC)', desc: 'Extrato oficial e imutável de logins e purgas do banco de dados.', icon: ShieldCheck, color: '#a855f7' },
     { id: 'EDGE_HARDWARE', titulo: 'Inventário Edge Computing', desc: 'Mapeamento global da frota de microcontroladores (MAC/Wi-Fi).', icon: Server, color: '#38bdf8' },
     { id: 'CAOS_RESILIENCIA', titulo: 'Auditoria de Resiliência', desc: 'Relatório das anomalias injetadas ou detectadas no sistema.', icon: Cpu, color: '#ef4444' },
@@ -1214,7 +1363,7 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
     <div className="anim-fade-in stagger-1 dev-tela-scroll">
       <div className="flex-header" style={{ padding: 0, background: 'transparent', boxShadow: 'none', marginBottom: '0' }}>
         <div className="dev-card glass-card" style={{ width: '100%' }}>
-          <div className="dev-card-header" style={{ color: 'white', marginBottom: '5px' }}><PieChart size={24} color="#38bdf8" /><h3 style={{fontSize: '1.2rem'}}>Centro de Inteligência e Analytics (BI)</h3></div>
+          <div className="dev-card-header" style={{ color: 'white', marginBottom: '5px' }}><PieChart size={24} color="#38bdf8" /><h3 style={{fontSize: 'clamp(1rem, 2vw, 1.2rem)'}}>Centro de Inteligência e Analytics (BI)</h3></div>
           <p className="text-muted" style={{ fontSize: '0.85rem', margin: 0 }}>Motor de extração de dados reais do banco MySQL. Relatórios são registrados em tabela de auditoria para fins de compliance.</p>
         </div>
       </div>
@@ -1238,7 +1387,7 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
 };
 
 // ============================================================================
-// 9. TERMINAL FOOTER (COMANDOS REAIS + EASTER EGGS)
+// 10. TERMINAL FOOTER (COMANDOS REAIS + EASTER EGGS)
 // ============================================================================
 const TerminalFooter = ({ logs, setLogs, addLog, sysConfig }) => {
   const [cmdInput, setCmdInput] = useState('');
@@ -1280,7 +1429,7 @@ const TerminalFooter = ({ logs, setLogs, addLog, sysConfig }) => {
           setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR'), text: 'Reiniciando painel (F5)...', status: 'error' }]); 
           setTimeout(() => window.location.reload(), 1500); 
           break;
-        default: setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR'), text: `ERR: '${cmd}' não reconhecido. Digite 'help' para comandos válidos.`, status: 'error' }]);
+        default: setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR'), text: `ERR: comando '${cmd}' não reconhecido. Digite 'help' para ver os comandos válidos.`, status: 'error' }]);
       }
     }, 400);
     setCmdInput(''); 
@@ -1291,7 +1440,7 @@ const TerminalFooter = ({ logs, setLogs, addLog, sysConfig }) => {
       <div className="terminal-header" onClick={() => setIsOpen(!isOpen)}>
         <div className="terminal-header-title">
           <TerminalSquare size={16} />
-          <span>{isOpen ? '/dev/tty1 (INTERACTIVE ROOT SHELL)' : 'Abrir Terminal do Servidor (ROOT)'}</span>
+          <span>{isOpen ? '/dev/tty1 (SHELL ROOT INTERATIVO)' : 'Abrir Terminal do Servidor (ROOT)'}</span>
         </div>
         {isOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
       </div>
