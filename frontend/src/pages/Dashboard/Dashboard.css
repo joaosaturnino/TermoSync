@@ -1,14 +1,28 @@
 /* =========================================
+   Dashboard.css - TERMOSYNC
+   
+   ARQUIVO DE ESTILOS DO MÓDULO DE DASHBOARD PRINCIPAL
+   Define o layout responsivo, as animações do radar, o ticker de notícias (logs),
+   os cartões de alerta térmico/mecânico e o painel de saúde da rede.
+   ========================================= */
+
+/* =========================================
    VARIÁVEIS DE TEMA E ESTRUTURA GERAL
+   Cores padronizadas para uso nos indicadores de status do sistema
    ========================================= */
 :root {
   --font-family: 'Montserrat', system-ui, sans-serif;
   --success: #10b981;
+  /* Verde - Operação Segura */
   --danger: #ef4444;
+  /* Vermelho - Alerta Crítico */
   --warning: #f59e0b;
+  /* Laranja - Atenção/Aviso */
   --secondary: #38bdf8;
+  /* Azul - Informativo/Degelo */
 }
 
+/* Container mestre que engloba toda a página do Dashboard */
 .dashboard-container {
   font-family: var(--font-family);
   color: var(--text-main);
@@ -18,6 +32,7 @@
   gap: 1.5rem;
 }
 
+/* Utilitário para forçar a visualização do painel ocupando 100% da tela */
 .fullscreen-mode {
   padding: 2.5rem;
   background-color: var(--bg-color);
@@ -25,12 +40,13 @@
   height: 100vh;
 }
 
+/* Ajuste de fundo específico quando o tema escuro estiver ativo em Fullscreen */
 .dark-theme .fullscreen-mode {
   background-color: #020617;
 }
 
 /* =========================================
-   CABEÇALHO NOC E TELEMETRIA
+   CABEÇALHO NOC E TELEMETRIA (TOPO DA TELA)
    ========================================= */
 .dashboard-top-header {
   display: flex;
@@ -54,6 +70,7 @@
   letter-spacing: -0.5px;
 }
 
+/* Container das "Pílulas" (Badges) informativas no topo */
 .telemetry-badges {
   display: flex;
   align-items: center;
@@ -61,6 +78,7 @@
   flex-wrap: wrap;
 }
 
+/* Badge Verde indicando telemetria em tempo real */
 .live-telemetry-badge {
   display: inline-flex;
   align-items: center;
@@ -74,6 +92,7 @@
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
+/* Badge exibindo latência (ping) da rede */
 .network-ping-badge {
   display: inline-flex;
   align-items: center;
@@ -93,6 +112,7 @@
   border-color: rgba(245, 158, 11, 0.3);
 }
 
+/* Ponto verde pulsante que acompanha o texto "LIVE" */
 .live-dot {
   width: 8px;
   height: 8px;
@@ -116,6 +136,7 @@
   }
 }
 
+/* Controles de botões no cabeçalho e relógio NOC */
 .noc-controls {
   display: flex;
   align-items: center;
@@ -187,7 +208,9 @@
 }
 
 /* =========================================
-   ÍNDICE DE SAÚDE DA REDE E SLA
+   BANNER DE SAÚDE DA REDE (SLA E HEALTH SCORE)
+   Faixa colorida superior que reage visualmente de acordo com
+   o nível de alertas críticos ativos na rede.
    ========================================= */
 .health-banner {
   display: flex;
@@ -204,6 +227,7 @@
   flex-wrap: wrap;
 }
 
+/* Estados da faixa baseados na prop calculada no JSX */
 .health-banner.stable {
   background: linear-gradient(135deg, #059669 0%, #10b981 100%);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -220,6 +244,7 @@
   animation: pulse-health-danger 2s infinite;
 }
 
+/* Faz a faixa vermelha piscar levemente se a saúde estiver em declínio crítico */
 @keyframes pulse-health-danger {
 
   0%,
@@ -261,6 +286,7 @@
   opacity: 0.9;
 }
 
+/* Textos informativos de SLA garantido e total de nós */
 .health-secondary-stats {
   display: flex;
   gap: 20px;
@@ -287,6 +313,7 @@
   font-family: monospace;
 }
 
+/* Área que desenha a barra de progresso do score de saúde (Ex: 95%) */
 .health-score-area {
   display: flex;
   flex-direction: column;
@@ -319,11 +346,13 @@
 }
 
 /* =========================================
-   LAYOUT EM GRID E KPIs
+   LAYOUT EM GRID E CARTÕES KPI (STAT CARDS)
+   Divide a tela entre os 4 mini cartões e o gráfico Donut.
    ========================================= */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
+  /* Gráfico de Donut terá largura fixa de 340px */
   gap: 1.5rem;
 }
 
@@ -380,6 +409,7 @@
   justify-content: center;
 }
 
+/* Cores de fundo dinâmicas para os ícones baseadas no estado da prop */
 .icon-bg-gray {
   background-color: rgba(100, 116, 139, 0.1);
   color: var(--text-muted);
@@ -418,6 +448,7 @@
   color: var(--secondary);
 }
 
+/* Animação e estilo para o cartão vermelho quando o nº de falhas é > 0 */
 .pulsing-card {
   border-color: rgba(239, 68, 68, 0.3);
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.1);
@@ -428,7 +459,7 @@
 }
 
 /* =========================================
-   GRÁFICO DONUT
+   CONTÊINER DO GRÁFICO DONUT (RECHARTS)
    ========================================= */
 .donut-container {
   background: var(--card-bg);
@@ -450,7 +481,7 @@
 }
 
 /* =========================================
-   TRIAGEM DE ALERTAS E FILTROS
+   FILTROS DE TRIAGEM E GRID DE ALERTAS
    ========================================= */
 .section-title {
   margin: 0;
@@ -477,6 +508,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* Botões de filtro (Todos, Críticos, Avisos) */
 .btn-filter {
   background: transparent;
   border: none;
@@ -528,11 +560,13 @@
 }
 
 /* =========================================
-   CARTÃO DE ALERTA INDIVIDUAL
+   CARTÃO DE ALERTA INDIVIDUAL (TICKET)
+   Renderiza a cor, título e botões de ação com base na gravidade do defeito
    ========================================= */
 .card-alert {
   background: var(--card-bg);
   border: 1px solid var(--border);
+  /* A cor da borda esquerda é injetada via variável CSS inline no React */
   border-left: 5px solid var(--alert-color);
   border-radius: 16px;
   padding: 1.25rem;
@@ -547,6 +581,7 @@
   box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
 }
 
+/* Se for alerta crítico, a borda pisca independentemente do hover */
 .card-alert.critical-alert {
   animation: pulseCriticalBorder 2s infinite;
 }
@@ -577,6 +612,7 @@
   gap: 12px;
 }
 
+/* Caixa com fundo translúcido baseada na cor primária do ícone */
 .alert-icon-box {
   background-color: color-mix(in srgb, var(--alert-color) 15%, transparent);
   padding: 10px;
@@ -603,6 +639,7 @@
   gap: 6px;
 }
 
+/* Pílulas que mostram o Setor/Filial onde o problema ocorreu */
 .badge-setor {
   background: rgba(0, 0, 0, 0.04);
   color: var(--text-muted);
@@ -674,6 +711,7 @@
   transform: translateY(-2px);
 }
 
+/* Botão em formato de balão que abre a janela de Chat de intervenção rápida */
 .btn-chat-internal {
   background-color: var(--secondary);
   color: white;
@@ -695,6 +733,7 @@
 
 /* =========================================
    ANIMAÇÃO DO RADAR AVANÇADO (EMPTY STATE)
+   Exibido apenas quando não existem alertas/incidentes.
    ========================================= */
 .dashboard-empty {
   padding: 5rem 2rem;
@@ -722,6 +761,7 @@
   box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.1);
 }
 
+/* Gradiente que gira no radar */
 .radar-scanner {
   position: absolute;
   width: 50%;
@@ -734,6 +774,7 @@
   z-index: 1;
 }
 
+/* Grid overlay que fica estática por cima do radar */
 .radar-box::after {
   content: '';
   position: absolute;
@@ -751,7 +792,7 @@
   filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
 }
 
-/* Ecos do Radar (Blips) */
+/* "Blips" (Pontos verdes simulando detecção limpa no radar) */
 .radar-blip {
   position: absolute;
   width: 6px;
@@ -824,6 +865,7 @@
 
 /* =========================================
    RODAPÉ DE NOTÍCIAS (LIVE TICKER)
+   Exibe as últimas ocorrências no formato contínuo como telejornais.
    ========================================= */
 .noc-ticker-wrap {
   display: flex;
@@ -847,6 +889,7 @@
   flex-shrink: 0;
 }
 
+/* Área que efetivamente aplica o overflow hidden para a string rolar */
 .noc-ticker {
   flex: 1;
   overflow: hidden;
@@ -855,14 +898,14 @@
   padding: 10px 0;
 }
 
-/* Alterado de 30s para 60s para uma leitura muito mais lenta e confortável */
+/* Desliza o texto linearmente infinitas vezes */
 .ticker-content {
   display: inline-block;
   animation: ticker-scroll 120s linear infinite;
   padding-left: 100%;
 }
 
-/* Regra que pausa a passagem do texto ao colocar o rato por cima */
+/* Pausa a rolagem do texto ao colocar o mouse por cima (facilita a leitura) */
 .noc-ticker:hover .ticker-content {
   animation-play-state: paused;
 }
@@ -899,6 +942,7 @@
 
 /* =========================================
    DRAWER DE CHAT (MENU LATERAL SUAVE)
+   Desliza da direita para a esquerda ao clicar no ícone de chat de um alerta
    ========================================= */
 .chat-overlay {
   position: fixed;

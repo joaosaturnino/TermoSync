@@ -8,10 +8,14 @@ import './Chamados.css';
 
 // ============================================================================
 // COMPONENTE OTIMIZADO (MEMO): Evita re-renderização desnecessária da lista
+// Utilizamos memo para garantir que este card de OS individual só seja 
+// redesenhado na tela se as suas props (dados do chamado) mudarem.
 // ============================================================================
 const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
+  // Verifica o status para aplicar estilos condicionalmente
   const isConcluido = c.status === 'Concluído';
   
+  // Memoização da cor da borda/tags baseada no nível de urgência
   const urgencyColor = useMemo(() => {
     if (c.urgencia === 'Alta') return 'var(--danger)';
     if (c.urgencia === 'Média') return 'var(--warning)';
@@ -23,6 +27,7 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
       className={`card chamado-card ${isConcluido ? 'concluido' : ''}`}
       style={{ '--ticket-color': isConcluido ? 'var(--success)' : urgencyColor }}
     >
+      {/* Cabeçalho do Card: Nome do Equipamento, Filial e Badges */}
       <div className="chamado-header">
         <div className="chamado-equip-info">
           <span className="chamado-equip-nome">{c.equipamento_nome}</span>
@@ -44,6 +49,7 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
         </div>
       </div>
 
+      {/* Corpo do Card: Informações detalhadas da ordem de serviço */}
       <div className="chamado-body">
         <div className="chamado-meta">
           <span><User size={14} /> Solicitante: {c.solicitante_nome || c.aberto_por}</span>
@@ -55,6 +61,7 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
           <strong>Relato:</strong> {c.descricao}
         </div>
 
+        {/* Exibe a nota de laudo apenas se o chamado já foi resolvido */}
         {isConcluido && c.nota_resolucao && (
           <div className="chamado-resolucao-box">
             <div className="resolucao-title"><CheckSquare size={14} /> Laudo de Resolução:</div>
@@ -63,6 +70,7 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
         )}
       </div>
 
+      {/* Rodapé do Card: Ações dinâmicas dependendo do status atual */}
       <div className="chamado-actions">
         {!isConcluido ? (
           <button className="btn w-100" style={{ background: urgencyColor, color: 'white', border: 'none' }} onClick={() => onResolver(c.id)} disabled={isOffline}>
@@ -80,6 +88,8 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar }) => {
 
 // ============================================================================
 // COMPONENTE PRINCIPAL
+// Painel que gerencia os estados globais da tela, modais, e lida com a 
+// comunicação entre o banco de dados (via API) e as OS da interface.
 // ============================================================================
 export default function Chamados({
   userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb = [], equipamentosDaFilial = [],
@@ -87,17 +97,24 @@ export default function Chamados({
 }) {
 
   /* --- ESTADOS --- */
+  // Controle de inputs da barra superior
   const [busca, setBusca] = useState('');
   const [tecnicoFiltroOS, setTecnicoFiltroOS] = useState('todos');
   const [filtroTempoOS, setFiltroTempoOS] = useState('todos');
 
+  // Controle de visibilidade e dados dos modais
   const [modalChamado, setModalChamado] = useState(false);
   const [formChamado, setFormChamado] = useState({ equipamento_id: '', descricao: '', urgencia: 'Baixa', tecnico_responsavel: '' });
   const [modalResolver, setModalResolver] = useState({ isOpen: false, chamadoId: null, nota: '' });
   const [modalArquivarTodos, setModalArquivarTodos] = useState(false);
+  
+  // Estado para travar botões enquanto a API processa dados
   const [isProcessing, setIsProcessing] = useState(false);
 
-  /* --- FILTRAGEM DE ALTA PERFORMANCE (Single-Pass Loop) --- */
+  /* --- FILTRAGEM DE ALTA PERFORMANCE (Single-Pass Loop) --- 
+     Este hook processa todas as regras de visualização e filtros de texto 
+     numa única iteração sobre o array para economizar ciclos de CPU.
+  */
   const chamadosAtivosFiltrados = useMemo(() => {
     if (!chamados || chamados.length === 0) return [];
 
@@ -108,22 +125,27 @@ export default function Chamados({
     
     // Filtro num único loop para poupar CPU
     let list = chamados.filter(c => {
+      // Ignora chamados que já foram despachados para a aba de histórico
       if (c.arquivado) return false;
       
+      // Filtra por filial se o usuário for Admin e não estiver visualizando "Todas"
       if (roleAdmin && filialAtiva !== 'Todas' && c.filial !== filialAtiva) return false;
       
+      // Controle de exibição baseado no cargo (RBAC) e no filtro da UI
       if (roleManu) {
         if (c.tecnico_responsavel && c.tecnico_responsavel !== nomeLogado) return false;
       } else if (tecnicoFiltroOS !== 'todos') {
         if (c.tecnico_responsavel !== tecnicoFiltroOS) return false;
       }
 
+      // Filtro de linha do tempo
       if (filtroTempoOS !== 'todos') {
         const tempoAbertura = new Date(c.data_abertura).getTime();
         if (filtroTempoOS === '24h' && (agora - tempoAbertura > 86400000)) return false;
         if (filtroTempoOS === '7d' && (agora - tempoAbertura > 604800000)) return false;
       }
 
+      // Filtro textual que escaneia nome do equipamento, descrição e nome do técnico
       if (termoBusca) {
         const eqNome = c.equipamento_nome ? c.equipamento_nome.toLowerCase() : '';
         const desc = c.descricao ? c.descricao.toLowerCase() : '';
@@ -134,7 +156,7 @@ export default function Chamados({
       return true;
     });
 
-    // Ordenação
+    // Ordenação do resultado (Pendentes no topo > Maior Urgência > Data mais recente)
     return list.sort((a, b) => {
       if (a.status !== 'Concluído' && b.status === 'Concluído') return -1;
       if (a.status === 'Concluído' && b.status !== 'Concluído') return 1;
@@ -147,7 +169,9 @@ export default function Chamados({
     });
   }, [chamados, filialAtiva, userRole, nomeLogado, tecnicoFiltroOS, filtroTempoOS, busca]);
 
-  /* --- CÁLCULO DE KPIs --- */
+  /* --- CÁLCULO DE KPIs --- 
+     Conta a volumetria dos tickets diretamente da lista já filtrada.
+  */
   const { kpis, concluidosCount } = useMemo(() => {
     let pendentes = 0; let concluidos = 0; let criticos = 0;
     chamadosAtivosFiltrados.forEach(c => {
@@ -160,20 +184,24 @@ export default function Chamados({
     };
   }, [chamadosAtivosFiltrados]);
 
-  /* --- FUNÇÕES DA API (Mapeadas via useCallback para não quebrar a memoização) --- */
+  /* --- FUNÇÕES DA API (Mapeadas via useCallback para não quebrar a memoização dos cards) --- */
+  
+  // Realiza o soft-delete do chamado, marcando-o como arquivado no BD
   const arquivarChamado = useCallback(async (id) => {
     if (isOffline) return showToast('Ação não permitida em modo offline.', 'warning');
     try {
       await api.put(`/chamados/${id}/arquivar`);
       showToast('Ordem de Serviço arquivada.', 'success');
-      carregarChamados();
+      carregarChamados(); // Dispara atualização da lista global
     } catch (e) { showToast('Erro ao arquivar OS.', 'error'); }
   }, [api, isOffline, showToast, carregarChamados]);
 
+  // Prepara o state do modal de Resolução capturando o ID do chamado alvo
   const abrirModalResolver = useCallback((id) => {
     setModalResolver({ isOpen: true, chamadoId: id, nota: '' });
   }, []);
 
+  // Arquiva todas as OS que já foram concluídas na tela com uma só ação
   const confirmarArquivarTodos = async () => {
     if (isOffline) return showToast('Modo offline ativo.', 'warning');
     setIsProcessing(true);
@@ -190,6 +218,7 @@ export default function Chamados({
     } finally { setIsProcessing(false); }
   };
 
+  // Envia a nota de resolução preenchida pelo técnico no modal
   const confirmarResolucao = async () => {
     if (!modalResolver.nota.trim()) return showToast('O Laudo Técnico é obrigatório para fechamento.', 'warning');
     if (isOffline) return showToast('Modo offline ativo.', 'warning');
@@ -203,6 +232,7 @@ export default function Chamados({
     finally { setIsProcessing(false); }
   };
 
+  // Processo para criar uma nova Ordem de Serviço vinculada a um equipamento
   const salvarChamado = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast('Modo offline ativo.', 'warning');
@@ -216,8 +246,8 @@ export default function Chamados({
         filial: filialAtiva === 'Todas' ? (equipamentosDaFilial.find(eq => String(eq.id) === String(formChamado.equipamento_id))?.filial || 'Loja Base') : filialAtiva
       });
       showToast('Ordem de Serviço Aberta.', 'success');
-      setModalChamado(false);
-      setFormChamado({ equipamento_id: '', descricao: '', urgencia: 'Baixa', tecnico_responsavel: '' });
+      setModalChamado(false); // Fecha o Modal
+      setFormChamado({ equipamento_id: '', descricao: '', urgencia: 'Baixa', tecnico_responsavel: '' }); // Reseta formulário
       carregarChamados();
     } catch (e) { showToast('Erro ao abrir OS.', 'error'); }
     finally { setIsProcessing(false); }
@@ -234,6 +264,7 @@ export default function Chamados({
         </div>
 
         <div className="chamados-actions">
+          {/* Barra de Pesquisa */}
           <div className="search-box-chamados">
             <Search size={16} className="search-icon" />
             <input 
@@ -248,6 +279,7 @@ export default function Chamados({
             <MessageSquarePlus size={18} /> Nova OS
           </button>
 
+          {/* Botão Dinâmico: Só aparece se o Admin tiver arquivos prontos para limpeza da tela principal */}
           {userRole !== 'MANUTENCAO' && concluidosCount > 0 && (
             <button className="btn btn-outline btn-archive-all" onClick={() => setModalArquivarTodos(true)}>
               <Archive size={18} /> Arquivar Lote ({concluidosCount})
@@ -307,8 +339,9 @@ export default function Chamados({
         </div>
       </div>
 
-      {/* ESTADO VAZIO */}
+      {/* RENDERIZAÇÃO CONDICIONAL DA LISTA DE CHAMADOS */}
       {chamadosAtivosFiltrados.length === 0 ? (
+        /* ESTADO VAZIO: Nenhum chamado com os filtros atuais */
         <div className="empty-state dashboard-empty stagger-3">
           <div className="empty-shield-box" style={{ background: 'rgba(56, 189, 248, 0.1)' }}>
             <CheckSquare size={48} color="var(--secondary)" />
@@ -375,6 +408,7 @@ export default function Chamados({
               <div className="modal-actions-chamados" style={{ marginTop: '2rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setModalChamado(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={isProcessing || isOffline}>
+                  {/* UX: Loader rodando caso botão de submit já tenha sido disparado */}
                   {isProcessing ? <Loader2 className="spinner" size={18} /> : <Save size={18} />} 
                   Emitir OS
                 </button>

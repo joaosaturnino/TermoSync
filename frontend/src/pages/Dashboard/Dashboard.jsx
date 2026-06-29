@@ -7,6 +7,10 @@ import {
 } from 'lucide-react';
 import './Dashboard.css';
 
+// ============================================================================
+// DICIONÁRIO E CONFIGURAÇÃO VISUAL DOS ALERTAS
+// Mapeia o tipo de problema recebido da API para Ícones, Cores, Ações UI e Nível de Crise.
+// ============================================================================
 export const getAlertConfig = (tipo_alerta) => {
   const configs = {
     'REDE': { icon: Wifi, color: 'var(--warning)', action: 'Analisar Rede', critical: true },
@@ -21,6 +25,11 @@ export const getAlertConfig = (tipo_alerta) => {
   return configs[tipo_alerta] || { icon: AlertTriangle, color: 'var(--danger)', action: 'Investigar', critical: true };
 };
 
+// ============================================================================
+// COMPONENTE OTIMIZADO (MEMO): CARTÃO DE ESTATÍSTICA (KPI)
+// Pequeno card no topo da tela usado para Máquinas na Rede, Operação Segura, etc.
+// Usar memo evita renderizações extras desse elemento.
+// ============================================================================
 const StatCard = memo(({ title, value, icon: Icon, iconBg, valClass = '', isPulsing = false }) => (
   <div className={`summary-card ${isPulsing ? 'pulsing-card' : ''}`}>
     <div className="summary-header">
@@ -33,13 +42,20 @@ const StatCard = memo(({ title, value, icon: Icon, iconBg, valClass = '', isPuls
       <span className={`summary-value ${valClass} ${isPulsing ? 'pulse-danger-text' : ''}`}>
         {value || 0}
       </span>
+      {/* Exibe bolinha pulsante adicional se houver um erro atrelado à prop "isPulsing" */}
       {isPulsing && <span className="live-pulse-dot bg-danger"></span>}
     </div>
   </div>
 ));
 
+// ============================================================================
+// MODAL DRAWER DE ESCALONAMENTO DE CHAT INTERNO
+// Esta tela desliza para permitir o envio do Alerta Crítico a um contato via Socket.
+// ============================================================================
 const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat }) => {
   const [contatoSelecionado, setContatoSelecionado] = useState('');
+  
+  // Preenche a mensagem padrão automaticamente baseado no dado da notificação
   const [novaMensagem, setNovaMensagem] = useState(`[ALERTA CRÍTICO] A máquina ${notif.equipamento_nome} (${notif.filial}) registrou uma anomalia grave. Ocorrência: ${notif.mensagem}. Solicito verificação técnica imediata.`);
 
   const handleEnviar = (e) => {
@@ -47,6 +63,7 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
     if (!contatoSelecionado) return showToast('Selecione um destinatário.', 'warning');
     if (!novaMensagem.trim()) return;
 
+    // Constrói o Payload a ser gravado localmente e emitido pela rede
     const msg = {
       id: Date.now(), remetenteId: userId, remetenteNome: nomeLogado,
       destinoId: contatoSelecionado, texto: novaMensagem, data: new Date(), tipo: 'sent'
@@ -57,11 +74,14 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
 
     showToast('Alerta transmitido à equipe com sucesso!', 'success');
     onClose();
+    
+    // Pequeno timeout para dar tempo da gaveta fechar antes de mudar para a aba Chat
     setTimeout(() => { irParaChat(contatoSelecionado === 'todos' ? null : contatoSelecionado); }, 400); 
   };
 
   return (
     <div className="chat-overlay" onClick={onClose}>
+      {/* Evita fechamento quando clicar dentro da "Gaveta" (stopPropagation) */}
       <div className="chat-drawer" onClick={(e) => e.stopPropagation()}>
         <div className="chat-drawer-header">
           <div className="chat-header-info">
@@ -76,6 +96,7 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
             <label>1. Direcionar alerta para:</label>
             <select className="select-input w-100" value={contatoSelecionado} onChange={(e) => setContatoSelecionado(e.target.value)}>
               <option value="">-- Escolha a equipe de intervenção --</option>
+              {/* Opções provenientes do Banco de Dados repassadas por prop */}
               {contatosDb?.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.cargo})</option>)}
               <option value="todos">Toda a Rede (Broadcast de Emergência)</option>
             </select>
@@ -97,7 +118,11 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
   );
 };
 
+// ============================================================================
+// TOOLTIPS CUSTOMIZADOS DO GRÁFICO RECHARTS (DONUT)
+// ============================================================================
 const CustomTooltip = ({ active, payload, isDarkMode }) => {
+  // Renderiza a caixa preta customizada apenas se houver o hover no gráfico e dados presentes
   if (active && payload && payload.length) {
     return (
       <div style={{ 
@@ -118,6 +143,7 @@ const CustomTooltip = ({ active, payload, isDarkMode }) => {
   return null;
 };
 
+// Tooltip exibido quando não há dados (Empty State)
 const EmptyTooltip = () => (
   <div style={{
     padding: '8px', 
@@ -131,34 +157,48 @@ const EmptyTooltip = () => (
   </div>
 );
 
+// ============================================================================
+// COMPONENTE PRINCIPAL (DASHBOARD)
+// Agrega todo o gerenciamento de Estado de Filtros, Cálculo de SLA (Health Score),
+// e renderização das subcamadas da interface principal.
+// ============================================================================
 export default function Dashboard({ 
   qtdTotal, qtdOperando, qtdDegelo, qtdFalha, dadosDonutStatus = [], 
   notificacoesDaFilial = [], resolverTodasNotificacoes, isOffline, pedirNotaResolucao, isDarkMode,
   contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat
 }) {
+  
+  // Controle local para mostrar a "Gaveta" do Chat do lado Direito da tela
   const [chatAtivo, setChatAtivo] = useState(null);
+  // Filtro atual para exibição de tickets ('TODOS', 'CRITICO', 'AVISO')
   const [filtroRisco, setFiltroRisco] = useState('TODOS'); 
 
+  // Funções Callback para os Cards renderizados (garantindo estabilidade de referência na árvore react)
   const abrirChatInterno = useCallback((notif) => { setChatAtivo(notif); }, []);
   const handleResolve = useCallback((id) => { pedirNotaResolucao(id); }, [pedirNotaResolucao]);
 
+  // Cálculo da pontuação de Saúde do sistema (SLA de uptime de equipamento x total de rede)
   const saudeRede = useMemo(() => {
     if (!qtdTotal || qtdTotal === 0) return { score: 100, status: 'ESTÁVEL', class: 'stable' };
     const score = Math.round((qtdOperando / qtdTotal) * 100);
+    // Categorização visual dependendo da porcentagem atingida
     if (score < 80) return { score, status: 'CRÍTICO', class: 'critical' };
     if (score < 95) return { score, status: 'ATENÇÃO', class: 'warning' };
     return { score, status: 'ESTÁVEL', class: 'stable' };
   }, [qtdTotal, qtdOperando]);
 
+  // Recria os alertas exibidos baseados nos botões de filtro clicados pelo usuário
   const alertasExibidos = useMemo(() => {
     if (!notificacoesDaFilial) return [];
     if (filtroRisco === 'TODOS') return notificacoesDaFilial;
     return notificacoesDaFilial.filter(n => {
+      // Regra de Negócio: Alguns tipos de alerta são definidos como Hard Critical
       const isCritical = n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA';
       return filtroRisco === 'CRITICO' ? isCritical : !isCritical;
     });
   }, [notificacoesDaFilial, filtroRisco]);
 
+  // Paleta de Cores para injeção no Objeto do Gráfico de Rosca (Donut)
   const DONUT_COLORS = {
     'Ok': '#10b981',      
     'Degelo': '#38bdf8',  
@@ -166,11 +206,12 @@ export default function Dashboard({
   };
 
   const temDadosDonut = dadosDonutStatus && dadosDonutStatus.length > 0;
-  const dadosPlaceholder = [{ name: 'Aguardando Dados', value: 1 }];
+  const dadosPlaceholder = [{ name: 'Aguardando Dados', value: 1 }]; // Fallback visual
 
   return (
     <div className="anim-fade-in dashboard-container">
       
+      {/* 1. HEALTH BANNER SUPERIOR */}
       <div className={`health-banner ${saudeRede.class} stagger-1`}>
         <div className="health-info">
           <Zap size={32} className="health-icon" />
@@ -191,6 +232,7 @@ export default function Dashboard({
           </div>
         </div>
 
+        {/* Barra de Progresso indicando Score Real */}
         <div className="health-score-area">
           <span className="health-score">{saudeRede.score}%</span>
           <div className="health-progress-bg">
@@ -199,6 +241,7 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* 2. GRID CONTENDO OS KPIs (Esquerda) E O GRÁFICO (Direita) */}
       <div className="dashboard-grid stagger-2">
         <div className="summary-cards">
           <StatCard title="Máquinas na Rede" value={qtdTotal} icon={Server} iconBg="icon-bg-gray" />
@@ -212,6 +255,7 @@ export default function Dashboard({
           <div style={{ width: '100%', height: '240px', minHeight: '240px', position: 'relative', marginTop: '10px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                {/* Lógica ternária que troca o gráfico por uma visualização cinza caso não haja dados na array */}
                 {temDadosDonut ? (
                   <>
                     <Pie 
@@ -254,6 +298,7 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* 3. ÁREA DE TRIAGEM (BARRA DE FILTROS DE INCIDENTES) */}
       <div className="flex-header stagger-3" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
         <h3 className="section-title">Monitor de Incidentes Ativos</h3>
         
@@ -266,6 +311,7 @@ export default function Dashboard({
             </div>
           )}
 
+          {/* Opção Rápida para despachar (normalizar) todas as notificações caso o Admin precise */}
           {notificacoesDaFilial?.length > 0 && (
             <button className="btn btn-outline btn-archive" onClick={resolverTodasNotificacoes} disabled={isOffline}>
               <CheckCircle size={18} /> Normalizar Todos
@@ -274,6 +320,7 @@ export default function Dashboard({
         </div>
       </div>
       
+      {/* 4. RENDERIZAÇÃO DA GRADE DE TICKETS OU DO RADAR VAZIO (EMPTY STATE) */}
       {!alertasExibidos?.length ? (
         <div className="empty-state dashboard-empty stagger-3">
           <div className="radar-box">
@@ -302,10 +349,12 @@ export default function Dashboard({
         </div>
       )}
 
+      {/* 5. RODAPÉ NOC (LIVE TICKER SIMULANDO LOGS ENTRANTES) */}
       <div className="noc-ticker-wrap stagger-4">
         <div className="noc-ticker-label">LATEST EVENTS</div>
         <div className="noc-ticker">
           <div className="ticker-content">
+            {/* Duplica a renderização de strings de logs na div para emular um looping contínuo sem quebras no CSS */}
             {notificacoesDaFilial.length > 0 ? (
               notificacoesDaFilial.map((n, i) => (
                 <span key={i} className={`ticker-item ${n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA' ? 'ticker-critical' : 'ticker-warning'}`}>
@@ -328,6 +377,7 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* 6. ABRIR GAVETA DE CHAT (Renderização Condicional Baseada no State chatAtivo) */}
       {chatAtivo && (
         <ChatDrawer 
           notif={chatAtivo} 
@@ -340,7 +390,13 @@ export default function Dashboard({
   );
 }
 
+// ============================================================================
+// COMPONENTE OTIMIZADO (MEMO): CARTÃO DE INCIDENTE/ALERTA
+// Estrutura independente renderizada dentro do "Alertas Exibidos" que
+// previne reinicializações gráficas excessivas no Scroll da Grade.
+// ============================================================================
 const AlertCard = memo(({ notif, onResolve, onAbrirChat, isOffline }) => {
+  // Pega o dicionário de cores, botões e icones de acordo com a falha
   const tipo = getAlertConfig(notif.tipo_alerta);
   const IconCmp = tipo.icon;
 
@@ -378,6 +434,7 @@ const AlertCard = memo(({ notif, onResolve, onAbrirChat, isOffline }) => {
         >
           {tipo.action}
         </button>
+        {/* Caso a gravidade seja crítica, destrava o botão balão de atalho para escalonamento tático (Drawer) */}
         {tipo.critical && (
           <button className="btn btn-chat-internal" onClick={() => onAbrirChat(notif)} title="Escalar problema para a Equipe Técnica">
             <MessageSquare size={18} />

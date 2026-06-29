@@ -1,7 +1,13 @@
 /* =========================================
+   Equipamentos.css - TERMOSYNC
+   
    ESTILOS PREMIUM: INVENTÁRIO IOT (NOC)
+   Define o layout da página de gestão de hardware, incluindo
+   a tabela responsiva de ativos, formulário retrátil (Smart Form),
+   barras de metrologia (SLA de aferição) e KPIs superiores.
    ========================================= */
 
+/* --- CABEÇALHO DA PÁGINA --- */
 .equipamentos-header {
   display: flex;
   justify-content: space-between;
@@ -28,6 +34,7 @@
 
 /* =========================================
    BARRAS DE PESQUISA E AÇÕES
+   Agrupa o input de busca e o botão principal de adição
    ========================================= */
 .action-group {
   display: flex;
@@ -68,11 +75,13 @@
   font-family: inherit;
 }
 
+/* Botão que alterna a visibilidade do formulário de novo equipamento */
 .btn-toggle-form {
   box-shadow: 0 4px 15px color-mix(in srgb, var(--primary) 30%, transparent);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Estado alternativo do botão quando o formulário está aberto (Cancelar) */
 .btn-toggle-form.btn-outline {
   box-shadow: none;
   border-color: var(--border);
@@ -80,7 +89,8 @@
 }
 
 /* =========================================
-   PAINEL DE KPIS (SERVICE DESK)
+   PAINEL DE KPIS (INDICADORES DE PERFORMANCE)
+   Cartões superiores que mostram o total de máquinas e riscos
    ========================================= */
 .iot-kpi-bar {
   display: flex;
@@ -138,6 +148,7 @@
   letter-spacing: 0.5px;
 }
 
+/* Temas de cores específicos para cada KPI */
 .kpi-item.total .kpi-icon {
   background: rgba(100, 116, 139, 0.1);
   color: var(--text-main);
@@ -158,6 +169,7 @@
   color: var(--warning);
 }
 
+/* Animação para chamar a atenção caso existam equipamentos fora da calibração */
 .pulse-danger-border {
   animation: pulse-border-red 2s infinite;
   border-color: rgba(239, 68, 68, 0.4);
@@ -177,6 +189,8 @@
 
 /* =========================================
    SMART PANEL (Formulário Oculto)
+   Utiliza a técnica de max-height para animar a abertura e 
+   fechamento do formulário de criação de equipamentos.
    ========================================= */
 .smart-form-panel {
   max-height: 0;
@@ -185,9 +199,10 @@
   transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
 }
 
+/* Classe adicionada dinamicamente pelo React para revelar o painel */
 .smart-form-panel.open {
   max-height: 2000px;
-  /* Suficientemente grande para acomodar o form */
+  /* Suficientemente grande para acomodar o form sem cortar */
   opacity: 1;
   overflow: visible;
 }
@@ -212,7 +227,7 @@
   letter-spacing: 0.5px;
 }
 
-/* Secções Lógicas do Formulário */
+/* Secções Lógicas do Formulário (Agrupamentos visuais) */
 .form-section {
   background: rgba(0, 0, 0, 0.015);
   border: 1px solid var(--border);
@@ -251,7 +266,7 @@
   letter-spacing: 0.5px;
 }
 
-/* Botão Magia ANVISA */
+/* Botão Magia ANVISA (Auto-preenchimento de SLAs) */
 .btn-anvisa {
   font-size: 0.75rem;
   padding: 0.5rem 1rem;
@@ -282,6 +297,7 @@
 
 /* =========================================
    TABELA DE ATIVOS (ESTILO NOC)
+   Listagem detalhada das máquinas cadastradas
    ========================================= */
 .iot-table-row {
   transition: all 0.2s ease;
@@ -301,6 +317,7 @@
   font-size: 0.95rem;
 }
 
+/* Ponto colorido ao lado do nome da filial indicando o status atual */
 .status-ring {
   display: inline-block;
   width: 10px;
@@ -347,7 +364,7 @@
   margin-top: 2px;
 }
 
-/* Barra de Metrologia Visual (Health Bar) */
+/* Barra de Metrologia Visual (Health Bar indicando validade da calibração) */
 .metrology-box {
   display: flex;
   flex-direction: column;
@@ -403,7 +420,7 @@
   }
 }
 
-/* Limites Tags */
+/* Tags mostrando os limites mínimos e máximos da máquina */
 .limites-box {
   display: flex;
   flex-direction: column;
@@ -432,7 +449,7 @@
   color: var(--info);
 }
 
-/* Botões de Ação na Tabela */
+/* Botões de Ação na Tabela (Editar e Excluir) */
 .btn-action {
   background: transparent;
   border: 1px solid var(--border);
@@ -470,6 +487,7 @@
 
 /* =========================================
    RESPONSIVIDADE DA TABELA (MOBILE)
+   Converte o layout tabular tradicional em uma lista de cartões empilhados
    ========================================= */
 @media (max-width: 768px) {
   .equipamentos-header {
@@ -493,10 +511,12 @@
     flex-direction: column;
   }
 
+  /* Oculta o cabeçalho clássico da tabela */
   .iot-table thead {
     display: none;
   }
 
+  /* Transforma a linha da tabela num cartão */
   .iot-table tr {
     display: flex;
     flex-direction: column;
@@ -523,6 +543,7 @@
     justify-content: flex-end;
   }
 
+  /* Injeta a label da coluna antes do valor usando o atributo data-label */
   .iot-table td::before {
     content: attr(data-label);
     font-size: 0.75rem;

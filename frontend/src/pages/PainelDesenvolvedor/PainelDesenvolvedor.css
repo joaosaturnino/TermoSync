@@ -1,36 +1,46 @@
 /* =========================================
-   PainelDesenvolvedor.css - CYBER COMMAND V8 (ULTIMATE FLUID)
+   PainelDesenvolvedor.css - CYBER COMMAND V13.1
    ========================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;600;800;900&display=swap');
 
 :root {
-  /* Fluid Spacing: Encolhe suavemente em celulares e cresce em monitores Ultrawide */
   --pad-card: clamp(1rem, 2.5vw, 1.8rem);
   --gap-main: clamp(1rem, 2.5vw, 1.8rem);
   --radius-card: clamp(12px, 1.5vw, 20px);
 
-  /* Cores Base */
   --bg-dark: #020617;
   --bg-panel: #0b1120;
   --border-dim: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(255, 255, 255, 0.15);
 
-  /* Paleta Neon Cyber */
+  --theme-main: #10b981;
+  --theme-sec: #38bdf8;
   --primary: #10b981;
   --secondary: #38bdf8;
   --warning: #f59e0b;
   --danger: #ef4444;
   --purple: #a855f7;
+  --info: #3b82f6;
+  --success: #10b981;
+  --dim-text: #64748b;
+  --text-muted: #64748b;
+}
+
+.dev-os-container.red-alert-mode {
+  --theme-main: #ef4444;
+  --theme-sec: #f59e0b;
+  --primary: #ef4444;
+  --secondary: #f59e0b;
+  --bg-panel: #1a0808;
+  --border-focus: rgba(239, 68, 68, 0.3);
+  animation: alarm-flash 3s infinite;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* =========================================
-   1. ANIMAÇÕES GLOBAIS & UTILITÁRIOS
-   ========================================= */
 @keyframes spin-slow {
   100% {
     transform: rotate(360deg);
@@ -39,6 +49,19 @@
 
 .spin {
   animation: spin-slow 1.2s linear infinite;
+}
+
+@keyframes alarm-flash {
+
+  0%,
+  100% {
+    box-shadow: inset 0 0 40px rgba(239, 68, 68, 0.05), 0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+
+  50% {
+    box-shadow: inset 0 0 80px rgba(239, 68, 68, 0.15), 0 20px 60px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
 }
 
 @keyframes pulse-danger {
@@ -60,33 +83,10 @@
   border: 1px solid var(--danger) !important;
 }
 
-@keyframes move-stripes {
-  0% {
-    background-position: 0 0;
-  }
-
-  100% {
-    background-position: 40px 40px;
-  }
-}
-
-.hazard-stripes {
-  background-image: repeating-linear-gradient(-45deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.05) 20px, transparent 20px, transparent 40px);
-  background-size: 40px 40px;
-  animation: move-stripes 2s linear infinite;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
 @keyframes slideUpFade {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(15px);
     filter: blur(4px);
   }
 
@@ -95,6 +95,10 @@
     transform: translateY(0);
     filter: blur(0);
   }
+}
+
+.anim-fade-in {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .anim-stagger-1 {
@@ -123,6 +127,71 @@
   }
 }
 
+@keyframes move-stripes {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 40px 40px;
+  }
+}
+
+.hazard-stripes {
+  background-image: repeating-linear-gradient(-45deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.05) 20px, transparent 20px, transparent 40px);
+  background-size: 40px 40px;
+  animation: move-stripes 2s linear infinite;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes glitch-skew {
+  0% {
+    transform: skew(0deg);
+  }
+
+  20% {
+    transform: skew(-10deg);
+  }
+
+  40% {
+    transform: skew(10deg);
+  }
+
+  60% {
+    transform: skew(-5deg);
+  }
+
+  80% {
+    transform: skew(5deg);
+  }
+
+  100% {
+    transform: skew(0deg);
+  }
+}
+
+.glitch-hover:hover {
+  animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+  color: var(--theme-main);
+  text-shadow: 2px 2px var(--theme-sec), -2px -2px var(--danger);
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
 .text-truncate {
   white-space: nowrap;
   overflow: hidden;
@@ -130,15 +199,10 @@
   max-width: 100%;
 }
 
-/* =========================================
-   2. ESTRUTURA BASE E BOOT SCREEN
-   ========================================= */
+/* --- TELA BOOT --- */
 .root-boot-screen {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: var(--bg-dark);
   z-index: 9999;
   display: flex;
@@ -150,7 +214,7 @@
 .boot-terminal-box {
   width: 100%;
   height: 100%;
-  padding: clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(1rem, 5vw, 4rem);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -165,6 +229,7 @@
   line-height: 1.5;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.5px;
+  color: #cbd5e1;
 }
 
 .boot-form {
@@ -177,7 +242,7 @@
 }
 
 .boot-prompt {
-  color: var(--primary);
+  color: var(--theme-main);
   font-weight: 900;
   font-family: 'JetBrains Mono', monospace;
   font-size: 1.1em;
@@ -207,14 +272,14 @@
   display: inline-block;
   width: 10px;
   height: 1.2em;
-  background: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
+  background: var(--theme-main);
+  box-shadow: 0 0 8px var(--theme-main);
   animation: blink 1s step-end infinite;
   margin-left: 4px;
   vertical-align: middle;
 }
 
-/* Workspace Container */
+/* --- WORKSPACE --- */
 .dev-os-container {
   display: flex;
   flex-direction: column;
@@ -227,7 +292,7 @@
   border: 1px solid var(--border-dim);
   position: relative;
   margin: clamp(0px, 2vw, 20px);
-  transition: all 0.3s ease;
+  transition: all 0.5s ease;
 }
 
 .dev-os-container.lockdown-mode {
@@ -235,13 +300,9 @@
   box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.15);
 }
 
-/* Filtros Visuais HUD */
 .noc-scanlines {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
   background-size: 100% 4px;
   opacity: 0.4;
@@ -251,10 +312,7 @@
 
 .noc-cyber-grid {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 40px 40px;
   opacity: 0.8;
@@ -318,7 +376,6 @@
   gap: var(--gap-main);
 }
 
-/* Grids Fluidas Core */
 .dev-grid-main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
@@ -340,6 +397,11 @@
   border: 1px solid var(--border-dim);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
   border-radius: var(--radius-card);
+  transition: border-color 0.3s ease;
+}
+
+.dev-os-container.red-alert-mode .glass-card {
+  background: rgba(26, 8, 8, 0.8);
 }
 
 .dev-card {
@@ -365,6 +427,7 @@
   margin: 0;
   font-size: clamp(1.1rem, 2.5vw, 1.3rem);
   letter-spacing: -0.5px;
+  transition: color 0.3s;
 }
 
 .dev-card-header.flex-between {
@@ -382,14 +445,16 @@
   justify-content: center;
   text-align: center;
   border-radius: 8px;
+  padding: 12px;
+  font-weight: 600;
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: var(--primary);
-  color: var(--primary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--theme-main);
+  color: var(--theme-main);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .btn-outline:active:not(:disabled) {
@@ -397,7 +462,7 @@
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: var(--theme-main);
   color: var(--bg-dark);
   border: none;
   font-weight: 900;
@@ -418,11 +483,7 @@
   box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
 }
 
-/* =========================================
-   3. TELA ROOT / NOC DASHBOARD (GOD-TIER V8)
-   ========================================= */
-
-/* Barra de Status Global NOC */
+/* --- NOC DASHBOARD --- */
 .noc-defcon-bar {
   display: flex;
   justify-content: space-between;
@@ -435,6 +496,28 @@
   padding: clamp(12px, 2vw, 16px) clamp(16px, 3vw, 24px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   border-left: 4px solid var(--theme-color);
+  transition: all 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.noc-ticker-container {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  border-left: 1px solid var(--border-dim);
+  border-right: 1px solid var(--border-dim);
+  padding: 0 15px;
+  margin: 0 10px;
+  opacity: 0.8;
+}
+
+.noc-ticker-text {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--theme-sec);
+  animation: ticker 25s linear infinite;
 }
 
 .defcon-title {
@@ -451,6 +534,8 @@
   display: flex;
   gap: clamp(8px, 1.5vw, 15px);
   flex-wrap: wrap;
+  align-items: center;
+  z-index: 2;
 }
 
 .defcon-badge {
@@ -465,9 +550,9 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  transition: color 0.3s, border-color 0.3s;
 }
 
-/* Grid HUD (Cartões de Topo) */
 .noc-hud-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
@@ -503,19 +588,7 @@
   width: 4px;
   background: var(--card-color);
   box-shadow: 0 0 15px var(--card-color);
-}
-
-.noc-hud-card::after {
-  content: '';
-  position: absolute;
-  right: -15px;
-  top: -15px;
-  width: 80px;
-  height: 80px;
-  background: var(--card-color);
-  filter: blur(40px);
-  opacity: 0.15;
-  pointer-events: none;
+  transition: background 0.3s;
 }
 
 .noc-mini-header {
@@ -548,7 +621,7 @@
   letter-spacing: -1px;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
   display: flex;
-  align-items: Baseline;
+  align-items: baseline;
   gap: 4px;
   flex-wrap: wrap;
   line-height: 1;
@@ -560,26 +633,7 @@
   font-weight: 700;
   font-family: 'Montserrat', sans-serif;
   letter-spacing: 0;
-}
-
-.noc-kpi-trend {
-  font-size: 0.65rem;
-  font-weight: 900;
-  padding: 3px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.noc-kpi-trend.up-good,
-.noc-kpi-trend.down-good {
-  color: var(--primary);
-  background: rgba(16, 185, 129, 0.1);
-}
-
-.noc-kpi-trend.up-bad {
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.1);
+  transition: color 0.3s;
 }
 
 .sparkline-box {
@@ -590,25 +644,6 @@
   z-index: 2;
 }
 
-/* Grid Principal Meio */
-.noc-main-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
-  gap: var(--gap-main);
-}
-
-.cyber-panel {
-  background: rgba(11, 17, 32, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-dim);
-  padding: var(--pad-card);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 12px;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
-}
-
 .cyber-panel-header {
   display: flex;
   justify-content: space-between;
@@ -616,13 +651,14 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
-  color: var(--theme-color);
+  color: var(--theme-main);
   font-weight: 900;
   font-size: clamp(0.8rem, 2vw, 0.9rem);
   text-transform: uppercase;
   letter-spacing: 1px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   padding-bottom: 12px;
+  transition: color 0.3s;
 }
 
 .noc-chart-grid {
@@ -651,7 +687,7 @@
   padding-bottom: 5px;
 }
 
-/* Cluster Topologia Visual */
+/* Cluster e Radar */
 .cluster-topology-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -728,45 +764,84 @@
   border-radius: 4px;
 }
 
-.heatmap-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14px, 1fr));
-  gap: 4px;
-  align-content: flex-start;
-  max-height: 80px;
-  overflow-y: hidden;
+.radar-container {
+  position: relative;
+  height: 80px;
+  width: 100%;
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-top: auto;
 }
 
-.heatmap-cell {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 2px;
-  transition: background 0.3s ease;
+.radar-sweep {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent 70%, var(--theme-main) 100%);
+  transform-origin: 0 0;
+  animation: spin-slow 4s linear infinite;
+  opacity: 0.3;
 }
 
-.heat-0 {
-  background: rgba(255, 255, 255, 0.03);
+.radar-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--theme-main) 1px, transparent 1px);
+  background-size: 15px 15px;
+  opacity: 0.1;
 }
 
-.heat-1 {
-  background: rgba(56, 189, 248, 0.2);
+.radar-node {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--theme-sec);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--theme-sec);
+  animation: blink 2s infinite;
+  cursor: crosshair;
+  transition: transform 0.2s;
 }
 
-.heat-2 {
-  background: rgba(56, 189, 248, 0.5);
+.radar-node:hover {
+  transform: scale(2);
+  z-index: 10;
+  box-shadow: 0 0 15px var(--theme-sec);
 }
 
-.heat-3 {
-  background: rgba(56, 189, 248, 0.8);
+.radar-node::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  border: 1px solid var(--theme-sec);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  z-index: 100;
 }
 
-.heat-4 {
-  background: var(--secondary);
-  box-shadow: 0 0 8px var(--secondary);
+.radar-node:hover::after {
+  opacity: 1;
 }
 
-/* Terminais Gêmeos (Inferior NOC) */
+/* Terminais (Logs e WAF) */
 .noc-terminals-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
@@ -806,6 +881,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: color 0.3s;
 }
 
 .terminal-scroll {
@@ -847,9 +923,10 @@
   font-weight: 900;
   padding: 2px 6px;
   background: rgba(255, 255, 255, 0.05);
-  color: var(--primary);
+  color: var(--theme-main);
   border-radius: 4px;
   white-space: nowrap;
+  transition: color 0.3s;
 }
 
 .log-geo {
@@ -864,11 +941,6 @@
   word-break: break-all;
 }
 
-.log-ms {
-  color: #64748b;
-  white-space: nowrap;
-}
-
 .log-error {
   color: var(--danger);
   text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
@@ -879,10 +951,10 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  background: var(--primary);
+  background: var(--theme-main);
   border-radius: 50%;
   animation: blink 1.5s infinite;
-  box-shadow: 0 0 8px var(--primary);
+  box-shadow: 0 0 8px var(--theme-main);
 }
 
 /* Incidentes */
@@ -919,7 +991,7 @@
   line-height: 1.4;
 }
 
-/* Painéis de Controle IAM/UI (Switchboard) */
+/* Switchboards (IAM, UI, Emergência) */
 .switchboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
@@ -943,7 +1015,7 @@
 .switch-panel-title {
   font-size: 0.8rem;
   font-weight: 900;
-  color: var(--theme-color);
+  color: var(--theme-main);
   text-transform: uppercase;
   letter-spacing: 1px;
   display: flex;
@@ -954,6 +1026,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   padding-bottom: 12px;
   flex-wrap: wrap;
+  transition: color 0.3s;
 }
 
 .hardware-toggle {
@@ -980,7 +1053,6 @@
 
 .hardware-toggle.disabled {
   opacity: 0.4;
-  pointer-events: none;
 }
 
 .btn-toggle-ui {
@@ -1009,7 +1081,6 @@
   border: 1px solid rgba(239, 68, 68, 0.5);
 }
 
-/* Ações de Emergência */
 .btn-emergency {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1037,10 +1108,6 @@
   transform: scale(1.02);
 }
 
-.btn-emergency:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
 .btn-emergency.warning {
   background: rgba(245, 158, 11, 0.1);
   border-color: rgba(245, 158, 11, 0.3);
@@ -1053,7 +1120,6 @@
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
 }
 
-/* Controles IAM */
 .scope-types {
   display: flex;
   gap: 8px;
@@ -1130,11 +1196,11 @@
 }
 
 /* =========================================
-   4. TABELAS DE DADOS E BI (FLUIDAS E COM TOUCH SCROLL)
+   5. TABELAS DE DADOS (SAAS, IAM, SOC, BILLING)
    ========================================= */
 .table-responsive-wrapper {
   width: 100%;
-  max-width: 100%;
+  max-width: 100vw;
   overflow-x: auto;
   padding-bottom: 20px;
   -webkit-overflow-scrolling: touch;
@@ -1168,10 +1234,24 @@
   gap: 10px;
 }
 
+.iam-ad-grid-cols {
+  grid-template-columns: 2.2fr 1.2fr 1.5fr 1fr 100px;
+  display: grid;
+  min-width: 950px;
+  gap: 10px;
+}
+
 .soc-grid-cols {
   grid-template-columns: 1.5fr 1.5fr 1fr 80px;
   display: grid;
   min-width: 900px;
+  gap: 10px;
+}
+
+.rbac-grid-cols {
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  display: grid;
+  min-width: 750px;
   gap: 10px;
 }
 
@@ -1303,6 +1383,195 @@
   box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
 }
 
+/* Componentes IAM */
+.user-profile-cell {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.user-avatar.dev {
+  background: rgba(168, 85, 247, 0.2);
+  color: var(--purple);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.user-avatar.admin {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.user-avatar.loja {
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--secondary);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.user-avatar.manutencao {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--primary);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-mfa {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: bold;
+  border: 1px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mfa-on {
+  color: var(--primary);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.mfa-off {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.mfa-danger {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.iam-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-dim);
+  padding: 10px 16px;
+  border-radius: 8px;
+  flex: 1;
+  min-width: 200px;
+  transition: all 0.3s ease;
+}
+
+.iam-search-box:focus-within {
+  border-color: var(--theme-sec);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.iam-search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.role-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 2px;
+}
+
+.role-badge.dev {
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--purple);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.role-badge.admin {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.role-badge.loja {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--secondary);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.role-badge.manutencao {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.matrix-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  padding: 6px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.matrix-cell:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.1);
+}
+
+/* Barras Animadas (SaaS/Storage) */
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: quantum-flow 2s linear infinite;
+}
+
+@keyframes quantum-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(50%);
+  }
+}
+
 /* Faturamento */
 .billing-config-grid {
   display: grid;
@@ -1332,13 +1601,13 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 12px 14px;
   border-radius: 10px;
-  color: var(--primary);
+  color: var(--theme-main);
   transition: 0.2s;
   min-height: 48px;
 }
 
 .config-input-wrapper:focus-within {
-  border-color: var(--primary);
+  border-color: var(--theme-main);
   background: rgba(15, 23, 42, 0.8);
 }
 
@@ -1351,6 +1620,7 @@
   font-size: 1rem;
   outline: none;
   font-family: 'JetBrains Mono', monospace;
+  min-width: 0;
 }
 
 .chart-container {
@@ -1474,10 +1744,300 @@
   box-shadow: 0 5px 15px color-mix(in srgb, var(--theme-color) 40%, transparent);
 }
 
-/* --- TERMINAL FOOTER DE COMANDOS --- */
+/* =========================================
+   6. TELA DE ATUALIZAÇÕES (DEPLOY & CHANGELOG)
+   ========================================= */
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  padding-left: 24px;
+  border-left: 2px solid var(--border-dim);
+  margin-top: 15px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.timeline-node {
+  position: absolute;
+  left: -33px;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  border: 2px solid var(--theme-main);
+  z-index: 2;
+  box-shadow: 0 0 10px var(--theme-main);
+}
+
+.timeline-content {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-dim);
+  padding: 18px;
+  border-radius: 12px;
+  margin-left: 10px;
+  transition: 0.2s;
+}
+
+.timeline-content:hover {
+  border-color: var(--theme-sec);
+  transform: translateX(5px);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.version-badge {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--theme-main);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.update-meta {
+  font-size: 0.75rem;
+  color: var(--dim-text);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-title {
+  font-size: 1.1rem;
+  color: white;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+}
+
+.update-desc {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.update-type-badge {
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* Cores das Tags de Update */
+.type-feature {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--secondary);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.type-fix {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.type-security {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.type-refactor {
+  background: rgba(168, 85, 247, 0.1);
+  color: var(--purple);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.deploy-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.deploy-form-grid textarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-dim);
+  color: white;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+  transition: 0.2s;
+  width: 100%;
+}
+
+.deploy-form-grid textarea:focus {
+  border-color: var(--theme-main);
+}
+
+.deploy-form-grid select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-dim);
+  color: white;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: 0.2s;
+  width: 100%;
+  cursor: pointer;
+}
+
+.deploy-form-grid select:focus {
+  border-color: var(--theme-main);
+}
+
+/* =========================================
+   7. MODAL DE PROVISIONAMENTO (OVERLAY DE IAM)
+   ========================================= */
+.iam-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.iam-modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUpFade 0.3s ease-out;
+}
+
+.iam-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.iam-modal-header h3 {
+  margin: 0;
+  color: var(--theme-sec);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iam-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--dim-text);
+  text-transform: uppercase;
+}
+
+.form-group input,
+.form-group select {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-dim);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.95rem;
+  outline: none;
+  transition: 0.2s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--theme-sec);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+}
+
+.form-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.form-check span {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.iam-modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-dim);
+  display: flex;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* =========================================
+   8. TERMINAL FOOTER DE COMANDOS
+   ========================================= */
 .os-terminal-footer {
   background: var(--bg-dark);
-  border-top: 2px solid var(--primary);
+  border-top: 2px solid var(--theme-main);
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
@@ -1500,7 +2060,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--primary);
+  color: var(--theme-main);
   font-weight: 800;
   font-size: 0.95rem;
   cursor: pointer;
@@ -1508,12 +2068,25 @@
   flex-wrap: wrap;
   gap: 10px;
   min-height: 52px;
+  transition: color 0.3s;
 }
 
 .terminal-header-title {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.crt-scan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.5;
+  animation: scan-line 6s linear infinite;
+  pointer-events: none;
 }
 
 .terminal-body {
@@ -1528,15 +2101,7 @@
   border-top: 1px solid var(--border-dim) !important;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9);
   -webkit-overflow-scrolling: touch;
-}
-
-.terminal-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.terminal-body::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 10px;
+  position: relative;
 }
 
 .terminal-line {
@@ -1550,14 +2115,15 @@
 }
 
 .terminal-line .prompt {
-  color: var(--primary);
+  color: var(--theme-main);
   font-weight: bold;
+  transition: color 0.3s;
 }
 
 .terminal-input-form {
   display: flex;
   gap: 10px;
-  padding: 15px 20px;
+  padding: 10px 15px;
   background: var(--bg-dark);
   border-top: 1px solid var(--border-dim);
   align-items: center;
@@ -1575,10 +2141,30 @@
   outline: none;
 }
 
-/* =========================================
-   5. MEDIA QUERIES EXTREMAS (MOBILE FIRST FLUID)
-   ========================================= */
+/* Efeito de Cintilação do Terminal Analógico CRT */
+.root-boot-screen.crt {
+  animation: textShadow 0.15s infinite;
+}
 
+@keyframes textShadow {
+  0% { text-shadow: 0.5px 0 0 rgba(0,255,0,0.1), -0.5px 0 0 rgba(255,0,0,0.1); }
+  50% { text-shadow: -0.5px 0 0 rgba(0,255,0,0.1), 0.5px 0 0 rgba(255,0,0,0.1); }
+  100% { text-shadow: 0.5px 0 0 rgba(0,255,0,0.1), -0.5px 0 0 rgba(255,0,0,0.1); }
+}
+
+/* Animação suave de pulso para avisos de segurança */
+.pulse-icon {
+  animation: terminal-blink 1.5s infinite;
+}
+
+@keyframes terminal-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* =========================================
+   9. MEDIA QUERIES (Mobile First Fluid)
+   ========================================= */
 @media (max-width: 992px) {
   .dev-os-container {
     margin: 0;
@@ -1586,13 +2172,14 @@
     border-radius: 0;
     border: none;
   }
-
-  .billing-config-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
 }
 
 @media (max-width: 768px) {
+  :root {
+    --pad-card: 1rem;
+    --gap-main: 1rem;
+  }
+
   .noc-hud-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1615,49 +2202,29 @@
     justify-content: center;
   }
 
-  .scope-types {
-    flex-direction: column;
-  }
-
   .btn-outline {
     font-size: 0.85rem;
     flex: 1;
     min-width: 100%;
   }
 
-  .bi-header {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .bi-actions {
-    flex-direction: column;
-  }
-
-  .btn-bi {
+  .btn-primary {
     width: 100%;
-  }
-
-  .cluster-header-wrap {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 
 @media (max-width: 480px) {
+  :root {
+    --pad-card: 0.8rem;
+    --gap-main: 0.8rem;
+  }
+
   .noc-hud-grid {
     grid-template-columns: 1fr;
   }
 
   .noc-hud-card:last-child {
     grid-column: span 1;
-  }
-
-  .btn-emergency {
-    flex-direction: column;
-    gap: 8px;
-    text-align: center;
-    padding: 12px;
   }
 
   .terminal-header {
@@ -1682,16 +2249,7 @@
     padding: 1.5rem 1rem;
   }
 
-  .boot-input-wrapper {
-    min-width: 100%;
-    margin-top: 10px;
-  }
-
-  /* Esconde nome do root em ecrãs minúsculos para poupar espaço no terminal */
-  .terminal-line .prompt {
-    display: none;
-  }
-
+  .terminal-line .prompt,
   .terminal-input-form .prompt {
     display: none;
   }

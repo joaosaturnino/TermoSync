@@ -13,6 +13,15 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { enviarAlertaWhatsApp } = require('./whatsappService'); 
 
+// ==========================================================
+// IMPORTAÇÕES DE SISTEMA, DEPLOY E MANIPULAÇÃO DE DIRETÓRIOS
+// ==========================================================
+const multer = require('multer');
+const AdmZip = require('adm-zip');
+const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -48,12 +57,14 @@ io.on('connection', (socket) => {
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
 
+// Middleware do Multer para guardar o ZIP temporariamente
+const upload = multer({ dest: 'tmp/' });
+
 const SECRET_KEY = process.env.JWT_SECRET || 'chave_super_secreta_termosync_node';
 const PORT = process.env.PORT || 3000;
 
 // 🔥 AUTO-MIGRAÇÃO: Verifica o DB e cria tabelas, colunas e índices sozinhos!
 async function verificarBanco() {
-  // 🚀 NOVO: Tabela de Auditoria de Relatórios Gerenciais (BI)
     try {
       await pool.execute(`
         CREATE TABLE IF NOT EXISTS sys_relatorios_log (
@@ -96,7 +107,6 @@ async function verificarBanco() {
       console.log('✅ Tabela de Frota "hardware_iot" operacional!');
     } catch (e) { console.log('⚠️ Aviso ao criar hardware_iot:', e.message); }
 
-    // 🚀 NOVO: Tabelas de SOC (Ledger Imutável e Zero-Trust)
     try {
       await pool.execute(`
         CREATE TABLE IF NOT EXISTS audit_logs (
@@ -147,7 +157,7 @@ async function registrarAuditoria(acao, ator, alvo, severidade = 'info') {
   } catch (e) { console.error('Erro de Audit Log:', e.message); }
 }
 
-// 🔥 MIDDLEWARE ZERO-TRUST ATUALIZADO (Verifica Kill Switch)
+// 🔥 MIDDLEWARE ZERO-TRUST (Verifica Kill Switch)
 const verificarToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(403).json({ error: 'Acesso negado.' });
@@ -156,7 +166,6 @@ const verificarToken = async (req, res, next) => {
   jwt.verify(token, SECRET_KEY, async (err, decoded) => {
     if (err) return res.status(401).json({ error: 'Token inválido ou expirado.' });
     
-    // Verifica se a sessão foi morta no SOC
     try {
       const [sessoes] = await pool.execute('SELECT revogado FROM sessoes_ativas WHERE token = ?', [token]);
       if (sessoes.length > 0 && sessoes[0].revogado) {
@@ -170,18 +179,38 @@ const verificarToken = async (req, res, next) => {
 };
 
 // ============================================================================
+// NOVAS ROTAS ADICIONADAS: EXECUTOR SQL RAW (TERMINAL SQL) E AUXILIARES NOC
+// ============================================================================
+
+app.post('/api/system/query-raw', verificarToken, async (req, res) => {
+  if (req.userRole !== 'DEV') {
+    return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios exclusivos ROOT (DEV).' });
+  }
+
+  const { sql } = req.body;
+  if (!sql) return res.status(400).json({ success: false, error: 'Nenhuma diretiva instrucional estruturada foi declarada.' });
+
+  try {
+    const [rows] = await pool.execute(sql);
+    
+    // Registo de log persistente e imutável para conformidade do SOC
+    await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query compilada: ${sql.substring(0, 120)}...`, 'danger');
+    
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================================
 // ROTA EXCLUSIVA DO PAINEL DEV: EXPORTAÇÃO DE DADOS (DUMP)
 // ============================================================================
-app.post('/api/system/exportar-tabela', async (req, res) => {
+app.post('/api/system/exportar-tabela', verificarToken, async (req, res) => {
+  if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
   try {
     let { tabela } = req.body;
+    if (tabela === 'leituras_telemetria') tabela = 'leituras';
     
-    // Ajuste fino: Se o frontend pedir 'leituras_telemetria', apontamos para a tabela real 'leituras' que você criou no seu SQL.
-    if (tabela === 'leituras_telemetria') {
-      tabela = 'leituras';
-    }
-    
-    // Lista de segurança (Whitelist) para impedir SQL Injection
     const tabelasPermitidas = [
       'equipamentos', 'leituras', 'usuarios', 
       'notificacoes', 'audit_logs', 'sessoes_ativas', 
@@ -192,16 +221,11 @@ app.post('/api/system/exportar-tabela', async (req, res) => {
       return res.status(400).json({ error: 'Tentativa de acesso a tabela não autorizada.' });
     }
 
-    // ATENÇÃO: Certifique-se de que sua conexão MySQL se chama 'pool' neste arquivo.
-    // Se for 'db' ou 'conexao', mude abaixo:
     const [linhas] = await pool.query(`SELECT * FROM ${tabela}`);
-    
-    // Retorna os dados em formato JSON para o React transformar em CSV
-    res.json({ sucesso: true, dados: linhas });
-    
+    res.json({ sucesso: true, dados: lines = linhas });
   } catch (erro) {
-    console.error(`[ERRO MYSQL] Falha na extração da tabela ${req.body.tabela}:`, erro);
-    res.status(500).json({ error: 'Falha interna do servidor ao gerar o arquivo.' });
+    console.error(`[ERRO MYSQL] Falha na extração:`, erro);
+    res.status(500).json({ error: 'Falha interna do servidor ao gerar o dump.' });
   }
 });
 
@@ -221,11 +245,9 @@ app.post('/api/impersonate', verificarToken, async (req, res) => {
   res.json({ token: jwt.sign({ id: 9999, role: 'ADMIN', filial: 'Todas', empresa: empresaDestino }, SECRET_KEY, { expiresIn: '1h' }), empresa: empresaDestino }); 
 });
 
-// 🔥 ROTA DE LOGIN ATUALIZADA COM AUDITORIA E SESSÕES
 app.post('/api/login', async (req, res) => { 
   const { usuario, senha } = req.body; 
   const [users] = await pool.execute('SELECT * FROM usuarios WHERE usuario = ?', [usuario]); 
-  
   const ip = req.ip || req.socket?.remoteAddress || 'Desconhecido';
 
   if (users.length === 0) {
@@ -240,15 +262,8 @@ app.post('/api/login', async (req, res) => {
   }
   
   const token = jwt.sign({ id: users[0].id, role: users[0].role, filial: users[0].filial, empresa: users[0].empresa }, SECRET_KEY, { expiresIn: '12h' });
-  
-  // Guardar a sessão Zero-Trust
-  await pool.execute(
-    'INSERT INTO sessoes_ativas (usuario_id, usuario_nome, role, token, ip_address) VALUES (?, ?, ?, ?, ?)',
-    [users[0].id, usuario, users[0].role, token, ip]
-  );
-  
+  await pool.execute('INSERT INTO sessoes_ativas (usuario_id, usuario_nome, role, token, ip_address) VALUES (?, ?, ?, ?, ?)', [users[0].id, usuario, users[0].role, token, ip]);
   registrarAuditoria('LOGIN_SUCCESS', usuario, `Autenticação bem-sucedida (${ip})`, 'success');
-
   res.json({ token, id: users[0].id, role: users[0].role, filial: users[0].filial, nome_gerente: users[0].nome_gerente, nome_coordenador: users[0].nome_coordenador, nome_tecnico: users[0].nome_tecnico }); 
 });
 
@@ -264,13 +279,33 @@ app.get('/api/equipamentos', verificarToken, async (req, res) => { let q = `SELE
 app.post('/api/equipamentos', verificarToken, async (req, res) => { try { const { nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao } = req.body; await pool.execute('INSERT INTO equipamentos (nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao, empresa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [nome, tipo, temp_min, temp_max, umidade_min || null, umidade_max || null, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao || null, req.userEmpresa]); res.status(201).send(); } catch (error) { res.status(500).send(); } });
 app.put('/api/equipamentos/:id/edit', verificarToken, async (req, res) => { try { await pool.execute('UPDATE equipamentos SET nome=?, tipo=?, temp_min=?, temp_max=?, umidade_min=?, umidade_max=?, intervalo_degelo=?, duracao_degelo=?, setor=?, filial=?, data_calibracao=? WHERE id=? AND empresa=?', [req.body.nome, req.body.tipo, req.body.temp_min, req.body.temp_max, req.body.umidade_min || null, req.body.umidade_max || null, req.body.intervalo_degelo, req.body.duracao_degelo, req.body.setor, req.body.filial, req.body.data_calibracao || null, req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
 app.delete('/api/equipamentos/:id', verificarToken, async (req, res) => { try { await pool.execute('DELETE FROM equipamentos WHERE id=? AND empresa=?', [req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-app.get('/api/chamados', verificarToken, async (req, res) => { let q = `SELECT c.*, e.nome as equipamento_nome, u.usuario as aberto_por FROM chamados c JOIN equipamentos e ON c.equipamento_id = e.id JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND c.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ` AND c.filial = ?`; p.push(req.userFilial); } } const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); res.json(r); });
-app.post('/api/chamados', verificarToken, async (req, res) => { try { const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel } = req.body; const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); await pool.execute(`INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa) VALUES (?, ?, ?, ?, ?, ?, ?)`, [equipamento_id, req.userId, eq[0].filial, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa]); io.emit('atualizacao_dados'); res.status(201).send(); } catch (error) { res.status(500).send(); } });
+app.get('/api/chamados', verificarToken, async (req, res) => { let q = `SELECT c.*, e.nome as equipamento_nome, u.usuario as aberto_por FROM chamados c LEFT JOIN equipamentos e ON c.equipamento_id = e.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND c.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ` AND c.filial = ?`; p.push(req.userFilial); } } const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); res.json(r); });
+app.post('/api/chamados', verificarToken, async (req, res) => { try { const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel } = req.body; let filialStr = null; try { const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); if(eq.length > 0) filialStr = eq[0].filial; } catch(e){} await pool.execute(`INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Aberto')`, [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa]); io.emit('atualizacao_dados'); res.status(201).send(); } catch (error) { res.status(500).send(); } });
+app.put('/api/chamados/:id/status', verificarToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Status ausente.' });
+    let query = 'UPDATE chamados SET status = ?';
+    let params = [status];
+    if (status === 'Concluído') {
+       query += ', data_conclusao = CURRENT_TIMESTAMP';
+    } else {
+       query += ', data_conclusao = NULL';
+    }
+    query += ' WHERE id = ?';
+    params.push(req.params.id);
+    await pool.execute(query, params);
+    io.emit('atualizacao_dados');
+    res.status(200).json({ success: true, message: `Status alterado para ${status}` });
+  } catch (error) {
+    console.error(`\n❌ [ERRO KANBAN] Falha no banco de dados:`, error.message);
+    res.status(500).json({ error: 'Falha no banco de dados ao mover o card.' });
+  }
+});
+app.delete('/api/chamados/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('DELETE FROM chamados WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
 app.put('/api/chamados/:id', verificarToken, async (req, res) => { try { const [atual] = await pool.execute('SELECT * FROM chamados WHERE id=?', [req.params.id]); if (atual.length === 0) return res.status(404).send(); const chamado = atual[0]; const novoStatus = req.body.status !== undefined ? req.body.status : chamado.status; let query = 'UPDATE chamados SET status=?, nota_resolucao=?, arquivado=?, urgencia=?, tecnico_responsavel=?'; if (novoStatus === 'Concluído' && chamado.status !== 'Concluído') query += ', data_conclusao=CURRENT_TIMESTAMP'; query += ' WHERE id=?'; await pool.execute(query, [novoStatus, req.body.nota_resolucao !== undefined ? req.body.nota_resolucao : chamado.nota_resolucao, req.body.arquivado !== undefined ? (req.body.arquivado ? 1 : 0) : chamado.arquivado, req.body.urgencia !== undefined ? req.body.urgencia : chamado.urgencia, req.body.tecnico_responsavel !== undefined ? req.body.tecnico_responsavel : chamado.tecnico_responsavel, req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-app.put('/api/chamados/:id/status', verificarToken, async (req, res) => { try { const [atual] = await pool.execute('SELECT status, nota_resolucao, arquivado FROM chamados WHERE id=?', [req.params.id]); if (atual.length === 0) return res.status(404).send(); await pool.execute('UPDATE chamados SET status=?, nota_resolucao=?, arquivado=?, data_conclusao=CURRENT_TIMESTAMP WHERE id=?', [req.body.status !== undefined ? req.body.status : atual[0].status, req.body.nota_resolucao !== undefined ? req.body.nota_resolucao : atual[0].nota_resolucao, req.body.arquivado !== undefined ? (req.body.arquivado ? 1 : 0) : atual[0].arquivado, req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
 app.put('/api/chamados/:id/arquivar', verificarToken, async (req, res) => { try { await pool.execute('UPDATE chamados SET arquivado=1, data_conclusao=CURRENT_TIMESTAMP WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
 app.put('/api/chamados/:id/urgencia', verificarToken, async (req, res) => { try { await pool.execute('UPDATE chamados SET urgencia=? WHERE id=?', [req.body.urgencia, req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-app.delete('/api/chamados/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('DELETE FROM chamados WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
 app.get('/api/notificacoes', verificarToken, async (req, res) => { let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE n.resolvido = FALSE`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC', p); res.json(r); });
 app.get('/api/notificacoes/historico', verificarToken, async (req, res) => { let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE n.resolvido = TRUE`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC LIMIT 150', p); res.json(r); });
 app.put('/api/notificacoes/:id/resolver', verificarToken, async (req, res) => { try { await pool.execute('UPDATE notificacoes SET resolvido=TRUE, nota_resolucao=? WHERE id=?', [req.body.nota_resolucao || 'Resolvido pelo operador.', req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
@@ -286,7 +321,7 @@ app.put('/api/setores/:id', verificarToken, async (req, res) => { if (req.userRo
 app.delete('/api/setores/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('DELETE FROM setores WHERE id=?', [req.params.id]); res.status(200).send(); } catch (e) { res.status(500).send(); } });
 app.get('/api/tipos-refrigeracao', verificarToken, async (req, res) => { try { const [r] = await pool.execute('SELECT * FROM tipos_refrigeracao ORDER BY nome ASC'); res.json(r); } catch (e) { res.status(500).send(); } });
 app.post('/api/tipos-refrigeracao', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { const { nome, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo } = req.body; const parseNum = (v) => (v === '' || v === undefined || v === null) ? null : parseFloat(v); await pool.execute('INSERT INTO tipos_refrigeracao (nome, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo) VALUES (?, ?, ?, ?, ?, ?, ?)', [nome, parseNum(temp_min), parseNum(temp_max), parseNum(umidade_min), parseNum(umidade_max), parseNum(intervalo_degelo) || 6, parseNum(duracao_degelo) || 30]); res.status(201).send(); } catch (e) { res.status(500).send(); } });
-app.put('/api/tipos-refrigeracao/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { const { nome, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo } = req.body; const parseNum = (v) => (v === '' || v === undefined || v === null) ? null : parseFloat(v); await pool.execute('UPDATE tipos_refrigeracao SET nome=?, temp_min=?, temp_max=?, umidade_min=?, umidade_max=?, intervalo_degelo=?, duracao_degelo=? WHERE id=?', [nome, parseNum(temp_min), parseNum(temp_max), parseNum(umidade_min), parseNum(umidade_max), parseNum(intervalo_degelo) || 6, parseNum(duracao_degelo) || 30, req.params.id]); res.status(200).send(); } catch (e) { res.status(500).send(); } });
+app.put('/api/tipos-refrigeracao/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { const { nome, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo } = req.body; const parseNum = (v) => (v === '' || v === undefined || v === null) ? null : parseFloat(v); await pool.execute('UPDATE tipos_refrigeracao SET nome=?, temp_min=?, temp_max=?, umidade_min=?, umidade_max=?, intervalo_degelo=?, duracao_degelo=? WHERE id=?', [nome, parseNum(temp_min), parseNum(temp_max), parseNum(umidade_min), parseNum(umidade_max), parseNum(intervalo_degelo) || 6, parseNum(duracao_degelo) || 30, req.params.id]); res.status(200).send(); } catch (error) { res.status(500).json({ error: 'Erro ao editar usuário.' }); } });
 app.delete('/api/tipos-refrigeracao/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('DELETE FROM tipos_refrigeracao WHERE id=?', [req.params.id]); res.status(200).send(); } catch (e) { res.status(500).send(); } });
 
 app.get('/api/hardware', verificarToken, async (req, res) => {
@@ -303,8 +338,13 @@ app.get('/api/hardware', verificarToken, async (req, res) => {
   } catch(e) { res.status(500).send(); }
 });
 
-app.post('/api/leituras', verificarToken, async (req, res) => {
+app.post('/api/leituras', async (req, res) => {
   try {
+    const [sys] = await pool.execute('SELECT valor FROM configuracoes WHERE chave = "maintenanceMode"');
+    if (sys.length > 0 && sys[0].valor === '1') {
+      return res.status(503).json({ error: 'Sistema em Manutenção. Operações offline.' });
+    }
+    
     const { 
       equipamento_id, temperatura, umidade, alerta_forcado, consumo_kwh, 
       motor_ligado, em_degelo, 
@@ -386,18 +426,6 @@ app.post('/api/leituras', verificarToken, async (req, res) => {
   } catch (error) { res.status(500).send(); }
 });
 
-// No seu server.js
-app.post('/api/leituras', async (req, res) => {
-  try {
-    // Verifica se o sistema está em modo manutenção (Lockdown)
-    const [sys] = await pool.execute('SELECT valor FROM configuracoes WHERE chave = "maintenanceMode"');
-    if (sys.length > 0 && sys[0].valor === '1') {
-      return res.status(503).json({ error: 'Sistema em Manutenção. Operações offline.' });
-    }
-    
-  } catch (error) { res.status(500).send(); }
-});
-
 app.get('/api/system/health', verificarToken, async (req, res) => {
   if (req.userRole !== 'DEV') return res.status(403).send();
   try {
@@ -466,76 +494,81 @@ app.post('/api/system/reports/log', verificarToken, async (req, res) => {
   } catch (e) { res.status(500).send(); }
 });
 
-// ============================================================================
-// ROTA DO KANBAN ITSM: MOVER TICKET DE COLUNA (ATUALIZAR STATUS)
-// ============================================================================
-// ============================================================================
-// ROTA DO KANBAN ITSM: MOVER TICKET DE COLUNA (ATUALIZAR STATUS)
-// ============================================================================
-// ============================================================================
-// ROTA DO KANBAN ITSM: MOVER TICKET DE COLUNA (ATUALIZAR STATUS)
-// ============================================================================
-// ============================================================================
-// GESTÃO DE CHAMADOS (ITSM KANBAN) - 🔥 TOTALMENTE CORRIGIDO E BLINDADO
-// ============================================================================
-app.get('/api/chamados', verificarToken, async (req, res) => { 
-  let q = `SELECT c.*, e.nome as equipamento_nome, u.usuario as aberto_por FROM chamados c LEFT JOIN equipamentos e ON c.equipamento_id = e.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1`; 
-  const p = []; 
-  if (req.userRole !== 'DEV') { q += ' AND c.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ` AND c.filial = ?`; p.push(req.userFilial); } } 
-  const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); 
-  res.json(r); 
-});
-
-app.post('/api/chamados', verificarToken, async (req, res) => { 
-  try { 
-    const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel } = req.body; 
-    let filialStr = null;
-    try { const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); if(eq.length > 0) filialStr = eq[0].filial; } catch(e){}
-    
-    await pool.execute(`INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Aberto')`, [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa]); 
-    io.emit('atualizacao_dados'); 
-    res.status(201).send(); 
-  } catch (error) { res.status(500).send(); } 
-});
 
 // ============================================================================
-// ROTA DO KANBAN ITSM: MOVER TICKET DE COLUNA (ATUALIZAR STATUS)
+// NOVA ROTA DO SISTEMA: DEPLOY E ATUALIZAÇÃO VIA ARQUIVO .ZIP DO PAINEL DEV
 // ============================================================================
-app.put('/api/chamados/:id/status', verificarToken, async (req, res) => {
+app.post('/api/system/deploy-update', verificarToken, upload.single('updatePackage'), (req, res) => {
+  
+  // 1. Bloqueia qualquer pessoa que não seja o DEV
+  if (req.userRole !== 'DEV') {
+    if (req.file) fs.unlinkSync(req.file.path); // Apaga ficheiro se foi enviado
+    return res.status(403).json({ error: 'Acesso negado. Permissão exclusiva de SysAdmin (DEV).' });
+  }
+
   try {
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ error: 'Status ausente.' });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'Nenhum pacote (.zip) foi enviado.' });
 
-    let query = 'UPDATE chamados SET status = ?';
-    let params = [status];
+    // 2. ⚠️ ATENÇÃO: DEFINA AQUI A PASTA ONDE FICA O FRONTEND (REACT) NO SEU SERVIDOR
+    // Exemplo cPanel: path.join(__dirname, '../public_html')
+    // Exemplo VPS Padrão: path.join(__dirname, '../frontend/build')
+    const pastaPublicaInterface = path.join(__dirname, '../public_html'); 
 
-    // Se o técnico moveu para "Concluído", salvamos a hora exata na coluna data_conclusao
-    if (status === 'Concluído') {
-       query += ', data_conclusao = CURRENT_TIMESTAMP';
-    } else {
-       // Se ele puxou de volta para andamento, limpamos a data de conclusão
-       query += ', data_conclusao = NULL';
-    }
+    // 3. Extrai o conteúdo sobrescrevendo os ficheiros antigos
+    const zip = new AdmZip(file.path);
+    zip.extractAllTo(pastaPublicaInterface, true);
 
-    query += ' WHERE id = ?';
-    params.push(req.params.id);
+    // 4. Limpa o ficheiro zip temporário do servidor
+    fs.unlinkSync(file.path);
 
-    // Executa a alteração no MySQL
-    await pool.execute(query, params);
-    
-    // Atualiza a tela de todo mundo em tempo real
-    io.emit('atualizacao_dados');
-    res.status(200).json({ success: true, message: `Status alterado para ${status}` });
+    registrarAuditoria('DEPLOY_SISTEMA', 'Root/Dev', `Nova versão injetada via Painel NOC`, 'warning');
+
+    // 5. Retorna sucesso para a interface ANTES de derrubar o servidor
+    res.json({ success: true, message: 'Ficheiros extraídos e atualizados com sucesso.' });
+
+    // 6. Reinicia a API (Derruba os sockets e aplica novo código Node se houver)
+    setTimeout(() => {
+        console.log('⚠️ ALERTA: A reiniciar o sistema via atualização do Painel Dev...');
+        
+        // Se usar PM2, altere "all" para o nome do seu processo, ex: "pm2 restart termosync"
+        exec('pm2 restart all', (error) => {
+            if (error) console.error(`Erro ao tentar reiniciar o PM2: ${error}`);
+        });
+    }, 1000);
 
   } catch (error) {
-    console.error(`\n❌ [ERRO KANBAN] Falha no banco de dados:`, error.message);
-    res.status(500).json({ error: 'Falha no banco de dados ao mover o card.' });
+    console.error('❌ Erro crítico no Deploy:', error);
+    if (req.file) fs.unlinkSync(req.file.path); // Garante que não deixa lixo no servidor em caso de erro
+    res.status(500).json({ error: 'Falha ao processar o pacote de atualização.' });
   }
 });
 
-app.delete('/api/chamados/:id', verificarToken, async (req, res) => { 
-  if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); 
-  try { await pool.execute('DELETE FROM chamados WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } 
+
+// ============================================================================
+// NOVA ROTA DO SISTEMA: EXECUTOR DE QUERIES RAW (CONSOLE SQL)
+// ============================================================================
+app.post('/api/system/query-raw', verificarToken, async (req, res) => {
+  if (req.userRole !== 'DEV') {
+    return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios de SysAdmin (DEV) necessários.' });
+  }
+
+  const { sql } = req.body;
+  if (!sql) return res.status(400).json({ success: false, error: 'Instrução SQL ausente.' });
+
+  try {
+    const [rows] = await pool.execute(sql);
+    
+    // Registo na auditoria SOC para fins de conformidade e segurança zero-trust
+    await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query executada: ${sql.substring(0, 100)}...`, 'danger');
+    
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-server.listen(PORT, '0.0.0.0', () => { console.log(`Backend online na porta ${PORT}. Motor Multi-Tenant SaaS Ativo.`); });
+
+server.listen(PORT, '0.0.0.0', () => { 
+    console.log(`Backend online na porta ${PORT}. Motor Multi-Tenant SaaS Ativo.`); 
+});

@@ -1,55 +1,63 @@
 /* =========================================
-   PÁGINA DE CHAT COMPLETA - RESPONSIVA (MOBILE-FIRST NOC)
+   Chat.css - TACTICAL COMMS V12 (ULTIMATE)
+   
+   ARQUIVO DE ESTILOS DO MÓDULO DE CHAT
+   Define o layout da interface de comunicação em tempo real,
+   incluindo a barra lateral (contatos), área de mensagens, 
+   modais de telemetria e o rádio PTT (Push-To-Talk).
    ========================================= */
+
 :root {
-  --whatsapp: #25D366;
+  /* Paleta de cores exclusiva do módulo de Chat */
+  --wa-color: #25D366;
+  /* Cor oficial do WhatsApp para os botões de Bridge */
+  --chat-bg: #020617;
+  /* Fundo principal escuro */
+  --chat-panel: #0b1120;
+  /* Fundo dos painéis laterais/modais */
+  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-primary: #10b981;
+  /* Verde (Indicadores de Online/Sucesso) */
+  --chat-secondary: #38bdf8;
+  /* Azul (Ações Secundárias/Informativos) */
+  --chat-danger: #ef4444;
+  /* Vermelho (Gravação de áudio/Alertas) */
+  --chat-muted: #64748b;
+  /* Texto secundário desativado */
+  --chat-text: #f8fafc;
+  /* Texto principal claro */
 }
 
+/* --- CONTAINER PRINCIPAL --- 
+   Define a "janela" do chat que ocupa a maior parte da tela, 
+   descontando o cabeçalho global do sistema.
+*/
 .chat-page-container {
   display: flex;
-  height: calc(100vh - 120px);
-  background: var(--card-bg);
-  border-radius: 20px;
-  border: 1px solid var(--border);
+  height: calc(100vh - clamp(100px, 15vh, 140px));
+  background: var(--chat-panel);
+  border-radius: 16px;
+  border: 1px solid var(--chat-border);
   overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   position: relative;
+  font-family: 'Montserrat', sans-serif;
 }
 
-/* Utilitários Visuais */
-.desktop-only-inline {
-  display: inline;
-}
-
-.pulse-soft {
-  animation: pulseSoft 2.5s infinite ease-in-out;
-}
-
-@keyframes pulseSoft {
-
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-}
-
-/* --- OVERLAY DE DRAG & DROP --- */
+/* --- OVERLAY DE DRAG & DROP --- 
+   Tela escura translúcida que aparece quando o usuário arrasta 
+   um arquivo (imagem/pdf) para dentro da janela do chat.
+*/
 .chat-drag-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(5px);
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 4px dashed var(--primary);
+  border: 4px dashed var(--chat-secondary);
   border-radius: 16px;
   animation: fadeIn 0.2s ease;
 }
@@ -58,10 +66,12 @@
   text-align: center;
   color: white;
   pointer-events: none;
+  /* Garante que os eventos de mouse passem pelo texto */
 }
 
+/* Efeito flutuante do ícone de nuvem no Drag & Drop */
 .drag-content svg {
-  color: var(--primary);
+  color: var(--chat-secondary);
   margin-bottom: 1.5rem;
   animation: bounce-float 2s infinite ease-in-out;
 }
@@ -69,9 +79,11 @@
 .drag-content h2 {
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: 1px;
 }
 
+/* Keyframes para flutuação do ícone e fade-ins globais */
 @keyframes bounce-float {
 
   0%,
@@ -84,34 +96,60 @@
   }
 }
 
-/* --- SCROLLBARS LISAS --- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- SCROLLBARS TÁTICAS --- 
+   Personalização da barra de rolagem para combinar com o tema escuro
+*/
 .chat-history::-webkit-scrollbar,
 .chat-contacts-list::-webkit-scrollbar,
-.quick-replies-container::-webkit-scrollbar,
 .agent-modal-body::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 .chat-history::-webkit-scrollbar-track,
-.chat-contacts-list::-webkit-scrollbar-track,
-.agent-modal-body::-webkit-scrollbar-track {
+.chat-contacts-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .chat-history::-webkit-scrollbar-thumb,
-.chat-contacts-list::-webkit-scrollbar-thumb,
-.quick-replies-container::-webkit-scrollbar-thumb,
-.agent-modal-body::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+.chat-contacts-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
-/* --- SIDEBAR DE CONTACTOS (LAYER 1) --- */
+.chat-history::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- SIDEBAR DE CONTATOS --- 
+   Lista lateral contendo a barra de pesquisa e os técnicos disponíveis.
+*/
 .chat-sidebar {
-  width: 320px;
-  background: var(--bg-color);
-  border-right: 1px solid var(--border);
+  width: clamp(280px, 30vw, 350px);
+  background: rgba(2, 6, 23, 0.95);
+  border-right: 1px solid var(--chat-border);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -120,28 +158,29 @@
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Área de pesquisa de contatos */
 .chat-search-header {
   padding: 1.25rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--card-bg);
+  border-bottom: 1px solid var(--chat-border);
+  background: transparent;
   z-index: 2;
 }
 
 .chat-search-box {
   display: flex;
   align-items: center;
-  background: var(--bg-color);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.6rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
   gap: 10px;
   transition: all 0.3s ease;
 }
 
 .chat-search-box:focus-within {
-  background: var(--card-bg);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--chat-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 .chat-search-box input {
@@ -149,97 +188,112 @@
   background: transparent;
   width: 100%;
   padding: 0;
-  color: var(--text-main);
+  color: var(--chat-text);
   outline: none;
-  font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chat-search-box input::placeholder {
+  color: var(--chat-muted);
 }
 
 .chat-contacts-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0.8rem 0.5rem;
+  padding: 0.8rem;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Separador visual ("Rede de Operadores") */
 .contacts-divider {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--chat-muted);
   text-transform: uppercase;
-  padding: 10px 15px 5px;
-  margin-top: 10px;
+  padding: 10px 10px 5px;
+  margin-top: 5px;
+  letter-spacing: 1px;
 }
 
 .chat-empty-contacts {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--chat-muted);
   margin-top: 3rem;
   opacity: 0.5;
 }
 
+/* Item individual da lista de contatos */
 .chat-contact-item {
   display: flex;
   align-items: center;
-  padding: 0.8rem 1rem;
+  padding: 12px;
   gap: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-radius: 12px;
+  border-radius: 10px;
   margin-bottom: 4px;
   border: 1px solid transparent;
+  background: transparent;
 }
 
 .chat-contact-item:hover {
-  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  background: rgba(255, 255, 255, 0.03);
 }
 
+/* Contato selecionado atualmente */
 .chat-contact-item.active {
-  background: var(--card-bg);
-  border-color: var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: inset 4px 0 0 var(--chat-primary);
 }
 
+/* Destaque para contatos com mensagens não lidas */
 .chat-contact-item.has-unread {
-  background: color-mix(in srgb, var(--info) 8%, transparent);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.2);
 }
 
+/* Estilo específico para o canal de "Broadcast Global" */
 .channel-global {
-  background: rgba(59, 130, 246, 0.05);
-  border: 1px solid rgba(59, 130, 246, 0.1);
-}
-
-.channel-global:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(56, 189, 248, 0.05);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
 }
 
 .contact-avatar-wrapper {
   position: relative;
 }
 
+/* Avatar circular/arredondado com as iniciais */
 .contact-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--text-muted) 0%, #334155 100%);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 900;
   font-size: 1.2rem;
   flex-shrink: 0;
 }
 
 .chat-contact-item.active .contact-avatar {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 30%, transparent);
+  background: var(--chat-primary);
+  border-color: var(--chat-primary);
+  color: var(--chat-bg);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
 }
 
 .global-avatar {
-  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--chat-secondary);
+  border-color: rgba(56, 189, 248, 0.5);
 }
 
+/* Bolinha verde indicando que o usuário está online */
 .status-indicator {
   position: absolute;
   bottom: -2px;
@@ -247,105 +301,109 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid var(--card-bg);
+  border: 2px solid var(--chat-panel);
 }
 
 .status-indicator.online {
-  background-color: var(--success);
+  background-color: var(--chat-primary);
+  box-shadow: 0 0 8px var(--chat-primary);
 }
 
 .contact-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .contact-name {
-  font-weight: 700;
-  color: var(--text-main);
-  margin-bottom: 2px;
-  display: block;
+  font-weight: 800;
+  color: var(--chat-text);
+  font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.95rem;
 }
 
 .contact-role {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--chat-muted);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
+/* Emblema com o número de mensagens não lidas */
 .contact-unread-badge {
-  background: var(--info);
-  color: white;
+  background: var(--chat-secondary);
+  color: var(--chat-bg);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 900;
   border-radius: 50%;
-  min-width: 22px;
-  height: 22px;
+  min-width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--info) 40%, transparent);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
   flex-shrink: 0;
 }
 
-/* --- ÁREA PRINCIPAL DE MENSAGENS (LAYER 2) --- */
+/* --- ÁREA PRINCIPAL DE MENSAGENS --- 
+   Espaço onde a conversa atual acontece.
+*/
 .chat-main-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-color);
+  background: var(--chat-bg);
   position: relative;
   z-index: 20;
   min-width: 0;
 }
 
-/* Cyber-Grid no fundo do chat */
+/* Efeito de Grade Cyberpunk no fundo da área de conversa */
 .chat-main-area::before {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
   z-index: 0;
-  background-image: linear-gradient(to right, color-mix(in srgb, var(--text-muted) 10%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--text-muted) 10%, transparent) 1px, transparent 1px);
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .chat-main-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--chat-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(11, 17, 32, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 30;
 }
 
-.dark-theme .chat-main-header {
-  background: rgba(15, 23, 42, 0.85);
-}
-
+/* Faixa indicando comunicação criptografada no topo */
 .secure-channel-banner {
-  background: color-mix(in srgb, var(--success) 10%, transparent);
-  color: var(--success);
-  font-size: 0.7rem;
-  font-weight: 800;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--chat-primary);
+  font-size: 0.65rem;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
   text-transform: uppercase;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 4px;
+  padding: 6px;
   letter-spacing: 1px;
-  border-bottom: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .chat-active-user {
@@ -353,7 +411,7 @@
   align-items: center;
   gap: 15px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px;
   border-radius: 12px;
   transition: 0.2s;
   flex: 1;
@@ -361,7 +419,7 @@
 }
 
 .chat-active-user:hover {
-  background: color-mix(in srgb, var(--text-muted) 5%, transparent);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .chat-user-header-details {
@@ -369,13 +427,14 @@
   flex-direction: column;
   min-width: 0;
   flex: 1;
+  gap: 4px;
 }
 
 .chat-user-header-details h3 {
   margin: 0;
   font-size: 1.15rem;
-  color: var(--text-main);
-  font-weight: 800;
+  color: var(--chat-text);
+  font-weight: 900;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -385,10 +444,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
-  color: var(--success);
-  font-weight: 600;
-  margin-top: 2px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--chat-primary);
+  font-weight: bold;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -397,19 +456,19 @@
 .chat-status-dot {
   width: 8px;
   height: 8px;
-  background: var(--success);
+  background: var(--chat-primary);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--success);
-  animation: pulseSoftGreen 2s infinite;
+  box-shadow: 0 0 8px var(--chat-primary);
+  animation: blink 2s infinite;
   flex-shrink: 0;
 }
 
 .chat-status-typing {
-  font-size: 0.8rem;
-  color: var(--primary);
+  font-size: 0.75rem;
+  color: var(--chat-secondary);
   font-weight: 700;
-  margin-top: 2px;
   font-style: italic;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .chat-header-actions {
@@ -420,13 +479,13 @@
 }
 
 .chat-header-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-muted);
   cursor: pointer;
   transition: 0.2s;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -434,21 +493,42 @@
 
 .chat-header-btn:hover,
 .chat-header-btn.active {
-  background: var(--card-bg);
-  color: var(--primary);
-  border-color: var(--primary);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--chat-secondary);
+  border-color: var(--chat-secondary);
 }
 
+/* Botão de voltar, visível apenas em telas móveis */
 .mobile-back-btn {
   display: none;
-  margin-right: 8px;
-  padding: 8px;
-  color: var(--text-main);
-  border: none;
 }
 
-/* --- HISTÓRICO E MENSAGENS --- */
+/* Handshake Loader (Simulação de negociação de chaves ao abrir um chat) */
+.handshake-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--chat-bg);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: var(--chat-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.handshake-overlay svg {
+  animation: spin-slow 2s linear infinite;
+}
+
+.handshake-text {
+  font-size: 0.85rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* --- HISTÓRICO E BALÕES DE MENSAGENS --- */
 .chat-history-container {
   flex: 1;
   position: relative;
@@ -460,33 +540,35 @@
 
 .chat-history {
   flex: 1;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem clamp(1rem, 3vw, 3rem);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 1rem;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Estado vazio da conversa (quando não há histórico) */
 .chat-secure-empty-state {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--chat-muted);
   margin: auto;
   max-width: 450px;
   padding: 2.5rem;
-  background: var(--card-bg);
+  background: rgba(0, 0, 0, 0.5);
   border-radius: 20px;
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .secure-icon {
-  color: var(--success);
+  color: var(--chat-primary);
   margin-bottom: 15px;
-  opacity: 0.5;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
 }
 
+/* Divisor de datas no meio do chat */
 .chat-date-separator {
   display: flex;
   justify-content: center;
@@ -494,21 +576,22 @@
 }
 
 .chat-date-separator span {
-  background: var(--card-bg);
-  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--chat-muted);
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   font-weight: 800;
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid var(--border);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  border: 1px solid var(--chat-border);
+  letter-spacing: 1px;
 }
 
+/* Estrutura base para conter as mensagens */
 .msg-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 75%;
+  max-width: 80%;
   animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   position: relative;
 }
@@ -516,122 +599,167 @@
 @keyframes popIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform: translateY(10px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .msg-wrapper.sent {
   align-self: flex-end;
   align-items: flex-end;
-  transform-origin: bottom right;
 }
 
 .msg-wrapper.received {
   align-self: flex-start;
   align-items: flex-start;
-  transform-origin: bottom left;
 }
 
+/* Balão da Mensagem */
 .msg-bubble {
-  padding: 12px 16px;
+  padding: 12px 18px;
   font-size: 0.95rem;
   line-height: 1.5;
   font-weight: 500;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
   position: relative;
   word-break: break-word;
 }
 
+/* Mensagem enviada por mim (Verde) */
 .msg-wrapper.sent .msg-bubble {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-  color: white;
+  background: var(--chat-primary);
+  color: var(--chat-bg);
   border-radius: 18px 18px 4px 18px;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 20%, transparent);
+  font-weight: 600;
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
 }
 
+/* Mensagem recebida (Cinza escuro) */
 .msg-wrapper.received .msg-bubble {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text);
   border-radius: 18px 18px 18px 4px;
+  backdrop-filter: blur(8px);
 }
 
 .msg-sender-name {
   display: block;
   font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--primary);
-  margin-bottom: 4px;
+  font-weight: 900;
+  color: var(--chat-secondary);
+  margin-bottom: 6px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* Mensagens de Sistema (Terminais) */
+/* Mensagens de Sistema (Ex: Encaminhamentos automáticos e Slash Commands) */
 .system-msg-bubble {
   align-self: center;
-  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
-  color: var(--text-muted);
-  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--chat-secondary);
+  padding: 10px 20px;
   border-radius: 8px;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: bold;
   margin: 10px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid color-mix(in srgb, var(--text-muted) 20%, transparent);
-  font-family: monospace;
-  max-width: 85%;
+  gap: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-family: 'JetBrains Mono', monospace;
+  max-width: 90%;
   text-align: left;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
 }
 
 .system-msg-bubble.critical {
   background: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
-  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--chat-danger);
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.1);
 }
 
-.system-msg-bubble.whatsapp-sys {
-  background: rgba(37, 211, 102, 0.1);
-  color: var(--whatsapp);
-  border-color: rgba(37, 211, 102, 0.3);
+/* Animação de Digitação (Typing Dots) */
+.typing-dots {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
 }
 
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  background-color: var(--chat-secondary);
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Estilo para Citações/Replying To */
 .msg-reply-block {
-  background: rgba(0, 0, 0, 0.15);
-  border-left: 4px solid rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 4px solid rgba(255, 255, 255, 0.5);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.85rem;
   margin-bottom: 8px;
-  opacity: 0.9;
 }
 
 .msg-wrapper.received .msg-reply-block {
-  background: var(--bg-color);
-  border-left-color: var(--primary);
-  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.4);
+  border-left-color: var(--chat-secondary);
+  color: #cbd5e1;
 }
 
+.msg-wrapper.sent .msg-reply-block {
+  background: rgba(0, 0, 0, 0.2);
+  border-left-color: var(--chat-bg);
+  color: var(--chat-bg);
+}
+
+/* Ações em Hover nas mensagens (Responder, Encaminhar, Excluir) */
 .msg-hover-actions {
   position: absolute;
   top: 50%;
   transform: translateY(-50%) scale(0.9);
   display: flex;
   gap: 5px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+  background: rgba(11, 17, 32, 0.9);
+  border: 1px solid var(--chat-border);
   padding: 4px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
   opacity: 0;
   pointer-events: none;
   transition: all 0.2s ease;
   z-index: 5;
+  backdrop-filter: blur(5px);
 }
 
 .msg-wrapper:hover .msg-hover-actions {
@@ -640,63 +768,66 @@
   transform: translateY(-50%) scale(1);
 }
 
+/* Posiciona as ações à esquerda ou direita baseada em quem enviou */
 .msg-wrapper.sent .msg-hover-actions {
-  right: calc(100% + 8px);
+  right: calc(100% + 10px);
 }
 
 .msg-wrapper.received .msg-hover-actions {
-  left: calc(100% + 8px);
+  left: calc(100% + 10px);
 }
 
 .msg-action-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--chat-muted);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 8px;
+  border-radius: 8px;
   transition: 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .msg-action-btn:hover {
-  background: var(--bg-color);
-  color: var(--primary);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--chat-primary);
 }
 
-.msg-action-btn.text-danger:hover {
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.1);
-}
-
+/* Metadados (Horário e Checks de Lida) */
 .msg-meta {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.7rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-top: 4px;
+  color: var(--chat-muted);
+  font-weight: 700;
+  margin-top: 6px;
   padding: 0 4px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .msg-wrapper.sent .msg-meta {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.6);
   align-self: flex-end;
   padding-right: 6px;
-  margin-top: -22px;
-  margin-bottom: 6px;
+  margin-top: -24px;
+  /* Traz o check para dentro/perto do balão */
+  margin-bottom: 8px;
   z-index: 2;
 }
 
 .read-ticks {
-  color: #fff;
+  color: var(--chat-bg);
+  opacity: 0.8;
 }
 
-/* Áudio & Ficheiros */
+/* Conteúdos Customizados (GPS, File, Audio) */
 .audio-bubble-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 audio {
@@ -709,15 +840,16 @@ audio {
 .file-img-bubble {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .chat-img-thumbnail {
   max-width: 100%;
   max-height: 250px;
-  border-radius: 10px;
+  border-radius: 12px;
   object-fit: cover;
   cursor: zoom-in;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chat-file-attachment {
@@ -726,175 +858,260 @@ audio {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.15);
-  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px 16px;
   border-radius: 10px;
+  font-weight: 700;
 }
 
-/* --- ÁREA DE INPUT --- */
+/* Bolha visual para envios de Localização GPS */
+.gps-location-bubble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 4px;
+}
+
+.gps-icon {
+  background: rgba(56, 189, 248, 0.2);
+  padding: 8px;
+  border-radius: 50%;
+  color: var(--chat-secondary);
+}
+
+.gps-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gps-details strong {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.gps-details span {
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.8;
+}
+
+/* --- ÁREA DE INPUT E MENU DE ANEXOS --- */
 .chat-input-container {
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(11, 17, 32, 0.95);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--chat-border);
   z-index: 30;
   position: relative;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-.dark-theme .chat-input-container {
-  background: rgba(15, 23, 42, 0.85);
+/* FAB Menu Anexos (Clip de papel) */
+.attach-menu-overlay {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 1.5rem;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--chat-border);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  padding: 10px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: slideUpFade 0.2s ease-out;
 }
 
-/* Quick Replies */
+.attach-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+  color: var(--chat-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+
+.attach-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--chat-secondary);
+}
+
+/* Respostas Rápidas (Pílulas acima do input) */
 .quick-replies-container {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 10px 1rem 0;
+  padding: 12px 1.5rem 0;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
 }
 
 .quick-reply-btn {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text-main);
-  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text);
+  padding: 8px 16px;
   border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .quick-reply-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--chat-secondary);
+  color: var(--chat-secondary);
+  background: rgba(56, 189, 248, 0.1);
   transform: translateY(-2px);
 }
 
-/* COMANDOS DE TERMINAL (SLASH COMMANDS) */
+/* COMANDOS DE TERMINAL (Acionados ao digitar "/") */
 .slash-command-menu {
   position: absolute;
-  bottom: 100%;
-  left: 1rem;
-  width: calc(100% - 2rem);
-  max-width: 400px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  padding: 8px;
+  bottom: calc(100% + 10px);
+  left: 1.5rem;
+  width: calc(100% - 3rem);
+  max-width: 450px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--chat-border);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  padding: 10px;
   z-index: 100;
-  margin-bottom: 10px;
+  animation: slideUpFade 0.2s ease-out;
 }
 
 .slash-header {
   font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 800;
+  color: var(--chat-muted);
+  font-weight: 900;
   text-transform: uppercase;
-  padding: 8px 10px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 5px;
 }
 
 .slash-cmd-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: 0.2s;
 }
 
 .slash-cmd-item:hover {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  background: rgba(56, 189, 248, 0.1);
 }
 
 .cmd-tag {
-  background: var(--bg-color);
-  color: var(--primary);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-family: monospace;
-  font-weight: 800;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--chat-secondary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  font-size: 0.8rem;
+  border: 1px solid rgba(56, 189, 248, 0.3);
   flex-shrink: 0;
 }
 
 .cmd-desc {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-main);
+  font-weight: 700;
+  color: var(--chat-text);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* RÁDIO PTT (PUSH TO TALK) TÁTICO */
+/* --- RÁDIO PTT (PUSH TO TALK) TÁTICO --- 
+   Substitui a área de input quando o usuário inicia uma gravação de áudio
+*/
 .ptt-tactical-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 1rem 1.5rem;
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
-  border-top: 1px dashed var(--danger);
+  border-top: 1px dashed var(--chat-danger);
   gap: 10px;
 }
 
 .ptt-status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--danger);
+  gap: 12px;
+  color: var(--chat-danger);
   flex-shrink: 0;
 }
 
 .ptt-dot {
-  width: 12px;
-  height: 12px;
-  background: var(--danger);
+  width: 14px;
+  height: 14px;
+  background: var(--chat-danger);
   border-radius: 50%;
   animation: pulse-audio 1s infinite;
 }
 
 .ptt-status strong {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 900;
   letter-spacing: 1px;
 }
 
 .ptt-timer {
-  font-family: monospace;
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.4rem;
+  font-weight: 900;
   margin-left: auto;
-  color: var(--text-main);
+  color: var(--chat-text);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Animação simulando equalizador de ondas sonoras */
 .ptt-equalizer {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: flex-end;
-  height: 30px;
+  height: 36px;
   flex: 1;
   justify-content: center;
 }
 
 .ptt-equalizer span {
-  width: 4px;
-  background: var(--danger);
-  border-radius: 2px;
+  width: 6px;
+  background: var(--chat-danger);
+  border-radius: 3px;
   animation: eq-anim 0.4s infinite alternate;
 }
 
@@ -924,7 +1141,7 @@ audio {
 
 @keyframes eq-anim {
   0% {
-    height: 5px;
+    height: 8px;
   }
 
   100% {
@@ -938,7 +1155,7 @@ audio {
   }
 
   70% {
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
   }
 
   100% {
@@ -948,14 +1165,14 @@ audio {
 
 .ptt-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
 .btn-ptt {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   border: none;
   color: white;
   display: flex;
@@ -966,28 +1183,30 @@ audio {
 }
 
 .btn-ptt.cancel {
-  background: var(--card-bg);
-  color: var(--danger);
-  border: 1px solid var(--danger);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--chat-danger);
+  border: 1px solid var(--chat-danger);
 }
 
 .btn-ptt.cancel:hover {
-  background: var(--danger-light);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .btn-ptt.send {
-  background: var(--success);
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
+  background: var(--chat-primary);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  color: var(--chat-bg);
 }
 
 .btn-ptt.send:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
+/* --- INPUT TEXTO --- */
 .chat-type-area {
-  padding: 1rem;
+  padding: 1rem 1.5rem;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   width: 100%;
 }
@@ -996,17 +1215,17 @@ audio {
   flex: 1;
   display: flex;
   align-items: center;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 0.3rem 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+  padding: 4px 8px;
   transition: all 0.3s;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  border-color: var(--chat-secondary);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .chat-input-wrapper input {
@@ -1014,37 +1233,47 @@ audio {
   border: none;
   background: transparent;
   padding: 12px 10px;
-  color: var(--text-main);
-  font-family: var(--font-family);
-  font-size: 1rem;
+  color: var(--chat-text);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
   outline: none;
   min-width: 0;
 }
 
+.chat-input-wrapper input::placeholder {
+  color: var(--chat-muted);
+  font-weight: 500;
+}
+
 .chat-btn-icon {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-muted);
+  width: 48px;
+  height: 48px;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: 12px;
   transition: 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative;
 }
 
-.chat-btn-icon:hover {
-  background: var(--bg-color);
-  color: var(--primary);
+.chat-btn-icon:hover,
+.chat-btn-icon.active {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--chat-text);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-ptt-trigger {
-  background: var(--bg-color);
-  color: var(--primary);
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--chat-primary);
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
   width: 48px;
   height: 48px;
   display: flex;
@@ -1056,16 +1285,16 @@ audio {
 }
 
 .btn-ptt-trigger:hover {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  border-color: var(--primary);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--chat-primary);
   transform: scale(1.05);
 }
 
 .btn-send {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-  color: white;
+  background: var(--chat-primary);
+  color: var(--chat-bg);
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   width: 48px;
   height: 48px;
   display: flex;
@@ -1073,43 +1302,206 @@ audio {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 40%, transparent);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
   flex-shrink: 0;
 }
 
 .btn-send:hover {
   transform: scale(1.05) translateY(-2px);
+  filter: brightness(1.1);
 }
 
+/* Caixa de Resposta a Mensagem (Citação acima do Input) */
+.reply-context-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.4);
+  border-left: 4px solid var(--chat-secondary);
+  padding: 10px 15px;
+  margin: 0 1.5rem;
+  border-radius: 0 8px 8px 0;
+}
+
+.reply-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.reply-info strong {
+  font-size: 0.75rem;
+  color: var(--chat-secondary);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.reply-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--chat-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-close-reply {
+  background: transparent;
+  border: none;
+  color: var(--chat-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.btn-close-reply:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* =========================================
+   MODAL DE CHAMADA TÁTICA (VOIP)
+   Simulação visual de uma chamada de áudio pelo sistema
+   ========================================= */
+.tactical-call-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.call-radar {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.call-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--chat-primary);
+  color: var(--chat-bg);
+  font-size: 2.5rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+}
+
+/* Pulsos ao redor da foto para simular a chamada "tocando" */
+.call-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--chat-primary);
+  animation: callPing 2s infinite ease-out;
+}
+
+.call-wave:nth-child(2) {
+  animation-delay: 1s;
+}
+
+@keyframes callPing {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.call-info {
+  text-align: center;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 3rem;
+}
+
+.call-info h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.call-info p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--chat-primary);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 1px;
+}
+
+.call-actions {
+  display: flex;
+  gap: 20px;
+}
+
+.btn-end-call {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--chat-danger);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
+  transition: 0.2s;
+}
+
+.btn-end-call:hover {
+  transform: scale(1.1);
+}
 
 /* =========================================
    MODAL DE TELEMETRIA DO AGENTE
    ========================================= */
-
-/* Fundo Exclusivo do Chat para Modal (garante z-index supremo) */
 .chat-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
 }
 
 .agent-modal-content {
   width: 100%;
   max-width: 420px;
-  max-height: 90vh;
-  /* Ajuste crítico: Impede que fuja do ecrã */
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+  background: rgba(11, 17, 32, 0.95);
+  border: 1px solid var(--chat-border);
   border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .agent-modal-header {
@@ -1117,33 +1509,29 @@ audio {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.02);
-  flex-shrink: 0;
-}
-
-.dark-theme .agent-modal-header {
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--chat-border);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .agent-modal-header h4 {
   margin: 0;
   font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-main);
+  font-weight: 900;
+  color: white;
   text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: 0.5px;
 }
 
 .btn-close-modal {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-muted);
   cursor: pointer;
   transition: 0.2s;
-  padding: 6px;
+  padding: 8px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -1151,14 +1539,14 @@ audio {
 }
 
 .btn-close-modal:hover {
-  background: var(--danger-light);
-  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--chat-danger);
+  border-color: var(--chat-danger);
 }
 
-/* Ajuste crítico: Permite scroll apenas dentro do conteúdo e não quebra a tela */
 .agent-modal-body {
   flex: 1;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1167,46 +1555,49 @@ audio {
 }
 
 .agent-avatar-large {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: white;
-  font-size: 2rem;
+  background: rgba(56, 189, 248, 0.1);
+  border: 2px solid var(--chat-secondary);
+  color: var(--chat-secondary);
+  font-size: 2.5rem;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.8rem;
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--primary) 30%, transparent);
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 25px rgba(56, 189, 248, 0.2);
   flex-shrink: 0;
 }
 
 .agent-name-large {
   margin: 0 0 5px 0;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 900;
-  color: var(--text-main);
+  color: white;
 }
 
 .agent-role-badge {
-  background: var(--bg-color);
-  border: 1px solid var(--border);
-  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--chat-border);
+  padding: 6px 16px;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-weight: 800;
+  color: var(--chat-secondary);
   text-transform: uppercase;
   margin-bottom: 2rem;
   flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
 }
 
+/* Indicadores de telemetria no modal (Ex: Online, GPS) */
 .agent-telemetry-metrics {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 2rem;
 }
 
@@ -1214,132 +1605,87 @@ audio {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 12px;
-  background: var(--bg-color);
-  padding: 12px;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 14px;
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--chat-border);
   text-align: left;
 }
 
 .t-icon-box {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .t-icon-box.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-}
-
-.t-icon-box.whatsapp {
-  background: rgba(37, 211, 102, 0.1);
-  color: var(--whatsapp);
+  color: var(--chat-primary);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .t-icon-box.primary {
-  background: rgba(5, 150, 105, 0.1);
-  color: var(--primary);
+  color: var(--chat-secondary);
+  border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
 .t-data {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   overflow: hidden;
 }
 
 .t-label {
   margin: 0;
   font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-weight: 800;
+  color: var(--chat-muted);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .t-value {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.text-success {
-  color: var(--success);
-}
-
-.location-radar-box {
-  position: relative;
-  overflow: hidden;
-}
-
-.radar-icon-pulse {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-
-.radar-wave {
-  position: absolute;
-  inset: -4px;
-  border: 2px solid var(--primary);
-  border-radius: 50%;
-  animation: radar-ping 2s infinite ease-out;
-}
-
-@keyframes radar-ping {
-  0% {
-    transform: scale(0.5);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-
-/* =========================================
-   PROTOCOLOS DE INTERVENÇÃO (MODAL AGENTE)
-   ========================================= */
 .agent-tactical-protocols {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 10px;
   text-align: left;
 }
 
 .protocol-title {
-  margin: 0 0 5px 0;
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-muted);
+  margin: 0 0 10px 0;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--chat-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: 8px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--chat-border);
+  padding-bottom: 10px;
 }
 
 .btn-protocol {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-color);
-  border: 1px solid var(--border);
+  gap: 14px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--chat-border);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1348,89 +1694,92 @@ audio {
 }
 
 .btn-protocol:hover {
-  transform: translateX(4px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
 }
 
 .protocol-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .protocol-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .protocol-name {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: white;
 }
 
 .protocol-desc {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--chat-muted);
   line-height: 1.3;
 }
 
+/* Modificadores de Cores para Botões do Modal do Agente */
 .btn-protocol.whatsapp-protocol {
   border-color: rgba(37, 211, 102, 0.3);
-  background: rgba(37, 211, 102, 0.05);
 }
 
 .whatsapp-protocol .protocol-icon {
-  background: rgba(37, 211, 102, 0.15);
-  color: var(--whatsapp);
-}
-
-.whatsapp-protocol .protocol-name {
-  color: var(--whatsapp);
+  color: var(--wa-color);
 }
 
 .btn-protocol.whatsapp-protocol:hover {
-  background: rgba(37, 211, 102, 0.1);
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.1);
+  border-color: var(--wa-color);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.15);
 }
 
 .btn-protocol.danger-protocol {
   border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.05);
 }
 
 .danger-protocol .protocol-icon {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--danger);
-}
-
-.danger-protocol .protocol-name {
-  color: var(--danger);
+  color: var(--chat-danger);
 }
 
 .btn-protocol.danger-protocol:hover {
-  background: rgba(239, 68, 68, 0.1);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+  border-color: var(--chat-danger);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.15);
 }
 
 /* =========================================
-   MEDIA QUERIES - 100% MOBILE RESPONSIVE
+   MEDIA QUERIES - RESPONSIVIDADE TÁTICA
+   Ajusta a tela dividida para Mobile (onde a lista e as mensagens
+   alternam na tela ocupando 100% da largura).
    ========================================= */
-@media (max-width: 900px) {
+@media (max-width: 992px) {
   .chat-page-container {
-    flex-direction: row;
-    height: calc(100dvh - 80px);
-    /* 100dvh evita que a barra de endereços do telemóvel corte o chat em baixo */
-    margin-top: 0;
     border-radius: 0;
     border: none;
-    position: relative;
-    overflow: hidden;
+    height: calc(100vh - 60px);
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-page-container {
+    flex-direction: row;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 50;
   }
 
   .chat-sidebar {
@@ -1451,95 +1800,70 @@ audio {
     top: 0;
     transform: translateX(100%);
     z-index: 20;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* Quando há um chat ativo no Mobile, a sidebar "escorrega" para a esquerda */
   .has-active-chat .chat-sidebar {
     transform: translateX(-30%);
     opacity: 0;
     pointer-events: none;
   }
 
+  /* A área principal de conversa assume a tela toda */
   .has-active-chat .chat-main-area {
     transform: translateX(0);
   }
 
-  /* Ajustes do Cabeçalho Mobile */
   .chat-main-header {
     padding: 0.8rem 1rem;
     gap: 8px;
   }
 
+  /* Exibe o botão de voltar no mobile */
   .mobile-back-btn {
     display: flex;
     padding: 8px;
-    color: var(--text-main);
-    border: none;
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
     flex-shrink: 0;
-    margin-right: 4px;
+    margin-right: 8px;
   }
 
-  /* Mantém o texto dentro dos limites sem empurrar os ícones */
-  .chat-active-user {
-    padding: 0;
-    min-width: 0;
-  }
-
-  .chat-user-header-details {
-    min-width: 0;
-  }
-
-  /* Foco no Input no Mobile */
   .chat-history {
     padding: 1rem;
   }
 
   .chat-type-area {
-    padding: 0.8rem;
+    padding: 1rem;
   }
 
   .chat-input-container {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
-  /* Ajuste de Botões de Input */
   .btn-send,
-  .btn-ptt-trigger {
-    width: 42px;
-    height: 42px;
+  .btn-ptt-trigger,
+  .chat-btn-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
   }
 
   .chat-input-wrapper input {
-    padding: 10px;
+    padding: 12px;
     font-size: 16px;
+    /* 16px previne zoom in automático no iOS */
   }
 
-  /* 16px previne auto-zoom do teclado no iOS */
-
-  .file-attach-btn {
-    display: none;
-  }
-
-  /* Esconde clip de anexo extra para dar mais espaço ao texto */
-  .desktop-only-inline {
-    display: none;
-  }
-
+  /* Oculta botões que aparecem no hover (Mobile utiliza Touch/Long Press) */
   .msg-hover-actions {
     display: none;
   }
 
-  /* Mobile usa long-press no futuro, esconde botões float */
   .msg-wrapper {
     max-width: 90%;
-  }
-
-  /* O modal do agente adapta-se a margens pequenas */
-  .agent-modal-content {
-    max-width: 95vw;
-    max-height: 85dvh;
-  }
-
-  .agent-modal-body {
-    padding: 1.2rem 1rem;
   }
 }
