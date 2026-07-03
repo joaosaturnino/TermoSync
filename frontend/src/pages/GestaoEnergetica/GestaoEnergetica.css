@@ -1,0 +1,117 @@
+.energy-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+  text-align: center;
+  color: var(--text-color, #475569);
+}
+
+.energy-dashboard-container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.energy-header {
+  margin-bottom: 2rem;
+}
+
+.energy-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 2rem;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.energy-icon-glow {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));
+  color: #f59e0b;
+}
+
+.energy-subtitle {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.energy-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.energy-kpi-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color, #e2e8f0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.energy-kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.energy-kpi-icon {
+  padding: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.energy-kpi-icon.yellow { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.energy-kpi-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.energy-kpi-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.energy-kpi-icon.red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.energy-kpi-info h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+  color: var(--text-color);
+}
+
+.energy-kpi-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.energy-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 1.5rem;
+}
+
+.energy-chart-box {
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.energy-chart-box h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .energy-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}

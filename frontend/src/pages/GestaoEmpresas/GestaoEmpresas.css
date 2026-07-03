@@ -29,6 +29,9 @@
   position: relative; overflow: hidden;
 }
 .gestao-header-bar::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); }
+.gestao-header-copy { display: flex; align-items: center; gap: 14px; }
+.gestao-subtitle { margin: 4px 0 0; color: var(--text-muted); font-size: 0.9rem; max-width: 680px; }
+.filters-bar { justify-content: space-between; padding: 14px 16px; background: rgba(11, 17, 32, 0.55); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; }
 
 .gestao-title-modern {
   margin: 0; display: flex; align-items: center; gap: 12px;
@@ -194,8 +197,73 @@
 }
 .modern-input:focus { border-color: var(--primary); box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.1); background: rgba(2,6,23,0.8); }
 
+/* --- LISTAGEM DE TENANTS EM CARDS --- */
+.tenant-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+}
+.tenant-card-modern {
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(11, 17, 32, 0.7);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.tenant-card-modern:hover {
+  transform: translateY(-3px);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+.tenant-card-modern.blocked {
+  border-color: rgba(239, 68, 68, 0.24);
+}
+.tenant-card-head { display: flex; align-items: center; gap: 10px; }
+.tenant-logo { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(16, 185, 129, 0.12); }
+.tenant-card-modern.blocked .tenant-logo { background: rgba(239, 68, 68, 0.12); }
+.tenant-card-title { flex: 1; min-width: 0; }
+.tenant-card-title h3 { margin: 0 0 4px; font-size: 0.98rem; color: white; }
+.tenant-card-body { display: flex; flex-direction: column; gap: 8px; }
+.tenant-info-row { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.84rem; }
+.tenant-info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tenant-card-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+.tenant-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; }
+.tenant-badge.success { color: var(--success); background: rgba(16, 185, 129, 0.12); }
+.tenant-badge.danger { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+.gestao-empty-state {
+  grid-column: 1 / -1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  background: rgba(11, 17, 32, 0.45);
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 2rem;
+}
+.status-toggle-wrapper {
+  display: flex; align-items: center; gap: 10px; color: var(--text-muted); cursor: pointer; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.25); 
+}
+.form-group-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 16px;
+}
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--text-muted); cursor: pointer; }
+.btn-icon:hover { color: white; border-color: var(--primary); }
+
 /* Ajustes Responsivos */
 @media (max-width: 992px) {
   .gestao-toolbar { flex-direction: column; align-items: stretch; width: 100%; }
   .search-modern { max-width: 100%; }
+  .filters-bar { align-items: stretch; }
 }

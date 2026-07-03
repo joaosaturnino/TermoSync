@@ -1,0 +1,219 @@
+.assistente-operacao {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hero-assistente,
+.section-card-assistente {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+  backdrop-filter: blur(12px);
+}
+
+.dark-theme .hero-assistente,
+.dark-theme .section-card-assistente {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.hero-assistente {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.hero-badge-assistente {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.hero-assistente h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.2rem;
+}
+
+.hero-assistente p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.hero-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 220px;
+}
+
+.hero-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.04);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.check-item-card {
+  padding: 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.dark-theme .check-item-card {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.check-item-card.success { border-color: rgba(16, 185, 129, 0.25); }
+.check-item-card.warning { border-color: rgba(245, 158, 11, 0.25); }
+.check-item-card.danger { border-color: rgba(239, 68, 68, 0.25); }
+
+.check-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.check-item-head span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.check-icon-assistente {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.check-item-card h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.96rem;
+}
+
+.check-item-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.content-assistente-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+}
+
+.section-header-assistente {
+  margin-bottom: 0.7rem;
+}
+
+.section-header-assistente h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.98rem;
+}
+
+.section-header-assistente p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.orientacoes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.orientacao-item {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.dark-theme .orientacao-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.orientacao-item strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.orientacao-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.orientacao-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--secondary);
+}
+
+.next-step-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(56, 189, 248, 0.08));
+}
+
+.next-step-card strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.next-step-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .hero-assistente,
+  .content-assistente-grid {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .checklist-grid {
+    grid-template-columns: 1fr;
+  }
+}

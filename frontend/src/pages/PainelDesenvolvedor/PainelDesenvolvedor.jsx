@@ -18,6 +18,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './PainelDesenvolvedor.css';
 import GestaoEmpresas from '../GestaoEmpresas/GestaoEmpresas';
+import TermoSyncLogo from '../../components/TermoSyncLogo.jsx';
 
 // ============================================================================
 // COMPONENTE PRINCIPAL (CONTAINER OS)
@@ -25,10 +26,23 @@ import GestaoEmpresas from '../GestaoEmpresas/GestaoEmpresas';
 export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthenticated, onAuthenticate, showToast, sysConfig, updateSysConfig, tocarAlarme, usuariosLista, filiaisDb, setModalConfig }) {
   const [terminalLogs, setTerminalLogs] = useState([]);
   const [isOverclocked, setIsOverclocked] = useState(false); 
+  const [ticketsSuporteAbertos, setTicketsSuporteAbertos] = useState(0);
   
   const addLog = useCallback((text, status = 'info') => { 
     setTerminalLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR'), text, status }]); 
   }, []);
+
+  const carregarTicketsSuporte = useCallback(async () => {
+    if (!api) return;
+    try {
+      const res = await api.get('/suporte/chamados');
+      const lista = Array.isArray(res.data) ? res.data : [];
+      const abertos = lista.filter(ticket => ticket.status === 'Aberto' || ticket.status === 'Em análise').length;
+      setTicketsSuporteAbertos(abertos);
+    } catch (error) {
+      setTicketsSuporteAbertos(0);
+    }
+  }, [api]);
 
   // Adiciona a mensagem de boas vindas no terminal assim que o painel é carregado
   useEffect(() => {
@@ -36,6 +50,17 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
       addLog("Sessão Master estabelecida. SysAdmin conectado.", "success");
     }
   }, [addLog, terminalLogs.length]);
+
+  useEffect(() => {
+    carregarTicketsSuporte();
+  }, [carregarTicketsSuporte]);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const refreshSupportTickets = () => carregarTicketsSuporte();
+    socket.on('atualizacao_dados', refreshSupportTickets);
+    return () => socket.off('atualizacao_dados', refreshSupportTickets);
+  }, [socket, carregarTicketsSuporte]);
 
   if (!isDevAuthenticated) {
     return (
@@ -52,6 +77,21 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
       
       {abaAtiva === 'dev_panel' && <div className="noc-scanlines"></div>}
       {abaAtiva === 'dev_panel' && <div className="noc-cyber-grid"></div>}
+
+      {abaAtiva === 'dev_panel' && ticketsSuporteAbertos > 0 && (
+        <div className="dev-support-alert" role="status" aria-live="polite">
+          <div className="dev-support-alert-icon">
+            <AlertTriangle size={20} />
+          </div>
+          <div className="dev-support-alert-copy">
+            <strong>{ticketsSuporteAbertos} ticket{ticketsSuporteAbertos > 1 ? 's' : ''} de suporte aberto{ticketsSuporteAbertos > 1 ? 's' : ''}</strong>
+            <span>Existe{ticketsSuporteAbertos > 1 ? 'm' : ''} chamado{ticketsSuporteAbertos > 1 ? 's' : ''} aguardando análise no suporte ao sistema.</span>
+          </div>
+          <div className="dev-support-alert-tag">
+            Prioridade de atendimento
+          </div>
+        </div>
+      )}
 
       {sysConfig?.maintenanceMode && (
         <div className="maintenance-banner">
@@ -238,13 +278,42 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
   };
 
   const TODOS_MODULOS = [
-    { id: 'dashboard', nome: 'Dashboard Operacional' }, { id: 'mapa', nome: 'Planta Digital' }, 
-    { id: 'motores', nome: 'Monitorização Térmica' }, { id: 'umidade', nome: 'Monitorização Humidade' },
-    { id: 'kanban', nome: 'Gestão Ágil (Kanban)' }, { id: 'metrologia', nome: 'Controlo Metrológico' }, 
-    { id: 'equipamentos', nome: 'Máquinas (Hardware IoT)' }, { id: 'chamados', nome: 'Gestão de Incidentes' }, 
-    { id: 'relatorios', nome: 'Relatórios Executivos' }, { id: 'historico', nome: 'Auditoria de Logs' }, 
-    { id: 'lojas', nome: 'Gestão de Lojas' }, { id: 'usuarios', nome: 'Identidades e Acessos' },
-    { id: 'simulador', nome: 'Simulador Edge' }
+    { id: 'dashboard', nome: 'Dashboard Operacional' },
+    { id: 'assistente', nome: 'Assistente de Operação' },
+    { id: 'resumo_loja', nome: 'Resumo da Loja' },
+    { id: 'central_procedimentos', nome: 'Central de Procedimentos' },
+    { id: 'checklist_turno', nome: 'Checklist de Turno' },
+    { id: 'resumo_turno', nome: 'Resumo de Turno' },
+    { id: 'plano_dia', nome: 'Plano do Dia' },
+    { id: 'resumo_executivo', nome: 'Resumo Executivo' },
+    { id: 'centro_comando', nome: 'Centro de Comando' },
+    { id: 'mapa', nome: 'Planta Digital' },
+    { id: 'motores', nome: 'Monitorização Térmica' },
+    { id: 'umidade', nome: 'Monitorização de Umidade' },
+    { id: 'kanban', nome: 'Gestão Ágil (Kanban)' },
+    { id: 'metrologia', nome: 'Controlo Metrológico' },
+    { id: 'equipamentos', nome: 'Equipamentos' },
+    { id: 'parametros', nome: 'Parâmetros Globais' },
+    { id: 'chamados', nome: 'Chamados' },
+    { id: 'historico_chamados', nome: 'Histórico de Chamados' },
+    { id: 'chat', nome: 'Chat' },
+    { id: 'relatorios', nome: 'Relatórios' },
+    { id: 'historico', nome: 'Histórico de Logs' },
+    { id: 'lojas', nome: 'Gestão de Lojas' },
+    { id: 'usuarios', nome: 'Identidades e Acessos' },
+    { id: 'sobre', nome: 'Sobre a Plataforma' },
+    { id: 'simulador', nome: 'Simulador Edge' },
+    { id: 'hardware', nome: 'Hardware IoT' },
+    { id: 'dev_panel', nome: 'Painel de Controle' },
+    { id: 'soc', nome: 'Auditoria / SOC' },
+    { id: 'atualizacoes', nome: 'Atualizações / Deploy' },
+    { id: 'sql_terminal', nome: 'Console SQL' },
+    { id: 'websocket_stream', nome: 'Live Firehose' },
+    { id: 'system', nome: 'Operações do Sistema' },
+    { id: 'empresas', nome: 'Organizações' },
+    { id: 'saas', nome: 'Licenças SaaS' },
+    { id: 'billing', nome: 'Core Financeiro' },
+    { id: 'bi', nome: 'Centro de Inteligência (BI)' }
   ];
 
   const defconLevel = isOverclocked ? 'MÁXIMO' : (threats.length > 15 ? 'CRÍTICO' : (threats.length > 8 ? 'ELEVADO' : 'SEGURO'));
@@ -268,14 +337,14 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
       
       <div className="noc-defcon-bar anim-stagger-1">
         <div className="defcon-title glitch-hover">
-          <Globe size={18} color={defconColor} /> TERMOSYNC QUANTUM COMMAND
+          <TermoSyncLogo size={18} color={defconColor} /> TERMOSYNC
         </div>
         
-        <div className="noc-ticker-container">
+        {/* <div className="noc-ticker-container">
           <div className="noc-ticker-text">
             [SYS] Roteamento BGP Estável... [SEC] WAF bloqueou 3 payloads maliciosos... [IOT] 98% dos nós sincronizados em tempo real... [DB] Queries otimizadas em 12ms...
           </div>
-        </div>
+        </div> */}
 
         <div className="defcon-status-group">
           <button className="btn btn-outline" style={{padding: '4px 12px', minHeight: 'auto', fontSize: '0.7rem', color: isOverclocked ? '#ef4444' : 'white', borderColor: isOverclocked ? '#ef4444' : 'rgba(255,255,255,0.2)'}} onClick={handleToggleOverclock}>
@@ -448,7 +517,10 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
             <span className="status-badge" style={{background: 'rgba(0,0,0,0.5)', color: 'white', padding: '2px 6px', fontSize: '0.65rem'}}>{TODOS_MODULOS.length - (regrasAtivas?.modulosOcultos?.length || 0)}/{TODOS_MODULOS.length}</span>
           </div>
           <div className="modulos-list">
-            {TODOS_MODULOS.slice(0, 4).map(m => {
+            <div className="modulos-list-help">
+              Ative ou desative cada tela para o escopo selecionado.
+            </div>
+            {TODOS_MODULOS.map(m => {
               const isAtivo = !regrasAtivas?.modulosOcultos?.includes(m.id);
               return (
                 <div key={m.id} className={`hardware-toggle ${!isAtivo ? 'disabled' : ''}`}>
@@ -2225,4 +2297,4 @@ const TerminalFooter = ({ logs, setLogs, addLog, sysConfig }) => {
       )}
     </div>
   );
-};c
+};

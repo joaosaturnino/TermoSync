@@ -4,6 +4,7 @@ import {
   Loader2, Zap, ServerCrash, TerminalSquare 
 } from 'lucide-react';
 import axios from 'axios';
+import { getApiUrl } from '../../config/api.js';
 import './HardwareIoT.css';
 
 // Sub-componente: Renderiza graficamente a força do sinal Wi-Fi
@@ -39,7 +40,7 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
     if (isManual) setIsRefreshing(true);
     try {
       const token = sessionStorage.getItem('token');
-      const resposta = await axios.get('http://localhost:3000/api/hardware', {
+      const resposta = await axios.get(`${getApiUrl()}/hardware`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

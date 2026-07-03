@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import jsPDF from 'jspdf';
@@ -16,10 +16,12 @@ import {
   Server, Lock, Unlock, Search, Keyboard, Loader2, ShieldAlert, DollarSign, Building2,
   Bell, Wifi, Snowflake, Power, DoorOpen, ActivitySquare, ClipboardCheck, ThermometerSnowflake,
   Map, Columns, Target, Cpu, Info, Settings2, ShieldCheck, PieChart, FileSpreadsheet,
-  ChevronDown, ChevronRight, Rocket, Database, Network
+  ChevronDown, ChevronRight, Rocket, Database, Network, Sparkles, ClipboardList, BarChart3, CalendarDays, LifeBuoy, Zap
 } from 'lucide-react';
 
+import CentroInteligenciaBI from './pages/CentroInteligenciaBI/CentroInteligenciaBI';
 import TermoSyncLogo from './components/TermoSyncLogo';
+import DevBootScreen from './components/DevBootScreen';
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Monitoramento from './pages/Monitoramento/Monitoramento';
@@ -41,11 +43,19 @@ import Metrologia from './pages/Metrologia/Metrologia';
 import Simulador from './pages/Simulador/Simulador';
 import Sobre from './pages/Sobre/Sobre';
 import HardwareIoT from './pages/HardwareIoT/HardwareIoT';
+import CentroComando from './pages/CentroComando/CentroComando';
+import AssistenteOperacao from './pages/AssistenteOperacao/AssistenteOperacao';
+import ResumoLoja from './pages/ResumoLoja/ResumoLoja';
+import CentralProcedimentos from './pages/CentralProcedimentos/CentralProcedimentos';
+import ChecklistTurno from './pages/ChecklistTurno/ChecklistTurno';
+import ResumoTurno from './pages/ResumoTurno/ResumoTurno';
+import PlanoDia from './pages/PlanoDia/PlanoDia';
+import ResumoExecutivo from './pages/ResumoExecutivo/ResumoExecutivo';
+import Suporte from './pages/Suporte/Suporte';
+import GestaoEnergetica from './pages/GestaoEnergetica/GestaoEnergetica';
 
 import { useSystemCore } from './hooks/useSystemCore';
-
-const API_URL = 'http://localhost:3000/api';
-const SOCKET_URL = 'http://localhost:3000';
+import { getApiUrl, getSocketUrl } from './config/api.js';
 
 const getAlertConfig = (tipo_alerta) => {
   const configs = {
@@ -64,238 +74,6 @@ const getAlertConfig = (tipo_alerta) => {
 // ============================================================================
 // 1. TELA DE BOOT AVANÇADA (CYBER CRT TERMINAL & AUDIO FEEDBACK)
 // ============================================================================
-const DevBootScreen = ({ onComplete }) => {
-  const [bootStarted, setBootStarted] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const [showInput, setShowInput] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [attempts, setBlockedAttempts] = useState(0);
-  const [countdown, setCountdown] = useState(0);
-  
-  const inputRef = useRef(null);
-  const bottomRef = useRef(null);
-  const skipRef = useRef(false);
-
-  const asciiLogo = `
-  ______                           _____                  
- /_  __/___  _________ ___  ____  / ___/__  ______  _____ 
-  / / / __ \\/ ___/ __ \`__ \\/ __ \\ \\__ \\/ / / / __ \\/ ___/ 
- / / / /_/ / /  / / / / / / /_/ /___/ / /_/ / / / / /__   
-/_/  \\____/_/  /_/ /_/ /_/\\____//____/\\__, /_/ /_/\\___/   
-                                     /____/               
-`;
-
-  useEffect(() => { 
-    if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: "smooth" }); 
-  }, [logs, showInput]);
-
-  // Sons Sintetizados via AudioContext API
-  const playSound = useCallback((frequency, type, duration) => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if(audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      
-      osc.type = type;
-      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-      
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {}
-  }, []);
-
-  const playTyping = useCallback(() => playSound(800, 'sine', 0.05), [playSound]);
-  const playSuccess = useCallback(() => { playSound(600, 'sine', 0.1); setTimeout(() => playSound(1200, 'sine', 0.3), 100); }, [playSound]);
-  const playError = useCallback(() => playSound(150, 'sawtooth', 0.4), [playSound]);
-
-  // Detetar Teclas para "Skip Boot"
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!showInput && bootStarted && (e.key === 'Enter' || e.key === 'Escape')) {
-        skipRef.current = true;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, bootStarted]);
-
-  useEffect(() => {
-    if (!bootStarted) return;
-
-    let isMounted = true;
-    const sleep = ms => new Promise(r => setTimeout(r, skipRef.current ? 0 : ms));
-    const genHex = () => Math.random().toString(16).substring(2, 12).toUpperCase();
-
-    const runBootSequence = async () => {
-      const sequence = [
-        { text: asciiLogo, delay: 100, color: '#10b981', isPre: true },
-        { text: "⚡ TERMOSYNC CORE SYSTEM v13.1.SENTINEL", delay: 200, color: '#10b981', isBold: true },
-        { text: "INITIALIZING FIRMWARE HARDWARE INTERFACE...", delay: 100, color: '#94a3b8' },
-        { text: "------------------------------------------------------------", delay: 50, color: '#475569' },
-        { text: "CPU: AMD EPYC 9754 Core @ 3.20GHz (Hyper-Threading: ACTIVE)", delay: 80 },
-        { text: "STORAGE: Multi-Tenant NVMe Array Partition mounted on /dev/sda1", delay: 80 },
-        { text: "I2C BUS CORES: Scanning for physical environmental sensors...", delay: 200 },
-        { text: "[  OK  ] Sensor Temp/Humi DHT22 detected on Address 0x40", delay: 50, color: '#10b981' },
-        { text: "[  OK  ] Broker MQTT Pipeline mapped on port 1883", delay: 120, color: '#10b981' },
-        { text: "NETWORK: Initializing TLS 1.3 socket negotiation...", delay: 150 },
-        { text: `CONNECTING TO MASTER REPLICA [ 104.28.192.12:3000 ]...`, delay: 300, color: '#38bdf8' }
-      ];
-
-      for (let i = 0; i < 6; i++) {
-        sequence.push({ 
-          text: `[ STAGE_${i} ] Syncing data node index [0x${genHex().substring(0,4)}]... CONNECTED`, 
-          delay: 40 + Math.random() * 40, 
-          color: '#475569' 
-        });
-      }
-
-      sequence.push(
-        { text: "------------------------------------------------------------", delay: 50, color: '#475569' },
-        { text: "[  OK  ] Relational Engine: MySQL Connection Pool established.", delay: 150, color: '#10b981' },
-        { text: "[  OK  ] Cryptographic Core: AES-256 Vault unsealed.", delay: 100, color: '#10b981' },
-        { text: "[ WARN ] NETWORK SECURITY OPERATION CENTER ACTIVATED.", delay: 250, color: '#eab308', isBold: true },
-        { text: "[ ALERTA ] PROTOCOLO ZERO-TRUST EM VIGOR.", delay: 200, color: '#ef4444', isBold: true },
-        { text: "ACESSO RESTRITO - INTRODUZA A CREDENCIAL MASTER ROOT", delay: 100, color: '#cbd5e1', isBold: true }
-      );
-
-      for (let i = 0; i < sequence.length; i++) {
-        if (!isMounted) return;
-        await sleep(sequence[i].delay);
-        if (!skipRef.current) {
-            if (sequence[i].color === '#ef4444') playSound(300, 'sawtooth', 0.15); 
-            else playTyping();
-        }
-        setLogs(prev => [...prev, sequence[i]]);
-      }
-      if (isMounted) setShowInput(true);
-    };
-
-    runBootSequence();
-    return () => { isMounted = false; };
-  }, [bootStarted, playSound, playTyping]);
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (countdown === 0 && attempts >= 3) {
-      setShowInput(true);
-      setBlockedAttempts(0);
-      setLogs(prev => [...prev, { text: "[ SECURITY ] Terminal destrancado. Tente novamente.", color: '#38bdf8' }]);
-    }
-  }, [countdown, attempts]);
-
-  useEffect(() => { 
-    if (showInput && inputRef.current && !isProcessing && countdown === 0) inputRef.current.focus(); 
-  }, [showInput, isProcessing, countdown]);
-
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    if (!passcode.trim() || isProcessing || countdown > 0) return;
-    setIsProcessing(true);
-    setShowInput(false);
-    
-    const typed = passcode;
-    setPasscode('');
-    setLogs(prev => [...prev, { text: `root@termosync:~$ ${typed.replace(/./g, '●')}`, color: '#10b981' }]);
-    
-    await new Promise(r => setTimeout(r, 600));
-    playTyping();
-    
-    // ATENÇÃO: Aqui você pode colocar a palavra-passe que desejar (está "root" ou "dev")
-    if (typed.toLowerCase() === 'root' || typed.toLowerCase() === 'dev') {
-      playSuccess();
-      setLogs(prev => [...prev, { text: "SIGNATURE CHECK: VALID ROOT Privileges Conceded.", color: '#10b981', isBold: true }]);
-      await new Promise(r => setTimeout(r, 400));
-      setLogs(prev => [...prev, { text: "A injetar daemons na consola de controlo...", color: '#94a3b8' }]);
-      await new Promise(r => setTimeout(r, 600));
-      onComplete();
-    } else {
-      playError();
-      const nextAttempts = attempts + 1;
-      setBlockedAttempts(nextAttempts);
-      
-      setLogs(prev => [...prev, { text: `[ FALHA ] IDENTIFICAÇÃO INCORRETA. INCIDENTE REGISTADO NO NOC.`, color: '#ef4444', isBold: true }]);
-      
-      if (nextAttempts >= 3) {
-        setCountdown(15);
-        setLogs(prev => [...prev, { text: `[ LOCKOUT ] Alerta contra Brute-Force acionado. Terminal suspenso por 15s.`, color: '#ef4444' }]);
-        setIsProcessing(false);
-      } else {
-        await new Promise(r => setTimeout(r, 400));
-        setShowInput(true);
-        setIsProcessing(false);
-      }
-    }
-  };
-
-  if (!bootStarted) {
-    return (
-      <div className="root-boot-screen crt" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#010409', flexDirection: 'column' }}>
-         <div className="noc-scanlines"></div>
-         <div style={{ textAlign: 'center', zIndex: 10 }}>
-            <Server size={64} color="#10b981" style={{ marginBottom: '20px', opacity: 0.8 }} className="pulse-icon" />
-            <h1 style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '1.5rem', marginBottom: '10px' }}>TermoSync Core System</h1>
-            <p style={{ color: '#64748b', fontFamily: 'JetBrains Mono', fontSize: '0.85rem', marginBottom: '30px' }}>Aguardando inicialização do Operador de Rede.</p>
-            <button 
-              onClick={() => setBootStarted(true)} 
-              className="btn btn-outline" 
-              style={{ borderColor: '#10b981', color: '#10b981', fontFamily: 'JetBrains Mono', fontSize: '1rem', padding: '12px 24px', borderWidth: '2px', background: 'rgba(16, 185, 129, 0.1)' }}
-            >
-              <Power size={18} style={{ marginRight: '10px', display: 'inline-block' }} />
-              INICIAR TERMINAL
-            </button>
-         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`root-boot-screen crt ${countdown > 0 ? 'red-alert-mode' : ''}`} onClick={() => { if (showInput && countdown === 0) inputRef.current?.focus(); }} style={{ position: 'fixed', inset: 0, background: '#010409', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
-      <div className="noc-scanlines"></div>
-      
-      {!showInput && countdown === 0 && (
-         <div style={{ position: 'absolute', top: '20px', right: '30px', color: '#64748b', fontFamily: 'JetBrains Mono', fontSize: '0.75rem', zIndex: 10 }}>
-           [ENTER] para saltar o boot
-         </div>
-      )}
-
-      <div className="boot-terminal-box" style={{ background: 'transparent', boxShadow: 'none', position: 'relative', zIndex: 5, padding: '2rem', flex: 1, overflowY: 'auto' }}>
-        {logs.map((log, index) => (
-          <div key={index} className="boot-log" style={{ color: log.color || '#cbd5e1', fontWeight: log.isBold ? 'bold' : 'normal', textShadow: log.color === '#10b981' ? '0 0 4px rgba(16,185,129,0.4)' : 'none', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-            {log.isPre ? <pre style={{ margin: 0, padding: 0, fontFamily: 'inherit' }}>{log.text}</pre> : log.text}
-          </div>
-        ))}
-        
-        {showInput && countdown === 0 && (
-          <form onSubmit={handleAuth} className="boot-form" style={{ display: 'flex', marginTop: '15px', position: 'relative', alignItems: 'center' }}>
-            <span className="boot-prompt" style={{ color: '#10b981', fontWeight: 900, fontFamily: 'JetBrains Mono' }}>root@termosync:~$</span>
-            <div className="boot-input-wrapper" style={{ display: 'flex', flex: 1, minWidth: '250px', position: 'relative', alignItems: 'center' }}>
-              <input ref={inputRef} type="password" value={passcode} onChange={e => setPasscode(e.target.value)} className="boot-input" autoComplete="off" disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', fontFamily: 'JetBrains Mono', width: '100%', caretColor: 'transparent', letterSpacing: '2px', textShadow: '0 0 5px #fff' }} />
-              <span className="boot-cursor-blink" style={{ display: 'inline-block', width: '10px', height: '1.2em', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'blink 1s step-end infinite', marginLeft: '4px' }}></span>
-            </div>
-          </form>
-        )}
-
-        {countdown > 0 && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '15px', color: '#ef4444', fontFamily: 'JetBrains Mono', fontSize: '0.9rem', marginTop: '15px', fontWeight: 'bold', display: 'inline-block' }} className="pulse-icon">
-            <Lock size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }} />
-            DISPOSITIVO BLOQUEADO PROTOCOLO ANTI-BRUTE-FORCE: AGUARDE {countdown}s...
-          </div>
-        )}
-        <div ref={bottomRef} style={{ paddingBottom: '20px' }} />
-      </div>
-    </div>
-  );
-};
-
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
   static getDerivedStateFromError(error) { return { hasError: true }; }
@@ -342,7 +120,7 @@ export default function App() {
     'Operações': true,
     'Serviços': true,
     'Auditoria': true,
-    'Sistema': true
+    'Sistema': true,
   });
 
   useEffect(() => {
@@ -352,7 +130,7 @@ export default function App() {
         'Operações': false,
         'Serviços': false,
         'Auditoria': false,
-        'Sistema': false
+        'Sistema': false,
       });
     } else {
       setGruposExpandidos({
@@ -475,8 +253,8 @@ export default function App() {
         if (userFilial === lojaAlvo && userRole !== 'DEV' && !papelLogado.includes('Impersonate')) {
           fazerLogout();
           setTimeout(() => {
-             const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Conexão Terminada:</b> A sua sessão foi revogada remotamente pelo Administrador de Rede.`, type: 'error' }});
-             window.dispatchEvent(fakeEvent);
+            const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Conexão Terminada:</b> A sua sessão foi revogada remotamente pelo Administrador de Rede.`, type: 'error' }});
+            window.dispatchEvent(fakeEvent);
           }, 500);
         }
       }
@@ -497,7 +275,7 @@ export default function App() {
 
     setIsUnlocking(true);
     try {
-      await axios.post(`${API_URL}/login`, { usuario: loginAtivo, senha: lockPassword });
+      await axios.post(`${getApiUrl()}/login`, { usuario: loginAtivo, senha: lockPassword });
       setIsLocked(false); setLockPassword('');
     } catch (error) { setLockError('Acesso Negado. Credencial inválida.'); } 
     finally { setIsUnlocking(false); }
@@ -586,7 +364,7 @@ export default function App() {
   }, []);
 
   const api = useMemo(() => {
-    const instance = axios.create({ baseURL: API_URL, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const instance = axios.create({ baseURL: getApiUrl(), headers: token ? { Authorization: `Bearer ${token}` } : {} });
     instance.interceptors.response.use((response) => response, (error) => { if (error.response && error.response.status === 401 && !papelLogado.includes('Impersonate')) fazerLogout(); return Promise.reject(error); });
     return instance;
   }, [token, fazerLogout, papelLogado]);
@@ -654,7 +432,7 @@ export default function App() {
     if (isOffline) return showToast('Sinal de rede perdido.', 'error');
     setLoginErro(''); setIsLoginLoading(true); 
     try {
-      const res = await axios.post(`${API_URL}/login`, { usuario: usuarioInput, senha: senhaInput });
+      const res = await axios.post(`${getApiUrl()}/login`, { usuario: usuarioInput, senha: senhaInput });
       if (sysConfig.maintenanceMode && res.data.role !== 'DEV') return showToast('SISTEMA EM MANUTENÇÃO. Acesso restrito.', 'warning');
 
       const gNome = res.data.nome_gerente || ''; const cNome = res.data.nome_coordenador || '';
@@ -755,7 +533,7 @@ export default function App() {
     if (!token || isOffline) return;
     if (!isFeatureEnabledRef.current('telemetryStream')) return;
     
-    const socket = io(SOCKET_URL, { transports: ['websocket'], upgrade: false }); 
+    const socket = io(getSocketUrl(), { transports: ['websocket'], upgrade: false }); 
     setSocketInstance(socket);
     
     if (userId && !papelLogado.includes('Impersonate')) socket.emit('registrar_usuario', userId);
@@ -782,7 +560,7 @@ export default function App() {
             const tiposCriticos = ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'];
             if (tiposCriticos.includes(alertaCompleto.tipo_alerta)) {
               tocarAlarmeRef.current();
-              showToastRef.current(`🚨 <b>ANOMALIA DETECTADA:</b> O equipamento <b>${alertaCompleto.equipamento_nome}</b> registrou uma ocorrência: ${alertaCompleto.mensagem}`, 'error');
+              showToastRef.current(`?? <b>ANOMALIA DETECTADA:</b> O equipamento <b>${alertaCompleto.equipamento_nome}</b> registrou uma ocorrência: ${alertaCompleto.mensagem}`, 'error');
             }
           }
         }
@@ -942,7 +720,7 @@ export default function App() {
     if (!listaChamados || listaChamados.length === 0) return showToast("Nenhuma OS pendente.", "warning"); const doc = new jsPDF(); listaChamados.forEach((c, index) => { if (index > 0) doc.addPage(); doc.setFontSize(18); doc.text(`Ordem de Serviço (OS) - ${c.status}`, 14, 20); doc.setFontSize(11); doc.text(`Máquina: ${c.equipamento_nome}`, 14, 32); doc.text(`Filial: ${c.filial}`, 14, 40); doc.text(`Abertura: ${new Date(c.data_abertura).toLocaleString()}`, 14, 72); doc.text(doc.splitTextToSize(c.descricao || 'Sem descrição.', 180), 14, 96); if (c.status === 'Concluído') { doc.text(doc.splitTextToSize(c.nota_resolucao || 'Sem nota.', 180), 14, 138); } }); doc.save(`Lote_OS_${new Date().getTime()}.pdf`); showToast('Lote Operacional Baixado.', 'success'); 
   };
 
-  // ✅ ROTAS DE NAVEGAÇÃO ATUALIZADAS AQUI
+  // ? ROTAS DE NAVEGAÇÃO ATUALIZADAS AQUI
   const NAVIGATION = [
     { id: 'dev_panel', label: 'Controle', icon: Terminal, roles: ['DEV'], type: 'Desenvolvedor' }, 
     { id: 'soc', label: 'Auditoria', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true }, 
@@ -958,6 +736,15 @@ export default function App() {
     { id: 'bi', label: 'Centro de Inteligência (BI)', icon: PieChart, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
 
     { id: 'dashboard', label: 'Dashboard', icon: Activity, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: notificacoesDaFilial?.length, type: 'Operações' },
+    { id: 'assistente', label: 'Assistente de Operação', icon: Sparkles, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'resumo_loja', label: 'Resumo da Loja', icon: Building2, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'central_procedimentos', label: 'Procedimentos', icon: ClipboardCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'checklist_turno', label: 'Checklist de Turno', icon: ClipboardList, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'resumo_turno', label: 'Resumo de Turno', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'plano_dia', label: 'Plano do Dia', icon: CalendarDays, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'resumo_executivo', label: 'Resumo Executivo', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'suporte', label: 'Suporte ao Sistema', icon: LifeBuoy, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' },
+    { id: 'centro_comando', label: 'Centro de Comando', icon: Target, roles: ['DEV'], type: 'Desenvolvedor' },
     { id: 'mapa', label: 'Planta Digital', icon: Map, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operações' },
     { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
@@ -970,7 +757,8 @@ export default function App() {
     { id: 'historico_chamados', label: 'Histórico de Chamados', icon: Archive, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas, type: 'Serviços' },
     
-    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
+    { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria' },
+      { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
     { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
     
     { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Sistema' },
@@ -1104,7 +892,7 @@ export default function App() {
                       <item.icon size={20} />
                       <span className="nav-item-text hide-on-collapse">
                         {item.label}
-                        {item.isPremium && getPlanoAtual() !== 'FREE' && <span style={{marginLeft: '6px', fontSize: '0.6rem', color: 'var(--info)'}}>★</span>}
+                        {item.isPremium && getPlanoAtual() !== 'FREE' && <span style={{marginLeft: '6px', fontSize: '0.6rem', color: 'var(--info)'}}>?</span>}
                       </span>
                       {item.badge > 0 && <span className="badge hide-on-collapse">{item.badge}</span>}
                     </button>
@@ -1194,7 +982,7 @@ export default function App() {
               <span className="conn-text">{!isFeatureEnabled('telemetryStream') ? 'STREAM PAUSADA' : (isOffline ? 'SINAL PERDIDO' : 'CONECTADO')}</span>
               {!isOffline && isFeatureEnabled('telemetryStream') && <span className="conn-ms">{latencia}ms</span>}
             </div>
-            <button className="btn-outline desktop-only" onClick={() => setShowCommandPalette(true)} style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}><Search size={14} /> Terminal <span style={{ background: 'rgba(0,0,0,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>⌘K</span></button>
+            <button className="btn-outline desktop-only" onClick={() => setShowCommandPalette(true)} style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}><Search size={14} /> Terminal <span style={{ background: 'rgba(0,0,0,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>?K</span></button>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn-icon" onClick={alternarSom} title={somAtivoState ? "Desarmar Sirenes" : "Armar Sirenes"}>{somAtivoState ? <Volume2 size={18} color="var(--primary)"/> : <VolumeX size={18} />}</button>
               <button className="btn-icon desktop-only" onClick={toggleFullScreen} title="Painel de Comando TV">{isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
@@ -1206,6 +994,63 @@ export default function App() {
         <div className="content-area">
           <ErrorBoundary>
             {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
+            {!isModuloOculto('assistente') && abaAtiva === 'assistente' && (
+              <AssistenteOperacao
+                equipamentosDaFilial={equipamentosDaFilial}
+                notificacoesDaFilial={notificacoesDaFilial}
+                chamados={chamados}
+                userRole={userRole}
+                filialAtiva={filialAtiva}
+              />
+            )}
+            {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && (
+              <ResumoLoja
+                equipamentosDaFilial={equipamentosDaFilial}
+                notificacoesDaFilial={notificacoesDaFilial}
+                chamados={chamados}
+                filialAtiva={filialAtiva}
+                userRole={userRole}
+              />
+            )}
+            {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && (
+              <CentralProcedimentos />
+            )}
+            {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && (
+              <ChecklistTurno api={api} filialAtiva={filialAtiva} />
+            )}
+            {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && (
+              <ResumoTurno
+                equipamentosDaFilial={equipamentosDaFilial}
+                notificacoesDaFilial={notificacoesDaFilial}
+                chamados={chamados}
+                filialAtiva={filialAtiva}
+                userRole={userRole}
+              />
+            )}
+            {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && (
+              <PlanoDia api={api} filialAtiva={filialAtiva} />
+            )}
+            {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && (
+              <ResumoExecutivo api={api} filialAtiva={filialAtiva} />
+            )}
+            {!isModuloOculto('suporte') && abaAtiva === 'suporte' && (
+              <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} />
+            )}
+            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && (
+              <CentroComando
+                onNavigate={(id) => setAbaAtiva(id)}
+                qtdTotal={qtdTotal}
+                qtdOperando={qtdOperando}
+                qtdDegelo={qtdDegelo}
+                qtdFalha={qtdFalha}
+                notificacoesDaFilial={notificacoesDaFilial}
+                chamados={chamados}
+                equipamentosDaFilial={equipamentosDaFilial}
+                isOffline={isOffline}
+                userRole={userRole}
+                filialAtiva={filialAtiva}
+              />
+            )}
             
             {/* Telas Corporativas */}
             {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} /> )}
@@ -1228,8 +1073,11 @@ export default function App() {
             {!isModuloOculto('usuarios') && abaAtiva === 'usuarios' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
             
-            {/* ✅ AS NOVAS TELAS ESTÃO RENDERIZADAS AQUI */}
-            {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'bi', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && ( 
+            {!isModuloOculto('energia') && abaAtiva === 'energia' && ( <GestaoEnergetica isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} /> )}
+
+            {/* ? AS NOVAS TELAS ESTÃO RENDERIZADAS AQUI */}
+              {abaAtiva === 'bi' && <CentroInteligenciaBI isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} />}
+            {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && ( 
               <PainelDesenvolvedor 
                 api={api}
                 socket={socketInstance} 
@@ -1246,7 +1094,7 @@ export default function App() {
               /> 
             )}
 
-            {((isModuloOculto(abaAtiva) && !['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'bi', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva)) || (abaAtiva === 'chat' && !isFeatureEnabled('enableChat'))) && (
+            {((isModuloOculto(abaAtiva) && !['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva)) || (abaAtiva === 'chat' && !isFeatureEnabled('enableChat'))) && (
                <div className="empty-state dashboard-empty anim-fade-in" style={{marginTop: '2rem'}}>
                   <div className="empty-shield-box" style={{ background: 'rgba(239, 68, 68, 0.1)' }}><AlertOctagon size={48} color="var(--danger)" /></div>
                   <h3 className="empty-title" style={{ color: 'var(--danger)' }}>Acesso Restrito</h3>

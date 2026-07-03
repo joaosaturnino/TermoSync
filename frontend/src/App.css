@@ -299,12 +299,28 @@ body {
   padding: 1rem 0;
   gap: 0.5rem;
   overflow-y: auto;
-  scrollbar-width: none;
   flex: 1;
+  /* Suporte para Firefox */
+  scrollbar-width: thin; 
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent; 
 }
 
+/* Chrome, Edge e Safari */
 .sidebar-nav::-webkit-scrollbar {
-  width: 0;
+  width: 4px; /* Largura bem fina e discreta */
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent; /* Fundo invisível */
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); /* Cor subtil e translúcida */
+  border-radius: 10px; /* Bordas arredondadas */
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4); /* Fica ligeiramente mais visível ao passar o rato */
 }
 
 .nav-item {

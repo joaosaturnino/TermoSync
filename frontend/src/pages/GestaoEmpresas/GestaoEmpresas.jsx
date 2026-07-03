@@ -20,335 +20,270 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
   const formInicial = { id: '', nome: '', cnpj: '', contato: '', email: '', status: 'Ativa' };
   const [form, setForm] = useState({ ...formInicial });
   
-  // Controle do Painel Lateral
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClosing, setModalClosing] = useState(false);
 
-  const fecharModal = () => {
-    setModalClosing(true);
-    setTimeout(() => {
-      setModalAberto(false);
-      setModalClosing(false);
-    }, 280); // Tempo da animação no CSS
+  // --- NOVA FUNÇÃO: MÁSCARA DE CNPJ AUTOMÁTICA ---
+  const maskCNPJ = (value) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .substring(0, 18);
   };
 
-  // ==========================================================================
-  // COMUNICAÇÃO COM API
-  // ==========================================================================
-  const carregarEmpresas = useCallback(async () => {
+  const fecharModal = () => {
+    setModalClosing(true);
+    setTimeout(() => { setModalAberto(false); setModalClosing(false); setForm({ ...formInicial }); }, 300);
+  };
+
+  const carregarEmpresas = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
+    else setIsRefreshing(true);
     try {
       const res = await api.get('/empresas');
       setEmpresas(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      showToast('Falha na comunicação com o Hub de Organizações.', 'error');
+      showToast('Falha na comunicação com o Core SaaS.', 'error');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [api, showToast]);
 
   useEffect(() => { carregarEmpresas(); }, [carregarEmpresas]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await carregarEmpresas();
-    setTimeout(() => setIsRefreshing(false), 800);
-    showToast('Sincronização da malha SaaS concluída.', 'success');
-  };
-
-  // ==========================================================================
-  // PROCESSAMENTO DE DADOS (FILTROS E KPIs)
-  // ==========================================================================
-  const empresasFiltradas = useMemo(() => {
-    const termo = busca.toLowerCase();
-    return empresas.filter(e => {
-      const matchBusca = e.nome?.toLowerCase().includes(termo) || e.cnpj?.toLowerCase().includes(termo);
-      const matchStatus = filtroStatus === 'Todas' ? true : e.status === filtroStatus;
-      return matchBusca && matchStatus;
-    });
-  }, [empresas, busca, filtroStatus]);
-
-  const kpis = useMemo(() => {
-    const total = empresas.length;
-    const ativas = empresas.filter(e => e.status === 'Ativa').length;
-    return { total, ativas, suspensas: total - ativas };
-  }, [empresas]);
-
-  // ==========================================================================
-  // FUNÇÕES DE EXPORTAÇÃO E CRUD
-  // ==========================================================================
-  const exportarParaCSV = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      if (empresasFiltradas.length === 0) {
-        showToast('Nenhum dado disponível na grid atual.', 'warning');
-        setIsExporting(false);
-        return;
-      }
-      
-      let csvContent = "ID_TENANT,RAZAO_SOCIAL,CNPJ,TELEFONE,EMAIL_CORP,STATUS_OPERACIONAL,DATA_PROVISIONAMENTO\n";
-      empresasFiltradas.forEach(e => {
-        const dataFormatada = e.data_cadastro ? new Date(e.data_cadastro).toLocaleDateString('pt-BR') : 'N/A';
-        csvContent += `"${e.id}","${e.nome}","${e.cnpj || ''}","${e.contato || ''}","${e.email || ''}","${e.status}","${dataFormatada}"\n`;
-      });
-
-      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `SaaS_Tenants_Dump_${Date.now()}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast('Dump CSV extraído com sucesso.', 'success');
-      setIsExporting(false);
-    }, 800);
-  };
-
   const salvarEmpresa = async (e) => {
     e.preventDefault();
+    if (!form.nome) return showToast('A designação da empresa é obrigatória.', 'error');
+    
     setIsSubmitting(true);
     try {
       if (form.id) {
         await api.put(`/empresas/${form.id}`, form);
-        showToast(`Tenant "${form.nome}" atualizado.`, 'success');
+        showToast(`Tenant ${form.nome} atualizado.`, 'success');
       } else {
         await api.post('/empresas', form);
-        showToast('Novo Tenant provisionado no Cluster!', 'success');
+        showToast(`Tenant ${form.nome} provisionado no sistema.`, 'success');
       }
       fecharModal();
-      await carregarEmpresas();
-    } catch (err) {
-      showToast('Erro ao gravar parâmetros no BD.', 'error');
+      carregarEmpresas(true);
+    } catch (e) {
+      showToast('Erro ao alocar o Tenant na base de dados.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const alternarStatus = async (empresa) => {
-    const novoStatus = empresa.status === 'Ativa' ? 'Suspensa' : 'Ativa';
-    try {
-      await api.put(`/empresas/${empresa.id}`, { ...empresa, status: novoStatus });
-      showToast(`Lockdown do Tenant "${empresa.nome}" alterado para: ${novoStatus.toUpperCase()}.`, 'info');
-      carregarEmpresas();
-    } catch (err) {
-      showToast('Erro de permissão no IAM.', 'error');
-    }
-  };
-
-  const pedirExclusao = (id, nome) => {
-    setModalConfig({
-      isOpen: true,
-      title: 'Forçar Destruição de Tenant (DROP)',
-      message: `CUIDADO: A purga do tenant "${nome}" invocará a remoção em cascata (CASCADE) no banco de dados. Todas as lojas, sensores e usuários vinculados serão deletados. Confirmar?`,
-      isPrompt: false,
-      onConfirm: async () => {
-        try {
-          await api.delete(`/empresas/${id}`);
-          showToast('Tenant purgado da base de dados.', 'success');
-          carregarEmpresas();
-        } catch (e) {
-          showToast('Erro restritivo (Foreign Key). Remova os nós IoT primeiro.', 'error');
-        }
-      }
+  const empresasFiltradas = useMemo(() => {
+    return empresas.filter(emp => {
+      const matchBusca = emp.nome.toLowerCase().includes(busca.toLowerCase()) || 
+                         (emp.cnpj && emp.cnpj.includes(busca)) || 
+                         (emp.email && emp.email.toLowerCase().includes(busca.toLowerCase()));
+      const matchStatus = filtroStatus === 'Todas' || emp.status === filtroStatus;
+      return matchBusca && matchStatus;
     });
-  };
+  }, [empresas, busca, filtroStatus]);
 
-  // Gera alturas aleatórias para o gráfico de fundo dos KPIs
-  const renderMiniGraph = () => (
-    <div className="kpi-bg-graph">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="kpi-bg-bar" style={{ height: `${Math.floor(Math.random() * 80) + 20}%` }}></div>
-      ))}
-    </div>
-  );
+  const kpis = useMemo(() => {
+    return {
+      total: empresas.length,
+      ativas: empresas.filter(e => e.status === 'Ativa').length,
+      bloqueadas: empresas.filter(e => e.status === 'Bloqueada').length
+    };
+  }, [empresas]);
+
+  // --- NOVA FUNÇÃO: EXPORTAR PARA CSV ---
+  const exportarEmpresasCSV = () => {
+    setIsExporting(true);
+    setTimeout(() => {
+      if (empresasFiltradas.length === 0) {
+        showToast('Não há dados para exportar.', 'warning');
+        setIsExporting(false);
+        return;
+      }
+      let csvContent = "ID,Organizacao,CNPJ,Contato,Email,Status\n";
+      empresasFiltradas.forEach(emp => {
+        csvContent += `"${emp.id}","${emp.nome}","${emp.cnpj || ''}","${emp.contato || ''}","${emp.email || ''}","${emp.status}"\n`;
+      });
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `Audit_Tenants_TermoSync_${Date.now()}.csv`;
+      link.click();
+      showToast('Auditoria exportada com sucesso.', 'success');
+      setIsExporting(false);
+    }, 800);
+  };
 
   return (
-    <div className="gestao-container">
-      
-      {/* HEADER TÁTICO */}
-      <div className="gestao-header-bar">
-        <div>
-          <h3 className="gestao-title-modern">
-            <Globe size={28} color="var(--primary)" />
-            Gestão de Organizações (Tenants)
-          </h3>
-          <p style={{margin: '8px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '600'}}>
-            Administração do escopo Multi-Tenant SaaS e parametrização de infraestrutura.
-          </p>
-        </div>
-        
-        <div className="gestao-toolbar">
-          <div className="search-modern">
-            <Search size={18} color="var(--text-muted)" style={{marginRight: '8px'}} />
-            <input type="text" placeholder="Procurar Tenant ou CNPJ..." value={busca} onChange={e => setBusca(e.target.value)} />
+    <div className="gestao-container anim-fade-in">
+      <div className="gestao-header-bar stagger-1">
+        <div className="gestao-header-copy">
+          <div className="icon-box-primary">
+            <Building2 size={22} />
           </div>
+          <div>
+            <h2 className="gestao-title-modern">Gestão de Organizações</h2>
+            <p className="gestao-subtitle">Provisionamento, status e comunicação das organizações do ecossistema multi-tenant.</p>
+          </div>
+        </div>
 
-          <select className="filter-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-            <option value="Todas">TIPO: TODOS</option>
-            <option value="Ativa">🟢 ONLINE (ATIVOS)</option>
-            <option value="Suspensa">🔴 OFFLINE (LOCKDOWN)</option>
-          </select>
-
-          <button className="btn btn-outline" onClick={exportarParaCSV} disabled={isExporting} title="Extrair Dump CSV" style={{padding: '10px 14px', borderRadius: '10px', background: 'rgba(0,0,0,0.5)', borderColor: 'rgba(255,255,255,0.1)'}}>
-            {isExporting ? <Loader2 size={18} className="spin" color="var(--primary)" /> : <DownloadCloud size={18} />}
-          </button>
-
-          <button className="btn btn-outline" onClick={handleRefresh} title="Sincronizar Cluster" style={{padding: '10px 14px', borderRadius: '10px', background: 'rgba(0,0,0,0.5)', borderColor: 'rgba(255,255,255,0.1)'}}>
+        <div className="gestao-toolbar">
+          <button className="btn btn-outline" onClick={() => carregarEmpresas(true)} disabled={isRefreshing} title="Sincronizar tenants">
             <RefreshCw size={18} className={isRefreshing ? 'spin' : ''} />
           </button>
-          
-          <button className="btn btn-primary" onClick={() => { setForm({ ...formInicial }); setModalAberto(true); }} style={{padding: '10px 20px', borderRadius: '10px', display: 'flex', gap: '8px', fontWeight: '900', letterSpacing: '0.5px', textTransform: 'uppercase'}}>
-            <PlusCircle size={18} /> Provisionar
+          <button className="btn btn-outline" onClick={exportarEmpresasCSV} disabled={isExporting} title="Exportar para CSV">
+            {isExporting ? <Loader2 size={18} className="spin" /> : <DownloadCloud size={18} />}
+            <span className="desktop-only-inline" style={{ marginLeft: '8px' }}>Exportar</span>
+          </button>
+          <button className="btn btn-primary" onClick={() => { setForm({ ...formInicial }); setModalAberto(true); }}>
+            <PlusCircle size={18} style={{ marginRight: '8px' }} /> Nova Organização
           </button>
         </div>
       </div>
 
-      {/* KPI DASHBOARD (HUD V3) */}
-      <div className="kpi-grid-modern">
+      <div className="kpi-grid-modern stagger-2">
         <div className="kpi-card-modern info">
-          {renderMiniGraph()}
           <div className="kpi-text-box">
-            <span className="kpi-value-modern">{isLoading ? '-' : kpis.total}</span>
-            <span className="kpi-label-modern">Tenants Alocados</span>
+            <span className="kpi-value-modern">{kpis.total}</span>
+            <span className="kpi-label-modern">Tenants registrados</span>
           </div>
-          <div className="kpi-icon-glow"><Briefcase size={28}/></div>
+          <div className="kpi-bg-graph">
+            {[34, 62, 41, 76, 58].map((height, index) => <div key={index} className="kpi-bg-bar" style={{ height: `${height}%` }} />)}
+          </div>
         </div>
         <div className="kpi-card-modern success">
-          {renderMiniGraph()}
           <div className="kpi-text-box">
-            <span className="kpi-value-modern">{isLoading ? '-' : kpis.ativas}</span>
-            <span className="kpi-label-modern">Sessões OK (Online)</span>
+            <span className="kpi-value-modern">{kpis.ativas}</span>
+            <span className="kpi-label-modern">Organizações ativas</span>
           </div>
-          <div className="kpi-icon-glow"><ShieldCheck size={28}/></div>
+          <div className="kpi-bg-graph">
+            {[28, 52, 68, 81, 74].map((height, index) => <div key={index} className="kpi-bg-bar" style={{ height: `${height}%` }} />)}
+          </div>
         </div>
         <div className="kpi-card-modern danger">
-          {renderMiniGraph()}
           <div className="kpi-text-box">
-            <span className="kpi-value-modern">{isLoading ? '-' : kpis.suspensas}</span>
-            <span className="kpi-label-modern">Lockdown Ativo</span>
+            <span className="kpi-value-modern">{kpis.bloqueadas}</span>
+            <span className="kpi-label-modern">Acessos bloqueados</span>
           </div>
-          <div className="kpi-icon-glow"><ShieldAlert size={28}/></div>
+          <div className="kpi-bg-graph">
+            {[18, 24, 16, 22, 20].map((height, index) => <div key={index} className="kpi-bg-bar" style={{ height: `${height}%` }} />)}
+          </div>
         </div>
       </div>
 
-      {/* DATAGRID ENTERPRISE (FLOATING ROWS V2) */}
-      <div className="table-container-modern">
-        <table className="modern-table">
-          <thead>
-            <tr>
-              <th>Identificação do Tenant</th>
-              <th>Registro Legal (DB Key)</th>
-              <th>Canais de Comunicação</th>
-              <th style={{ textAlign: 'center' }}>IAM & Firewall</th>
-              <th style={{ textAlign: 'right' }}>Painel de Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <>
-                <tr><td colSpan="5" style={{padding: '0 0 10px 0', border: 'none', background: 'transparent'}}><div className="skeleton-box"></div></td></tr>
-                <tr><td colSpan="5" style={{padding: '0 0 10px 0', border: 'none', background: 'transparent'}}><div className="skeleton-box"></div></td></tr>
-                <tr><td colSpan="5" style={{padding: '0 0 10px 0', border: 'none', background: 'transparent'}}><div className="skeleton-box"></div></td></tr>
-              </>
-            ) : empresasFiltradas.length > 0 ? (
-              empresasFiltradas.map(emp => (
-                <tr key={emp.id} className={emp.status === 'Suspensa' ? 'row-suspensa' : ''}>
-                  <td>
-                    <div className="empresa-name-box">
-                      <div className="empresa-icon-wrapper"><Building2 size={20} /></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <strong style={{fontSize: '0.95rem', color: 'white', fontWeight: '800'}}>{emp.nome}</strong>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', textTransform: 'uppercase' }}>
-                          <Calendar size={12}/> Deploy: {emp.data_cadastro ? new Date(emp.data_cadastro).toLocaleDateString('pt-BR') : 'Data Indisponível'}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="legal-info">{emp.cnpj || 'KEY: ISENTA_ESTRANGEIRA'}</span>
-                  </td>
-                  <td>
-                    <div className="contact-box-org">
-                      <div className="contact-item"><Phone size={12} color="var(--primary)"/> {emp.contato || 'Telefone offline'}</div>
-                      <div className="contact-item"><Mail size={12} color="var(--primary)"/> {emp.email || 'Email offline'}</div>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                     <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
-                        <span className={`badge-modern ${emp.status === 'Ativa' ? 'active' : 'suspended'}`}>
-                          <span className={`status-led ${emp.status === 'Ativa' ? 'active' : 'suspended'}`}></span>
-                          {emp.status}
-                        </span>
-                        <div className="sla-indicator">{emp.status === 'Ativa' ? '99.98% SLA' : 'SLA FAILED'}</div>
-                     </div>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center'}}>
-                      <button style={{background:'transparent', border:'none', cursor:'pointer', transition: 'transform 0.2s'}} onClick={() => alternarStatus(emp)} title="Alterar Políticas de Acesso (IAM)" onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
-                        {emp.status === 'Ativa' ? <ToggleRight size={32} color="var(--success)"/> : <ToggleLeft size={32} color="var(--danger)"/>}
-                      </button>
-                      <button className="action-btn-modern" onClick={() => { setForm(emp); setModalAberto(true); }} title="Parametrizar Organização"><Edit size={16} /></button>
-                      <button className="action-btn-modern delete" onClick={() => pedirExclusao(emp.id, emp.nome)} title="Forçar DROP no Banco de Dados"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" style={{background: 'transparent', border: 'none'}}>
-                  <div style={{padding: '5rem 2rem', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)'}}>
-                    <Activity size={56} style={{opacity: 0.2}} />
-                    <div>
-                      <h4 style={{margin: '0 0 8px 0', color: 'white', fontSize: '1.2rem', fontWeight: '900', letterSpacing: '1px'}}>QUERY VAZIA</h4>
-                      <p style={{margin: 0, fontSize: '0.85rem', fontWeight: '600'}}>O filtro ({filtroStatus}) não retornou resultados no cluster.</p>
-                    </div>
-                    {busca || filtroStatus !== 'Todas' ? (
-                      <button className="btn btn-outline" onClick={() => { setBusca(''); setFiltroStatus('Todas'); }} style={{borderRadius: '10px', fontWeight: 'bold'}}>
-                        Resetar Query de Busca
-                      </button>
-                    ) : (
-                      <button className="btn btn-primary" onClick={() => { setForm({ ...formInicial }); setModalAberto(true); }} style={{borderRadius: '10px', fontWeight: 'bold'}}>
-                        <PlusCircle size={16} style={{marginRight: '8px'}}/> Provisionar Host
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="gestao-toolbar filters-bar stagger-3">
+        <div className="search-modern">
+          <Search size={18} color="var(--text-muted)" />
+          <input type="text" placeholder="Localizar pelo nome, CNPJ ou e-mail..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+        </div>
+        <select className="filter-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+          <option value="Todas">Todas</option>
+          <option value="Ativa">Ativas</option>
+          <option value="Bloqueada">Bloqueadas</option>
+        </select>
       </div>
 
-      {/* PAINEL LATERAL (SLIDE-OVER) PARA PROVISIONAMENTO/EDIÇÃO */}
+      <div className="tenant-grid-modern stagger-4">
+        {isLoading ? (
+          <div className="gestao-empty-state">
+            <Loader2 size={48} className="spin" color="var(--primary)" />
+            <p>Sincronizando as partições da base de dados...</p>
+          </div>
+        ) : empresasFiltradas.length === 0 ? (
+          <div className="gestao-empty-state">
+            <Globe size={64} style={{ opacity: 0.2 }} />
+            <p>Nenhuma organização encontrada para os critérios atuais.</p>
+          </div>
+        ) : (
+          empresasFiltradas.map((emp) => (
+            <article key={emp.id} className={`tenant-card-modern ${emp.status === 'Bloqueada' ? 'blocked' : ''}`}>
+              <div className="tenant-card-head">
+                <div className="tenant-logo">
+                  {emp.status === 'Ativa' ? <Activity size={20} color="var(--success)" /> : <ShieldAlert size={20} color="var(--danger)" />}
+                </div>
+                <div className="tenant-card-title">
+                  <h3>{emp.nome}</h3>
+                  <span className={`tenant-badge ${emp.status === 'Ativa' ? 'success' : 'danger'}`}>
+                    {emp.status.toUpperCase()}
+                  </span>
+                </div>
+                <button className="btn-icon" onClick={() => { setForm(emp); setModalAberto(true); }} title="Editar organização">
+                  <Edit size={18} />
+                </button>
+              </div>
+
+              <div className="tenant-card-body">
+                <div className="tenant-info-row" title="Registro legal">
+                  <Briefcase size={14} />
+                  <span>{emp.cnpj || 'Sem registro CNPJ'}</span>
+                </div>
+                <div className="tenant-info-row" title="Telefone de contato">
+                  <Phone size={14} />
+                  <span>{emp.contato || 'Sem contato'}</span>
+                </div>
+                <div className="tenant-info-row" title="E-mail de serviço">
+                  <Mail size={14} />
+                  <span>{emp.email || 'Sem e-mail'}</span>
+                </div>
+              </div>
+
+              <div className="tenant-card-footer">
+                <span className="tenant-id">ID: {String(emp.id).padStart(4, '0')}</span>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
       {modalAberto && (
-        <>
-          <div className="side-panel-overlay" onClick={fecharModal}></div>
-          <div className={`side-panel-container ${modalClosing ? 'closing' : ''}`}>
-            
+        <div className="side-panel-overlay" onClick={fecharModal}>
+          <div className={`side-panel-container ${modalClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
             <div className="side-panel-header">
-               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.1rem', fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                 {form.id ? <Edit size={22} color="var(--primary)"/> : <PlusCircle size={22} color="var(--primary)"/>}
-                 {form.id ? 'Parametrizar Tenant' : 'Provisionar Novo Tenant'}
-               </h3>
-               <button style={{background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'var(--text-muted)', cursor:'pointer', padding:'6px', borderRadius: '8px', transition: '0.2s'}} onClick={fecharModal} onMouseOver={e => {e.currentTarget.style.color='white'; e.currentTarget.style.background='var(--danger)'; e.currentTarget.style.borderColor='var(--danger)';}} onMouseOut={e => {e.currentTarget.style.color='var(--text-muted)'; e.currentTarget.style.background='rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';}}>
-                 <X size={18}/>
-               </button>
+              <h3 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: 'white'}}><Building2 size={24} color="var(--primary)"/> {form.id ? 'Atualizar Organização' : 'Novo Provisionamento'}</h3>
+              <button className="btn-icon" onClick={fecharModal}><X size={24} /></button>
             </div>
             
-            <form onSubmit={salvarEmpresa} style={{display: 'flex', flexDirection: 'column', flex: 1}}>
-              <div className="modern-modal-body">
+            <form onSubmit={salvarEmpresa} className="modern-modal-body">
+              <div className="form-group-card">
+                <h4 style={{color: 'var(--primary)', marginBottom: '15px', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px'}}>Identidade Corporativa</h4>
+                
                 <div className="input-group-modern">
-                  <label>Razão Social / Nome de Operação *</label>
-                  <input type="text" className="modern-input" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required autoFocus placeholder="Ex: TermoSync AWS S/A" />
+                  <label>Organização (Tenant Name) *</label>
+                  <input type="text" className="modern-input" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex: Supermercados Alpha" required autoFocus />
                 </div>
                 
                 <div className="input-group-modern">
-                  <label>Identificador Fiscal (CNPJ)</label>
-                  <input type="text" className="modern-input" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0001-00" />
+                  <label>CNPJ (Identificação Legal)</label>
+                  <input 
+                    type="text" 
+                    className="modern-input" 
+                    value={form.cnpj} 
+                    onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })} 
+                    placeholder="00.000.000/0000-00" 
+                    maxLength="18"
+                  />
                 </div>
+
+                <div className="input-group-modern">
+                  <label>Status Operacional</label>
+                  <div className="status-toggle-wrapper" onClick={() => setForm({ ...form, status: form.status === 'Ativa' ? 'Bloqueada' : 'Ativa' })}>
+                    {form.status === 'Ativa' ? <ToggleRight size={36} color="var(--success)" /> : <ToggleLeft size={36} color="var(--danger)" />}
+                    <span style={{ fontWeight: 'bold', color: form.status === 'Ativa' ? 'var(--success)' : 'var(--danger)' }}>
+                      {form.status === 'Ativa' ? 'CONTRATO ATIVO' : 'SISTEMA SUSPENSO'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group-card">
+                <h4 style={{color: 'var(--secondary)', marginBottom: '15px', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px'}}>Canais de Comunicação</h4>
                 
                 <div className="input-group-modern">
-                  <label>Hotline (Telefone)</label>
+                  <label>Contato de Emergência (Telefone)</label>
                   <input type="text" className="modern-input" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} placeholder="(00) 00000-0000" />
                 </div>
                 
@@ -362,12 +297,12 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
                 <button type="button" className="btn btn-outline" style={{flex: 1, padding: '16px', borderRadius: '10px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase'}} onClick={fecharModal} disabled={isSubmitting}>Abortar</button>
                 <button type="submit" className="btn btn-primary" style={{flex: 2, padding: '16px', borderRadius: '10px', display: 'flex', gap: '10px', justifyContent: 'center', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase'}} disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 size={20} className="spin" /> : <Save size={20} />} 
-                  {isSubmitting ? 'Injetando Query...' : (form.id ? 'Commit (UPDATE)' : 'Commit (INSERT)')}
+                  {isSubmitting ? 'Injetando Query...' : (form.id ? 'Commit (UPDATE)' : 'Provisionar (INSERT)')}
                 </button>
               </div>
             </form>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

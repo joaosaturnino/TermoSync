@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   User, Lock, AlertTriangle, WifiOff, Loader2, ArrowRight, 
-  Eye, EyeOff, CheckCircle, ArrowLeft, ShieldCheck, Activity, Terminal
+  Eye, EyeOff, CheckCircle, ArrowLeft, ShieldCheck, Activity, Terminal,
+  Server, ChevronDown, ChevronUp
 } from 'lucide-react';
 import TermoSyncLogo from '../../components/TermoSyncLogo';
+import { getApiUrl, getServerUrl, setServerUrl, isCapacitor, isMobileDevice, needsServerConfig } from '../../config/api.js';
 
 import './Login.css';
-
-const API_URL = 'http://localhost:3000/api';
 
 export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro }) {
   const [usuario, setUsuario] = useState('');
@@ -23,6 +23,8 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [showServerConfig, setShowServerConfig] = useState(needsServerConfig());
+  const [serverInput, setServerInput] = useState(getServerUrl());
 
   useEffect(() => {
     setResetError('');
@@ -61,7 +63,7 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
 
     setIsResetLoading(true);
     try {
-      await axios.put(`${API_URL}/usuarios/reset-senha`, { usuario: resetUser, novaSenha: newPassword });
+      await axios.put(`${getApiUrl()}/usuarios/reset-senha`, { usuario: resetUser, novaSenha: newPassword });
       setView('success');
     } catch (error) {
       setResetError(error.response?.data?.error || 'Erro ao redefinir. Verifique o usuário.');
@@ -117,6 +119,35 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
               <div className="login-alert warning stagger-2">
                 <WifiOff size={18} />
                 <span>Modo Offline: Verifique a rede local.</span>
+              </div>
+            )}
+
+            {(isCapacitor() || isMobileDevice()) && (
+              <div className="server-config-panel stagger-2">
+                <button
+                  type="button"
+                  className="server-config-toggle"
+                  onClick={() => setShowServerConfig(!showServerConfig)}
+                >
+                  <span><Server size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />Servidor Backend</span>
+                  {showServerConfig ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {showServerConfig && (
+                  <div className="server-config-body">
+                    <label>Endereço do servidor (IP:porta)</label>
+                    <input
+                      type="url"
+                      placeholder="http://192.168.1.100:3000"
+                      value={serverInput}
+                      onChange={(e) => setServerInput(e.target.value)}
+                      onBlur={() => setServerUrl(serverInput)}
+                    />
+                    <span className="server-config-hint">
+                      Use o IP da máquina onde o backend está rodando. Emulador Android: 10.0.2.2:3000
+                    </span>
+                    <span className="server-config-current">Atual: {getServerUrl()}</span>
+                  </div>
+                )}
               </div>
             )}
 

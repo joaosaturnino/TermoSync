@@ -6,7 +6,18 @@
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:simulador": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run simulador --prefix backend\"",
-    "openmobile": "node ./node_modules/openmobile/ip.js"
+    "openmobile": "node ./node_modules/openmobile/ip.js",
+    "mobile:install": "npm install --prefix mobile && npm install --prefix frontend",
+    "mobile:build": "npm run build:mobile --prefix frontend",
+    "mobile:sync": "npm run sync --prefix mobile",
+    "mobile:sync:android": "npm run sync:android --prefix mobile",
+    "mobile:sync:ios": "npm run sync:ios --prefix mobile",
+    "mobile:open:android": "npm run open:android --prefix mobile",
+    "mobile:open:ios": "npm run open:ios --prefix mobile",
+    "mobile:run:android": "npm run run:android --prefix mobile",
+    "mobile:run:ios": "npm run run:ios --prefix mobile",
+    "mobile:add:android": "npm run add:android --prefix mobile",
+    "mobile:add:ios": "npm run add:ios --prefix mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

@@ -1,0 +1,161 @@
+/* =========================================
+   TERMO SYNC MOBILE — Estilos nativos
+   Complementa App.css (768px/480px)
+   ========================================= */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+.mobile-app,
+.native-app {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+
+.native-app .app-container,
+.native-app .login-container {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+.native-app .sidebar {
+  padding-top: var(--safe-top);
+  height: calc(100dvh - var(--safe-top));
+}
+
+.native-app .header {
+  padding-top: calc(1rem + var(--safe-top));
+}
+
+.mobile-app .btn,
+.mobile-app .btn-icon,
+.mobile-app .nav-item {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.mobile-app .nav-item {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+.mobile-app input,
+.mobile-app select,
+.mobile-app textarea {
+  font-size: 16px;
+}
+
+.mobile-app .content-area {
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-app .main-content {
+  overscroll-behavior-y: contain;
+}
+
+/* Configuração de servidor no login (mobile) */
+.server-config-panel {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  overflow: hidden;
+}
+
+.server-config-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.server-config-toggle:hover {
+  color: #38bdf8;
+}
+
+.server-config-body {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.server-config-body label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.server-config-body input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(2, 6, 23, 0.8);
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.server-config-body input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.server-config-hint {
+  font-size: 0.65rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.server-config-current {
+  font-size: 0.7rem;
+  color: #10b981;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .mobile-app .toast-container {
+    bottom: calc(10px + var(--safe-bottom));
+  }
+
+  .mobile-app .modal-content {
+    max-height: calc(85vh - var(--safe-top) - var(--safe-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-app .login-box {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 16px;
+  }
+
+  .mobile-app .login-container {
+    padding: 1rem 0.75rem;
+    justify-content: flex-start;
+    padding-top: calc(1.5rem + var(--safe-top));
+  }
+}

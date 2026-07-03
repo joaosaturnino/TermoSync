@@ -41,6 +41,49 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+.app-status-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.dark-theme .app-status-strip {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-pill-online {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+}
+
+.status-pill-offline {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--danger);
+}
+
+.status-pill-muted {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--info);
+}
+
 * {
   box-sizing: border-box;
 }
