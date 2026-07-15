@@ -1,32 +1,52 @@
 import React, { useState, useMemo } from 'react';
 import { 
   ClipboardCheck, Target, Search, ShieldCheck, ShieldAlert, 
-  AlertTriangle, Calendar, Edit, Server, MapPin
+  AlertTriangle, Calendar, Edit, Server, MapPin, Lock, Shield
 } from 'lucide-react';
 import './Metrologia.css';
 
-export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) {
+export default function Metrologia({ equipamentosDaFilial, editarEquipamento, userRole, filialAtiva }) {
   
   const [busca, setBusca] = useState('');
 
-  // Processa o tempo e o estado da calibração
+  // ============================================================================
+  // MOTOR DE SEGURANÇA E ISOLAMENTO DE ACESSO
+  // ============================================================================
+  const roleLogada = userRole || sessionStorage.getItem('userRole') || 'LOJA';
+  const papelLogado = sessionStorage.getItem('papelLogado') || ''; 
+  const isGestorLoja = papelLogado.toLowerCase().includes('gerente') || papelLogado.toLowerCase().includes('coordenador');
+  
+  // Apenas Gestores da Loja, Manutenção e NOC podem registrar aferições (alterar a data do certificado).
+  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV' || roleLogada === 'MANUTENCAO' || (roleLogada === 'LOJA' && isGestorLoja);
+
+  // Isolamento Rigoroso de Filial (Tenancy tolerante a dados de teste)
+  const equipamentosSeguros = useMemo(() => {
+    let lista = equipamentosDaFilial || [];
+    if (filialAtiva && filialAtiva !== 'Todas') {
+      const f = filialAtiva.trim().toLowerCase();
+      lista = lista.filter(eq => (eq.filial || 'Loja Principal').trim().toLowerCase() === f);
+    }
+    return lista;
+  }, [equipamentosDaFilial, filialAtiva]);
+
+  // Processa o tempo e o estado da calibração baseado nos dados permitidos
   const analise = useMemo(() => {
     const hoje = new Date().getTime();
-    return equipamentosDaFilial.map(eq => {
+    return equipamentosSeguros.map(eq => {
       const dias = eq.data_calibracao ? Math.floor((hoje - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 999;
       const status = dias > 365 ? 'VENCIDO' : (dias > 330 ? 'ALERTA' : 'OK');
       return { ...eq, dias_calibracao: dias, status_calibracao: status };
     }).sort((a, b) => b.dias_calibracao - a.dias_calibracao);
-  }, [equipamentosDaFilial]);
+  }, [equipamentosSeguros]);
 
   // Motor de Pesquisa
   const equipamentosFiltrados = useMemo(() => {
     if (!busca.trim()) return analise;
-    const termo = busca.toLowerCase();
+    const termo = busca.toLowerCase().trim();
     return analise.filter(eq => 
-      eq.nome?.toLowerCase().includes(termo) || 
-      eq.filial?.toLowerCase().includes(termo) ||
-      eq.setor?.toLowerCase().includes(termo)
+      (eq.nome || '').toLowerCase().includes(termo) || 
+      (eq.filial || '').toLowerCase().includes(termo) ||
+      (eq.setor || '').toLowerCase().includes(termo)
     );
   }, [analise, busca]);
 
@@ -56,11 +76,17 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) 
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="search-box-metrologia">
             <Search size={16} color="var(--text-muted)" />
             <input type="text" placeholder="Pesquisar equipamento ou filial..." value={busca} onChange={e => setBusca(e.target.value)} />
           </div>
+
+          {!canEdit && (
+            <div className="read-only-banner" title="Modo de Leitura: Apenas Manutenção ou Gestores podem alterar a data da calibração.">
+              <Lock size={16} /> Auditoria Estrita
+            </div>
+          )}
         </div>
       </div>
 
@@ -100,7 +126,7 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) 
             {equipamentosFiltrados.map(eq => (
               <tr key={eq.id} className={`metrologia-row ${eq.status_calibracao === 'VENCIDO' ? 'row-vencida' : ''}`}>
                 
-                <td>
+                <td data-label="Hardware">
                   <div className="equip-ident-box">
                     <div className="equip-icon"><Server size={18} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -110,25 +136,25 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) 
                   </div>
                 </td>
                 
-                <td>
+                <td data-label="Localização">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                    <MapPin size={14} /> {eq.filial}
+                    <MapPin size={14} /> {eq.filial || 'Matriz / Loja Principal'}
                   </div>
                 </td>
                 
-                <td>
+                <td data-label="Auditoria">
                   <div className="dias-box" style={{ color: eq.status_calibracao === 'VENCIDO' ? 'var(--danger)' : 'var(--text-main)' }}>
                     <Calendar size={14} /> 
                     {eq.dias_calibracao === 999 ? 'Sem Registro' : `${eq.dias_calibracao} dias atrás`}
                   </div>
                   {eq.data_calibracao && (
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Data: {new Date(eq.data_calibracao).toLocaleDateString()}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'JetBrains Mono, monospace' }}>
+                      Aferido em: {new Date(eq.data_calibracao).toLocaleDateString('pt-BR')}
                     </div>
                   )}
                 </td>
                 
-                <td>
+                <td data-label="SLA Compliance">
                   {eq.status_calibracao === 'VENCIDO' && (
                     <span className="badge-metro badge-vencido">
                       <ShieldAlert size={14}/> CERTIFICADO VENCIDO
@@ -146,14 +172,20 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) 
                   )}
                 </td>
                 
-                <td style={{ textAlign: 'right' }}>
-                  <button 
-                    className="btn btn-outline" 
-                    onClick={() => editarEquipamento(eq)}
-                    style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Edit size={14} /> REGISTRAR AFERIÇÃO
-                  </button>
+                <td data-label="Ação" style={{ textAlign: 'right' }}>
+                  {canEdit ? (
+                    <button 
+                      className="btn btn-outline" 
+                      onClick={() => editarEquipamento(eq)}
+                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Edit size={14} /> REGISTRAR AFERIÇÃO
+                    </button>
+                  ) : (
+                    <div className="lock-icon-read" title="Apenas Gestores, Manutenção ou NOC podem registrar aferições">
+                      <Shield size={16} /> <span className="desktop-only-inline" style={{fontSize: '0.7rem', marginLeft: '6px'}}>Protegido</span>
+                    </div>
+                  )}
                 </td>
                 
               </tr>
@@ -163,8 +195,8 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento }) 
               <tr>
                 <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                   <ClipboardCheck size={40} style={{ opacity: 0.2, margin: '0 auto 1rem auto', display: 'block' }}/>
-                  <p style={{ fontWeight: 'bold', fontSize: '1rem', margin: 0 }}>Nenhum ativo localizado.</p>
-                  <p style={{ fontSize: '0.85rem' }}>Verifique os termos da sua pesquisa.</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>Nenhum ativo localizado.</p>
+                  <p style={{ fontSize: '0.85rem' }}>A pesquisa não retornou resultados ou a filial atual não possui sensores.</p>
                 </td>
               </tr>
             )}

@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * ROBÔ SIMULADOR IoT (DIGITAL TWIN) - TermoSync Enterprise NOC
- * Versão: 7.3 | ANTI-CRASH, AUTO-FIX E GERAÇÃO DE CAOS CONTROLADO
+ * Versão: 7.5 | ANTI-CRASH, CAOS CONTROLADO E FINOPS AVANÇADO (HISTÓRICO)
  * ============================================================================
  */
 
@@ -21,10 +21,11 @@ let tokenAtivo = '';
 let historicoTemperaturas = {}; 
 let historicoUmidades = {}; 
 let tickCount = 0;
+let historicoFinanceiroGerado = false; // Flag para garantir que injetamos histórico apenas 1x
 
 console.log(`${COLORS.magenta}${COLORS.bold}
 =========================================================
-  [ TermoSync NOC ] - MOTOR DE TELEMETRIA IOT ATIVO
+  [ TermoSync NOC ] - MOTOR DE TELEMETRIA E SAAS ATIVO
 =========================================================${COLORS.reset}`);
 
 // 1. LOGIN BLINDADO
@@ -64,7 +65,7 @@ async function criarChamadoSimulado(eq, tipoFalha) {
   } catch (e) {}
 }
 
-// 3. TÉCNICO VIRTUAL (RESOLVE OS CHAMADOS, MAS DEIXA NA TELA PARA VOCÊ ARQUIVAR)
+// 3. TÉCNICO VIRTUAL (RESOLVE OS CHAMADOS)
 async function gerirChamadosPendentes() {
   try {
     const res = await axios.get(`${API_URL}/chamados`, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
@@ -89,7 +90,6 @@ async function gerirChamadosPendentes() {
           ];
           const solucaoSorteada = solucoes[Math.floor(Math.random() * solucoes.length)];
 
-          // 🔥 Exige explicitamente arquivado: false para brilhar verde na sua tela
           await axios.put(`${API_URL}/chamados/${c.id}/status`, { 
             status: 'Concluído', 
             nota_resolucao: `[Auto-Fix IA] ${solucaoSorteada}`,
@@ -148,7 +148,92 @@ async function simularMaquina(eq) {
   } catch (e) {}
 }
 
-// 5. LOOP BATCH
+// 5. MÓDULO FINOPS AVANÇADO - GERA HISTÓRICO, FATURAS, PAGAMENTOS E ATRASOS
+async function simularFaturamentoSaaS() {
+  try {
+    console.log(`\n${COLORS.magenta}${COLORS.bold}💸 [FINOPS] Processando motores de faturamento SaaS...${COLORS.reset}`);
+
+    const resLojas = await axios.get(`${API_URL}/lojas`, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+    const lojas = Array.isArray(resLojas.data) ? resLojas.data : [];
+
+    // ========================================================================
+    // 5.1 GERAR HISTÓRICO (Roda apenas uma vez) para popular gráficos
+    // ========================================================================
+    if (!historicoFinanceiroGerado && lojas.length > 0) {
+      console.log(`${COLORS.gray}  ↳ Populando banco de dados com histórico dos últimos 6 meses...${COLORS.reset}`);
+      const hoje = new Date();
+      
+      for (let i = 5; i >= 1; i--) {
+        let dataRef = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        let mes = dataRef.getMonth() + 1;
+        let ano = dataRef.getFullYear();
+        let vencimento = `${ano}-${mes.toString().padStart(2, '0')}-10`;
+
+        for (let loja of lojas) {
+          // 85% de chance de ter pago nos meses anteriores, 15% de chance de calote
+          let pagou = Math.random() < 0.85;
+          let status = pagou ? 'PAGO' : 'PENDENTE'; // Sendo do passado, PENDENTE será considerado VENCIDA pelo React
+          let dataPgto = pagou ? `'${ano}-${mes.toString().padStart(2, '0')}-12 14:00:00'` : 'NULL';
+
+          let sql = `
+            INSERT IGNORE INTO faturas_saas 
+            (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
+            VALUES ('${loja.nome}', 'PRO', 299.90, 299.90, '${vencimento}', ${mes}, ${ano}, '${status}', ${dataPgto})
+          `;
+          await axios.post(`${API_URL}/system/query-raw`, { sql }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+        }
+      }
+      historicoFinanceiroGerado = true;
+      console.log(`${COLORS.green}  ↳ Histórico de faturamento gerado com sucesso! Gráficos alimentados.${COLORS.reset}`);
+    }
+
+    // ========================================================================
+    // 5.2 LOTE DO MÊS ATUAL (Gera as faturas do ciclo vigente)
+    // ========================================================================
+    await axios.post(`${API_URL}/financeiro/cobranca-lote`, {}, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+
+    // ========================================================================
+    // 5.3 COMPORTAMENTO DE PAGAMENTO (Quem paga, quem aguarda, quem atrasa)
+    // ========================================================================
+    for (let loja of lojas) {
+      const probabilidade = Math.random();
+
+      if (probabilidade < 0.30) {
+        // 30% DE CHANCE: Cliente PAGA a fatura do mês atual na hora
+        try {
+          await axios.post(`${API_URL}/financeiro/faturas/${encodeURIComponent(loja.nome)}/pagar`, {}, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+          console.log(`${COLORS.green}  ↳ [PAGO] Transferência efetuada pela organização: ${loja.nome}${COLORS.reset}`);
+        } catch (err) {}
+
+      } else if (probabilidade < 0.70) {
+        // 40% DE CHANCE: Cliente AGUARDA / fatura recém emitida, ainda dentro do prazo
+        console.log(`${COLORS.cyan}  ↳ [PENDENTE] A organização ${loja.nome} recebeu a fatura e está dentro do prazo.${COLORS.reset}`);
+      
+      } else {
+        // 30% DE CHANCE: Força INADIMPLÊNCIA gerando uma fatura de mês anterior como "PENDENTE"
+        // (O seu frontend identifica que a data já passou e marca como "ATRASADA" ou "VENCIDA")
+        let dataAtraso = new Date();
+        dataAtraso.setMonth(dataAtraso.getMonth() - 1);
+        let mesAtraso = dataAtraso.getMonth() + 1;
+        let anoAtraso = dataAtraso.getFullYear();
+        let vencAtraso = `${anoAtraso}-${mesAtraso.toString().padStart(2, '0')}-10`;
+
+        let sqlInadimplente = `
+            INSERT IGNORE INTO faturas_saas 
+            (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
+            VALUES ('${loja.nome}', 'PRO', 299.90, 299.90, '${vencAtraso}', ${mesAtraso}, ${anoAtraso}, 'PENDENTE', NULL)
+        `;
+        await axios.post(`${API_URL}/system/query-raw`, { sql: sqlInadimplente }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
+        console.log(`${COLORS.yellow}  ↳ [INADIMPLENTE] Fatura em atraso mantida/injetada para: ${loja.nome}${COLORS.reset}`);
+      }
+    }
+
+  } catch (error) {
+    console.log(`${COLORS.red}❌ [FINOPS ERROR] Falha ao executar simulador de faturamento: ${error.message}${COLORS.reset}`);
+  }
+}
+
+// 6. LOOP BATCH PRINCIPAL
 async function executarSimulacao() {
   if (!tokenAtivo) { const sucesso = await autenticar(); if (!sucesso) return; }
   try {
@@ -167,6 +252,11 @@ async function executarSimulacao() {
     
     if(tickCount % 20 === 0) console.clear();
     await gerirChamadosPendentes();
+
+    // A CADA 15 CICLOS (aprox. 30 segundos), CHAMA O MÓDULO FINANCEIRO
+    if (tickCount % 15 === 0) {
+      await simularFaturamentoSaaS();
+    }
 
   } catch (error) { if (error.response?.status === 401) tokenAtivo = ''; }
 }

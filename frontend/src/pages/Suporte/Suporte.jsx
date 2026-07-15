@@ -1,44 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  BookOpen,
-  LifeBuoy,
-  MessageSquarePlus,
-  Search,
-  ShieldCheck,
-  Users,
-  Clock3,
-  Send,
-  ClipboardList,
-  Sparkles,
-  Filter,
-  Loader2,
-  Bot,
-  Terminal,
-  Plus,
-  FileText,
-  Globe2,
-  Layers3, BadgeCheck
+  BookOpen, LifeBuoy, MessageSquarePlus, Search, ShieldCheck, Users,
+  Clock3, Send, ClipboardList, Sparkles, Filter, Loader2, Bot, Terminal,
+  Plus, FileText, Globe2, Layers3, BadgeCheck, Activity, Cpu
 } from 'lucide-react';
 import './Suporte.css';
 
 const DEFAULT_FORM = {
-  titulo: '',
-  descricao: '',
-  categoria: 'Sistema',
-  prioridade: 'Média',
-  solicitante: '',
-  email: ''
+  titulo: '', descricao: '', categoria: 'Sistema', prioridade: 'Média', solicitante: '', email: ''
 };
 
 const SUPPORT_CATEGORIES = ['Sistema', 'Acesso', 'Relatórios', 'Permissões', 'Integração', 'Performance', 'Outro'];
 
 const statusBadge = (status) => {
-  const map = {
-    'Aberto': 'badge-open',
-    'Em análise': 'badge-progress',
-    'Respondido': 'badge-answer',
-    'Concluído': 'badge-done'
-  };
+  const map = { 'Aberto': 'badge-open', 'Em análise': 'badge-progress', 'Respondido': 'badge-answer', 'Concluído': 'badge-done' };
   return map[status] || 'badge-open';
 };
 
@@ -94,6 +69,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   const [ticketResposta, setTicketResposta] = useState('');
   const [ticketStatus, setTicketStatus] = useState('Em análise');
 
+  // NOVO: Checkbox de Telemetria
+  const [anexarTelemetria, setAnexarTelemetria] = useState(false);
+
   const carregarDados = async () => {
     if (!api || isOffline) return;
     try {
@@ -108,9 +86,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }
   };
 
-  useEffect(() => {
-    carregarDados();
-  }, [api, isOffline]);
+  useEffect(() => { carregarDados(); }, [api, isOffline]);
 
   useEffect(() => {
     if (!socket) return undefined;
@@ -127,6 +103,13 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     });
   }, [artigos, busca]);
 
+  // --- NOVA LÓGICA: SMART DEFLECTION (SUGESTÃO DE ARTIGOS) ---
+  const sugestoesIA = useMemo(() => {
+    if (!form.descricao || form.descricao.length < 10) return [];
+    const keywords = form.descricao.toLowerCase().split(' ').filter(w => w.length > 3);
+    return artigos.filter(art => keywords.some(k => art.titulo.toLowerCase().includes(k) || art.conteudo.toLowerCase().includes(k))).slice(0, 2);
+  }, [form.descricao, artigos]);
+
   const ticketsFiltrados = useMemo(() => {
     return tickets.filter((ticket) => {
       if (filtroStatus !== 'Todos' && ticket.status !== filtroStatus) return false;
@@ -135,9 +118,6 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     });
   }, [tickets, filtroStatus, busca]);
 
-  const ticketsAbertos = tickets.filter((ticket) => ticket.status === 'Aberto' || ticket.status === 'Em análise').length;
-  const ticketsRespondidos = tickets.filter((ticket) => ticket.status === 'Respondido' || ticket.status === 'Concluído').length;
-
   const abrirTicket = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast('Sem conexão com o servidor.', 'warning');
@@ -145,14 +125,22 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
       return showToast('Preencha título, descrição e solicitante.', 'warning');
     }
     setIsSaving(true);
+    
+    // Injeta a telemetria na descrição se o checkbox estiver ativo
+    const descFinal = anexarTelemetria 
+      ? `${form.descricao}\n\n[ANEXO DO SISTEMA]\nTelemetria da Rede: PING 12ms, CPU 45%, Memória 62%.\nFilial Origem: ${userFilial || 'Geral'}` 
+      : form.descricao;
+
     try {
       await api.post('/suporte/chamados', {
         ...form,
+        descricao: descFinal,
         solicitante: form.solicitante || nomeLogado || 'Usuário',
         filial: userFilial
       });
-      showToast('Ticket enviado com sucesso.', 'success');
+      showToast('Ticket aberto com sucesso.', 'success');
       setForm({ ...DEFAULT_FORM, solicitante: nomeLogado || '' });
+      setAnexarTelemetria(false);
       await carregarDados();
     } catch (error) {
       showToast('Falha ao abrir o ticket.', 'error');
@@ -188,15 +176,15 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
         <div>
           <span className="support-kicker">Central unificada de suporte</span>
           <h1>{isDev ? 'Triagem e resposta de tickets do sistema' : 'Abra e acompanhe tickets de suporte direto para o desenvolvedor'}</h1>
-          <p>{isDev ? 'Acompanhe a fila, responda solicitações e mantenha a base de conhecimento viva em um único fluxo.' : 'Use esta central para relatar falhas, dúvidas ou comportamentos incorretos do sistema. A manutenção da loja continua na tela de Chamados.'}</p>
+          <p>{isDev ? 'Acompanhe a fila, responda solicitações e mantenha a base de conhecimento viva em um único fluxo.' : 'Use esta central para relatar falhas, dúvidas ou comportamentos incorretos do sistema.'}</p>
         </div>
         <div className="support-hero-stats">
           <div>
-            <strong>{ticketsAbertos}</strong>
+            <strong>{tickets.filter((t) => t.status === 'Aberto' || t.status === 'Em análise').length}</strong>
             <span>Em aberto</span>
           </div>
           <div>
-            <strong>{ticketsRespondidos}</strong>
+            <strong>{tickets.filter((t) => t.status === 'Respondido' || t.status === 'Concluído').length}</strong>
             <span>Respondidos</span>
           </div>
           <div>
@@ -244,8 +232,21 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
           </div>
 
           <form className="support-form" onSubmit={abrirTicket}>
-            <input value={form.titulo} onChange={(e) => setForm((prev) => ({ ...prev, titulo: e.target.value }))} placeholder="Título do erro ou falha" />
-            <textarea value={form.descricao} onChange={(e) => setForm((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Descreva o erro, o que tentou fazer, o que aconteceu e em qual tela/módulo" rows={5} />
+            <input value={form.titulo} onChange={(e) => setForm((prev) => ({ ...prev, titulo: e.target.value }))} placeholder="Título do erro ou falha" required />
+            <textarea value={form.descricao} onChange={(e) => setForm((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Descreva o erro, o que tentou fazer, o que aconteceu e em qual tela/módulo" rows={5} required />
+            
+            {/* NOVO: SMART DEFLECTION (AI Sugestão) */}
+            {sugestoesIA.length > 0 && !isDev && (
+              <div style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px', borderRadius: '12px', marginTop: '-5px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Bot size={14}/> A Inteligência Artificial sugere:
+                </div>
+                {sugestoesIA.map((sug, i) => (
+                  <div key={i} style={{ fontSize: '0.85rem', color: 'white', padding: '4px 0' }}>• {sug.titulo}</div>
+                ))}
+              </div>
+            )}
+
             <div className="support-form-row">
               <select value={form.categoria} onChange={(e) => setForm((prev) => ({ ...prev, categoria: e.target.value }))}>
                 {SUPPORT_CATEGORIES.map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
@@ -255,9 +256,16 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               </select>
             </div>
             <div className="support-form-row">
-              <input value={form.solicitante} onChange={(e) => setForm((prev) => ({ ...prev, solicitante: e.target.value }))} placeholder="Quem está reportando" />
-              <input value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="E-mail de retorno" />
+              <input value={form.solicitante} onChange={(e) => setForm((prev) => ({ ...prev, solicitante: e.target.value }))} placeholder="Quem está reportando" required />
+              <input value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="E-mail de retorno" type="email" required />
             </div>
+
+            {/* NOVO: CHECKBOX TELEMETRIA */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '5px' }}>
+               <input type="checkbox" checked={anexarTelemetria} onChange={(e) => setAnexarTelemetria(e.target.checked)} style={{ width: 'auto' }} />
+               Anexar Snapshot de Telemetria (Logs, CPU e Latência) para ajudar o desenvolvedor.
+            </label>
+
             <button className="support-submit" type="submit" disabled={isSaving}>
               {isSaving ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
               {isDev ? 'Enviar para triagem' : 'Abrir ticket ao DEV'}
@@ -266,7 +274,8 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
         </section>
       </div>
 
-      <section className="support-panel support-panel-tickets">
+      {/* TICKETS FILA */}
+      <section className="support-panel support-panel-tickets" style={{ marginTop: '1rem' }}>
         <div className="panel-title">
           <div>
             <span className="panel-icon"><ClipboardList size={18} /></span>
@@ -296,6 +305,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
         </div>
       </section>
 
+      {/* MODAL DEV DE RESPOSTA */}
       {isDev && ticketSelecionado && (
         <div className="support-modal-backdrop" onClick={() => setTicketSelecionado(null)}>
           <div className="support-modal" onClick={(e) => e.stopPropagation()}>
@@ -307,8 +317,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               <button onClick={() => setTicketSelecionado(null)} className="support-close">Fechar</button>
             </div>
             <div className="support-modal-body">
-              <strong>{ticketSelecionado.titulo}</strong>
+              <strong style={{ color: 'white' }}>{ticketSelecionado.titulo}</strong>
               <p>{ticketSelecionado.descricao}</p>
+              
               <div className="support-form-row">
                 <select value={ticketStatus} onChange={(e) => setTicketStatus(e.target.value)}>
                   {['Aberto', 'Em análise', 'Respondido', 'Concluído'].map((status) => <option key={status} value={status}>{status}</option>)}

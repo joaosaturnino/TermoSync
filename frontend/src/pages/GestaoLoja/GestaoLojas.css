@@ -1,359 +1,367 @@
 /* =========================================
-   ESTILOS PREMIUM: GESTÃO DE LOJAS (FILIAIS)
+   GestaoLojas.css - Store Management & Retail
    ========================================= */
 
-.gestao-lojas-header {
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+.anim-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- HERO SECTION --- */
+.gestao-hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid #10b981; 
+  border-radius: 16px;
+  padding: 1.8rem;
   display: flex;
   justify-content: space-between;
+  gap: 1.5rem;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.gestao-lojas-title {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  font-weight: 800;
-}
-
-/* Nova Barra de Pesquisa */
-.loja-search-box {
-  display: flex;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 8px 12px;
-  transition: all 0.3s ease;
-  min-width: 280px;
-}
-
-.dark-theme .loja-search-box {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.loja-search-box:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
-  background: var(--card-bg);
-}
-
-.loja-search-box input {
-  border: none;
-  background: transparent;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  padding: 0 8px;
-  font-size: 0.9rem;
-  color: var(--text-main);
-  outline: none;
+  box-sizing: border-box;
 }
 
-/* =========================================
-   BARRA DE KPIs (Dashboard Rápido)
-   ========================================= */
-.lojas-kpi-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin: 1.5rem 0;
+.gestao-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
+  pointer-events: none;
+  animation: panGrid 20s linear infinite;
 }
 
-.kpi-item {
-  flex: 1;
-  min-width: 160px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 12px 16px;
+@keyframes panGrid {
+  0% { background-position: 0 0; }
+  100% { background-position: 30px 30px; }
+}
+
+.hero-title-box {
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  gap: 15px;
+  position: relative;
+  z-index: 2;
 }
 
-.kpi-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
-}
-
-.kpi-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+.hero-icon-circle {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+  flex-shrink: 0;
 }
 
-.kpi-data {
+.hero-main-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+.hero-actions {
   display: flex;
-  flex-direction: column;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
 }
 
-.kpi-value {
-  font-size: 1.3rem;
+.btn-provision {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
   font-weight: 800;
-  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid;
 }
 
-.kpi-label {
+.btn-provision.add { color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+.btn-provision.add:hover { background: #10b981; color: #020617; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+
+.btn-provision.sync { color: #cbd5e1; border-color: rgba(255, 255, 255, 0.2); }
+.btn-provision.sync:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+
+/* --- CONTROLES & KPIs --- */
+.control-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kpi-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kpi-item-small {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 16px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.kpi-item-small:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); }
+
+.kpi-val { font-size: 1.15rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; color: white; }
+.kpi-lbl { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.kpi-item-small.success { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }
+.kpi-item-small.success .kpi-val, .kpi-item-small.success .kpi-lbl { color: #10b981; }
+
+.kpi-item-small.danger { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+.kpi-item-small.danger .kpi-val, .kpi-item-small.danger .kpi-lbl { color: #ef4444; }
+
+.kpi-item-small.warning { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); }
+.kpi-item-small.warning .kpi-val, .kpi-item-small.warning .kpi-lbl { color: #f59e0b; }
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 320px;
+  flex: 1;
+  transition: all 0.3s ease-in-out;
+}
+
+.search-box:focus-within {
+  border-color: #10b981;
+  box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: white;
+}
+.search-box input::placeholder { color: #64748b; }
+
+/* --- GRID DE LOJAS (TABELA) --- */
+.table-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  background: rgba(0, 0, 0, 0.4);
+  color: #94a3b8;
+  font-weight: 800;
+  text-transform: uppercase;
   font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.table-row:hover { background: rgba(255, 255, 255, 0.02); }
+.table-row.ativo { border-left-color: #10b981; }
+.table-row.row-suspensa { border-left-color: #ef4444; opacity: 0.7; background: rgba(239, 68, 68, 0.03); }
+.table-row.row-suspensa .name-box span:first-child { color: #ef4444; text-decoration: line-through; }
+
+.table td { padding: 1rem 1.5rem; vertical-align: middle; }
+
+/* Identificação da Loja */
+.name-box { display: flex; align-items: center; gap: 14px; }
+
+.icon-wrapper {
+  background: rgba(16, 185, 129, 0.1);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.row-suspensa .icon-wrapper {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.name-box span:first-child { font-weight: 800; font-size: 1.05rem; color: white; letter-spacing: -0.3px; }
+.name-box span:last-child { font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-weight: 600;}
+
+/* Status no Sistema */
+.status-badge-network {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; animation: pulse-online 2s infinite; }
+.status-dot.offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+@keyframes pulse-online {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Empresa/Cliente */
+.tenant-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(168, 85, 247, 0.1);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Cores específicas dos KPIs */
-.kpi-item.total .kpi-icon {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-}
-
-.kpi-item.warning .kpi-icon {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning);
-}
-
-.kpi-item.info .kpi-icon {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
-}
-
-.kpi-item.ok .kpi-icon {
-  background: rgba(100, 116, 139, 0.1);
-  color: var(--text-muted);
-}
-
-.gestao-lojas-card {
-  margin-top: 0.5rem;
-}
-
-/* =========================================
-   ELEMENTOS VISUAIS DA TABELA
-   ========================================= */
-.loja-table-row {
-  transition: all 0.2s ease;
-}
-
-.loja-table-row:hover td {
-  background-color: rgba(0, 0, 0, 0.01);
-}
-
-.dark-theme .loja-table-row:hover td {
-  background-color: rgba(255, 255, 255, 0.01);
-}
-
-.loja-name-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--text-main);
-}
-
-.loja-icon-wrapper {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  padding: 10px;
-  border-radius: 12px;
-  display: flex;
-  color: var(--primary);
-  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
-}
-
-/* =========================================
-   BADGES DE LIDERANÇA (Gerente / Coordenador)
-   ========================================= */
-.leadership-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Equipe de Gestão */
+.leadership-box { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
 }
 
 .leader-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 8px;
+  padding: 6px 12px;
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
   width: fit-content;
+  white-space: nowrap;
 }
 
-.leader-badge.manager {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+.leader-badge strong {
+  font-weight: 900;
+  opacity: 0.9;
+  letter-spacing: 0.5px;
 }
 
-.leader-badge.coordinator {
-  background-color: rgba(56, 189, 248, 0.1);
-  color: var(--secondary);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+.leader-badge.manager { 
+  background: rgba(16, 185, 129, 0.1); 
+  color: #10b981; 
+  border: 1px solid rgba(16, 185, 129, 0.25); 
 }
 
-.leader-badge.missing {
-  background-color: rgba(239, 68, 68, 0.05);
-  color: var(--danger);
-  border: 1px dashed rgba(239, 68, 68, 0.3);
+.leader-badge.coordinator { 
+  background: rgba(56, 189, 248, 0.1); 
+  color: #38bdf8; 
+  border: 1px solid rgba(56, 189, 248, 0.25); 
 }
 
-/* =========================================
-   INFORMAÇÕES DE CONTACTO
-   ========================================= */
-.contact-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.leader-badge.missing { 
+  background: rgba(245, 158, 11, 0.08); 
+  color: #f59e0b; 
+  border: 1px dashed rgba(245, 158, 11, 0.4); 
 }
 
-.contact-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--text-main);
-  font-weight: 500;
-}
+/* Contato */
+.contact-box { display: flex; flex-direction: column; gap: 8px; }
+.contact-line { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
+.contact-line svg { color: #64748b; }
 
-.contact-line svg {
-  color: var(--text-muted);
-}
-
-/* =========================================
-   BOTÕES DE AÇÃO NA TABELA
-   ========================================= */
-.btn-action {
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.btn-action.edit {
-  color: var(--info);
-  border-color: transparent;
-  background: rgba(59, 130, 246, 0.05);
-  margin-right: 8px;
-}
-
-.btn-action.edit:hover {
-  background: rgba(59, 130, 246, 0.15);
-  transform: translateY(-2px);
-}
-
-.btn-action.delete {
-  color: var(--danger);
-  border-color: transparent;
-  background: rgba(239, 68, 68, 0.05);
-}
-
-.btn-action.delete:hover {
-  background: rgba(239, 68, 68, 0.15);
-  transform: translateY(-2px);
-}
-
-/* =========================================
-   ESTRUTURA DO MODAL DE CADASTRO
-   ========================================= */
-.gestao-lojas-modal {
-  align-items: flex-start;
-  padding-top: 10vh;
-}
-
-.gestao-lojas-modal-content {
-  max-width: 500px;
-  width: 100%;
-}
-
-.gestao-lojas-form-grid {
-  grid-template-columns: 1fr;
-}
-
-.gestao-lojas-modal-actions {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border);
-}
-
-/* =========================================
-   RESPONSIVIDADE (MOBILE)
-   ========================================= */
-@media (max-width: 768px) {
-  .gestao-lojas-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .loja-search-box {
-    min-width: 100%;
-  }
-
-  .gestao-lojas-card .table thead {
-    display: none;
-  }
-
-  .gestao-lojas-card .table tr {
-    display: block;
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px;
-    background: var(--card-bg);
-  }
-
-  .gestao-lojas-card .table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px dashed var(--border);
-    padding: 12px 8px;
-    text-align: right;
-  }
-
-  .gestao-lojas-card .table td:last-child {
-    border-bottom: none;
-    justify-content: flex-end;
-  }
-
-  .gestao-lojas-card .table td::before {
-    content: attr(data-label);
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    text-align: left;
-    margin-right: 15px;
-  }
-
-  .loja-name-box,
-  .contact-box,
-  .leadership-box {
-    align-items: flex-end;
-  }
-}
-
-/* =========================================
-   ESTILOS EXCLUSIVOS DO DESENVOLVEDOR (DEV)
-   ========================================= */
-
-.tenant-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: rgba(168, 85, 247, 0.1);
-  color: #a855f7;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  border: 1px dashed rgba(168, 85, 247, 0.3);
-}
-
+/* Botões */
 .btn-toggle-status {
   background: transparent;
   border: none;
@@ -364,18 +372,179 @@
   transition: transform 0.2s ease;
   width: 100%;
 }
+.btn-toggle-status:hover { transform: scale(1.1); }
 
-.btn-toggle-status:hover {
-  transform: scale(1.1);
+.btn-action {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-action.edit { color: #94a3b8; margin-right: 8px; }
+.btn-action.edit:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.2); }
+.btn-action.delete { color: #ef4444; }
+.btn-action.delete:hover { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; }
+
+/* --- MODAL --- */
+.modal-content-custom {
+  max-width: 650px;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 1));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
 }
 
-.empresa-row.row-suspensa td,
-.loja-table-row.row-suspensa td {
-  opacity: 0.7;
-  background: rgba(239, 68, 68, 0.03);
+.modal-header-custom {
+  padding: 1.8rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
 }
 
-.loja-table-row.row-suspensa .loja-name-box span:first-child {
-  color: var(--danger);
-  text-decoration: line-through;
+.modal-icon-bg {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.modal-header-custom h3 { margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 900; color: white; letter-spacing: -0.5px;}
+
+.modal-form-custom { padding: 2rem; }
+
+.form-group-custom { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 6px; }
+.form-group-custom label { font-size: 0.8rem; font-weight: 700; color: #cbd5e1; }
+.form-group-custom input, .form-group-custom select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.95rem;
+  outline: none;
+  transition: 0.3s;
+}
+.form-group-custom input:focus, .form-group-custom select:focus {
+  border-color: #10b981;
+  box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.security-warning-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.05);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.modal-actions-custom {
+  display: flex;
+  gap: 12px;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: flex-end;
+}
+
+.modal-actions-custom .btn {
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+/* =========================================
+   RESPONSIVIDADE MOBILE CARDS
+   ========================================= */
+@media (max-width: 768px) {
+  .gestao-hero { flex-direction: column; align-items: stretch; padding: 1.5rem; gap: 1.5rem; }
+  .hero-actions { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
+  .btn-provision { width: 100%; justify-content: center; padding: 14px; }
+  
+  .control-panel { flex-direction: column; align-items: stretch; padding: 1.25rem; gap: 1.25rem; }
+  .kpi-bar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+  .kpi-item-small { justify-content: flex-start; padding: 12px; }
+  .search-box { min-width: 100%; width: 100%; padding: 12px; }
+
+  /* Tabela para Cards */
+  .table-wrapper { overflow-x: visible; }
+  .table, .table thead, .table tbody, .table th, .table td, .table tr { display: block; width: 100%; }
+  .table thead { display: none; }
+  .table-card { background: transparent; border: none; backdrop-filter: none; }
+  .table tbody { display: flex; flex-direction: column; gap: 1.2rem; }
+  
+  .table-row {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    backdrop-filter: blur(12px);
+    box-sizing: border-box;
+    border-left-width: 4px;
+  }
+  
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    text-align: right;
+    font-size: 0.95rem;
+  }
+  
+  .table td:first-child {
+    padding-top: 0;
+    justify-content: flex-start;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    padding-top: 16px;
+    justify-content: flex-end;
+  }
+  
+  .table td::before {
+    content: attr(data-label);
+    font-weight: 800;
+    color: #64748b;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    float: left;
+  }
+  
+  .table td:first-child::before { display: none; }
+  .leadership-box, .contact-box { align-items: flex-end; }
+  
+  .modal-form-custom { padding: 1.5rem; }
+  .modal-header-custom { padding: 1.5rem; }
 }

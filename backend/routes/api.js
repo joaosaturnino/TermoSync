@@ -11,26 +11,274 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const multer = require('multer');
 const upload = multer({ dest: 'tmp/' });
+
+// IMPORTAÇÃO DO NODEMAILER PARA ENVIO DE E-MAILS REAIS
+const nodemailer = require('nodemailer'); 
+
 module.exports = (app, io) => {
   const SECRET_KEY = process.env.JWT_SECRET || 'chave_super_secreta_termosync_node';
   async function emitirOperacaoAtualizada(payload = {}) { try { io.emit('operacao_atualizada', payload); } catch (e) { } }
-  app.post('/api/system/query-raw', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') {
-      return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios exclusivos ROOT (DEV).' });
-    }
 
-    const { sql } = req.body;
-    if (!sql) return res.status(400).json({ success: false, error: 'Nenhuma diretiva instrucional estruturada foi declarada.' });
+  // ============================================================================
+  // MOTOR DE WEBSOCKETS - INTERCETAÇÃO E GRAVAÇÃO DO CHAT (CORRIGIDO)
+  // ============================================================================
+  if (io && !io._chatListenerConfigured) {
+    io.on('connection', (socket) => {
+      socket.on('enviar_mensagem_chat', async (msg) => {
+        try {
+          // 1. Grava no Banco de Dados respeitando as colunas exatas da sua tabela
+          const query = `
+            INSERT INTO chat_mensagens 
+            (remetente_id, remetente_nome, destino_id, texto, data_hora) 
+            VALUES (?, ?, ?, ?, NOW())
+          `;
+          const [result] = await pool.execute(query, [
+            msg.remetenteId,
+            msg.remetenteNome,
+            msg.destinoId || 'todos',
+            msg.texto
+          ]);
+
+          // 2. Monta o pacote de dados para enviar ao Frontend
+          const mensagemSalva = {
+            id: result.insertId,
+            remetenteId: msg.remetenteId,
+            remetenteNome: msg.remetenteNome,
+            destinoId: msg.destinoId || 'todos',
+            texto: msg.texto,
+            data: new Date().toISOString(), 
+            tipo: 'received' // Quem recebe via socket é sempre 'received'
+          };
+
+          // 3. Retransmite a mensagem
+          socket.broadcast.emit('nova_mensagem_chat', mensagemSalva);
+        } catch (error) {
+          console.error('❌ [ERRO CHAT] Falha ao persistir mensagem no MySQL:', error);
+        }
+      });
+    });
+    io._chatListenerConfigured = true; 
+  }
+
+  // ============================================================================
+  // ROTAS DE FATURAMENTO (BILLING / SAAS) - INTEGRAÇÃO EM TEMPO REAL
+  // ============================================================================
+  
+  app.get('/api/financeiro/faturas/atuais', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+    
+    try {
+        const [todasFaturas] = await pool.query(
+            `SELECT filial, status, data_vencimento 
+             FROM faturas_saas 
+             ORDER BY data_vencimento ASC`
+        );
+
+        const faturasFormatadas = {};
+        const hoje = new Date();
+
+        todasFaturas.forEach(fatura => {
+            const dataVenc = new Date(fatura.data_vencimento);
+            dataVenc.setHours(23, 59, 59, 999); 
+            
+            const isVencida = dataVenc < hoje && fatura.status !== 'PAGO';
+            const diffTime = hoje - dataVenc;
+            const diffDays = isVencida ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
+
+            if (!faturasFormatadas[fatura.filial]) {
+                faturasFormatadas[fatura.filial] = { foiPaga: true, atrasoDias: 0 };
+            }
+
+            if (fatura.status !== 'PAGO') {
+                faturasFormatadas[fatura.filial].foiPaga = false;
+                if (isVencida && diffDays > faturasFormatadas[fatura.filial].atrasoDias) {
+                    faturasFormatadas[fatura.filial].atrasoDias = diffDays;
+                }
+            }
+        });
+
+        res.json(faturasFormatadas);
+    } catch (error) {
+        console.error("Erro ao buscar faturas:", error);
+        res.status(500).json({ error: "Erro interno no servidor" });
+    }
+  });
+
+  app.post('/api/financeiro/faturas/:filial/pagar', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+
+    const { filial } = req.params;
+    const { billingSetup, plano } = req.body; 
+
+    const dataAtual = new Date();
+    const mesAtual = dataAtual.getMonth() + 1;
+    const anoAtual = dataAtual.getFullYear();
+    
+    const filialPlano = plano || 'PRO';
+    const isEnterprise = filialPlano === 'ENTERPRISE';
+    const valorBase = isEnterprise ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
+    const dataVencimento = `${anoAtual}-${mesAtual}-${billingSetup?.diaVencimento || 10}`;
 
     try {
-      const [rows] = await pool.execute(sql);
+        await pool.query(
+            `INSERT INTO faturas_saas 
+             (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'PAGO', NOW())
+             ON DUPLICATE KEY UPDATE 
+             status = 'PAGO', data_pagamento = NOW()`,
+            [filial, filialPlano, valorBase, valorBase, dataVencimento, mesAtual, anoAtual]
+        );
 
-      // Registo de log persistente e imutável para conformidade do SOC
-      await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query compilada: ${sql.substring(0, 120)}...`, 'danger');
+        if (io) io.emit('pagamento_confirmado', { filial });
+        await registrarAuditoria('BILLING_PAYMENT', 'Root/Dev', `Pagamento liquidado: ${filial} (${filialPlano} - R$${valorBase})`, 'success');
 
-      res.json({ success: true, data: rows });
+        res.json({ success: true, message: `Pagamento de ${filial} confirmado.` });
     } catch (error) {
-      res.json({ success: false, error: error.message });
+        console.error("Erro ao pagar fatura:", error);
+        res.status(500).json({ error: "Erro interno no servidor" });
+    }
+  });
+
+  app.post('/api/financeiro/cobranca-lote', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+
+    const { billingSetup, planos } = req.body; 
+
+    try {
+        const dataAtual = new Date();
+        const mesAtual = dataAtual.getMonth() + 1;
+        const anoAtual = dataAtual.getFullYear();
+        const diaVencimento = billingSetup?.diaVencimento || 10;
+        
+        const [filiaisRows] = await pool.query('SELECT DISTINCT nome FROM loja WHERE status = "Ativa"');
+        const filiais = filiaisRows.map(f => f.nome);
+        
+        for (const filial of filiais) {
+            const plano = planos?.[filial] || 'PRO';
+            if (plano === 'FREE') continue; 
+
+            const isEnterprise = plano === 'ENTERPRISE';
+            const valorBase = isEnterprise ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
+
+            await pool.query(
+                `INSERT IGNORE INTO faturas_saas 
+                 (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDENTE')`,
+                [filial, plano, valorBase, valorBase, `${anoAtual}-${mesAtual}-${diaVencimento}`, mesAtual, anoAtual]
+            );
+        }
+
+        await registrarAuditoria('BILLING_CRON', 'Root/Dev', `Faturamento gerado para o ciclo ${mesAtual}/${anoAtual}.`, 'info');
+        res.json({ success: true, message: "Lote processado!" });
+    } catch (error) {
+        console.error("Erro ao gerar lote:", error);
+        res.status(500).json({ error: "Erro interno no servidor" });
+    }
+  });
+
+  app.post('/api/financeiro/faturas/:filial/forcar-atraso', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+    try {
+        const { filial } = req.params;
+        const { billingSetup, plano } = req.body;
+        const filialPlano = plano || 'PRO';
+        const valorBase = (filialPlano === 'ENTERPRISE') ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
+        
+        const dataAtraso = new Date();
+        dataAtraso.setMonth(dataAtraso.getMonth() - 1); 
+        const mesAtraso = dataAtraso.getMonth() + 1;
+        const anoAtraso = dataAtraso.getFullYear();
+        const vencAtraso = `${anoAtraso}-${mesAtraso.toString().padStart(2, '0')}-10`;
+
+        await pool.query(
+            `INSERT INTO faturas_saas (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDENTE', NULL)
+             ON DUPLICATE KEY UPDATE status = 'PENDENTE', data_vencimento = ?, data_pagamento = NULL`,
+            [filial, filialPlano, valorBase, valorBase, vencAtraso, mesAtraso, anoAtraso, vencAtraso]
+        );
+        res.json({ success: true, message: `Atraso forçado para ${filial}.` });
+    } catch (error) { res.status(500).json({ error: "Erro interno no servidor" }); }
+  });
+
+  app.post('/api/financeiro/faturas/:filial/notificar', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+    
+    const { filial } = req.params;
+    const { total, vencimento, plano, status } = req.body;
+
+    try {
+        const [dadosLoja] = await pool.query(
+            `SELECT e.email 
+             FROM loja l 
+             LEFT JOIN empresas e ON l.empresa = e.nome 
+             WHERE l.nome = ? LIMIT 1`, 
+             [filial]
+        );
+
+        let emailDestino = null;
+
+        if (dadosLoja.length > 0 && dadosLoja[0].email) {
+            emailDestino = dadosLoja[0].email;
+        } else {
+            const [dadosEmpresa] = await pool.query('SELECT email FROM empresas WHERE nome = ? LIMIT 1', [filial]);
+            if (dadosEmpresa.length > 0 && dadosEmpresa[0].email) {
+                emailDestino = dadosEmpresa[0].email;
+            }
+        }
+
+        if (!emailDestino || emailDestino.trim() === '') {
+            return res.status(400).json({ error: 'A organização não tem um e-mail cadastrado na base de dados.' });
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false, 
+            auth: {
+                user: 'thermosync126@gmail.com', 
+                pass: 'uhpm iasu atae tnbt' 
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        const mailOptions = {
+            from: '"TermoSync FinOps" <thermosync126@gmail.com>', 
+            to: emailDestino,
+            subject: `Fatura Disponível - Licenciamento TermoSync SaaS (${filial})`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #10b981; margin: 0;">TermoSync Enterprise</h2>
+                        <p style="color: #64748b; font-size: 12px; margin: 5px 0;">NOC & FinOps Portal</p>
+                    </div>
+                    
+                    <p>Olá, equipa da <strong>${filial}</strong>,</p>
+                    <p>Informamos que a fatura referente ao licenciamento do plano <strong>${plano}</strong> já está disponível para consulta e regularização.</p>
+                    
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #eab308;">
+                        <p style="margin: 5px 0;"><strong>Status da Fatura:</strong> <span style="color: #ef4444; font-weight: bold;">${status}</span></p>
+                        <p style="margin: 5px 0;"><strong>Valor Total:</strong> R$ ${Number(total).toFixed(2)}</p>
+                        <p style="margin: 5px 0;"><strong>Data de Vencimento:</strong> ${vencimento}</p>
+                    </div>
+                    
+                    <p>Para manter os seus serviços de telemetria IoT ativos e evitar o bloqueio dos nós Edge, por favor efetue o pagamento.</p>
+                    <p>A Nota Fiscal Eletrónica (NFS-e) e o boleto bancário foram gerados e encontram-se anexados no seu painel.</p>
+                    <br/>
+                    <hr style="border: none; border-top: 1px solid #ddd;" />
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Este é um e-mail automático gerado pelo módulo FinOps da plataforma TermoSync.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions); 
+
+        await registrarAuditoria('BILLING_NOTIFY', 'Root/Dev', `E-mail SMTP disparado para: ${filial} (${emailDestino})`, 'warning');
+        res.json({ success: true, message: `E-mail enviado para ${emailDestino}` });
+    } catch (error) {
+        console.error("Erro no SMTP:", error);
+        res.status(500).json({ error: "Falha na conexão SMTP ou envio de e-mail." });
     }
   });
 
@@ -55,7 +303,7 @@ module.exports = (app, io) => {
       const tabelasPermitidas = [
         'equipamentos', 'leituras', 'usuarios',
         'notificacoes', 'audit_logs', 'sessoes_ativas',
-        'empresas', 'chamados', 'hardware_iot'
+        'empresas', 'chamados', 'hardware_iot', 'faturas_saas', 'chat_mensagens'
       ];
 
       if (!tabelasPermitidas.includes(tabela)) {
@@ -120,8 +368,52 @@ module.exports = (app, io) => {
   app.post('/api/equipamentos', verificarToken, async (req, res) => { try { const { nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao } = req.body; await pool.execute('INSERT INTO equipamentos (nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao, empresa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [nome, tipo, temp_min, temp_max, umidade_min || null, umidade_max || null, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao || null, req.userEmpresa]); res.status(201).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/equipamentos/:id/edit', verificarToken, async (req, res) => { try { await pool.execute('UPDATE equipamentos SET nome=?, tipo=?, temp_min=?, temp_max=?, umidade_min=?, umidade_max=?, intervalo_degelo=?, duracao_degelo=?, setor=?, filial=?, data_calibracao=? WHERE id=? AND empresa=?', [req.body.nome, req.body.tipo, req.body.temp_min, req.body.temp_max, req.body.umidade_min || null, req.body.umidade_max || null, req.body.intervalo_degelo, req.body.duracao_degelo, req.body.setor, req.body.filial, req.body.data_calibracao || null, req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.delete('/api/equipamentos/:id', verificarToken, async (req, res) => { try { await pool.execute('DELETE FROM equipamentos WHERE id=? AND empresa=?', [req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-  app.get('/api/chamados', verificarToken, async (req, res) => { let q = `SELECT c.*, e.nome as equipamento_nome, u.usuario as aberto_por FROM chamados c LEFT JOIN equipamentos e ON c.equipamento_id = e.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND c.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ` AND c.filial = ?`; p.push(req.userFilial); } } const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); res.json(r); });
-  app.post('/api/chamados', verificarToken, async (req, res) => { try { const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel, urgencia } = req.body; let filialStr = null; try { const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); if (eq.length > 0) filialStr = eq[0].filial; } catch (e) { } await pool.execute(`INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, urgencia, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberto')`, [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa, urgencia || 'Pendente']); io.emit('atualizacao_dados'); res.status(201).send(); } catch (error) { res.status(500).send(); } });
+  // GET: Buscar Chamados (Agora tolerante a dados de teste sem empresa/filial)
+  app.get('/api/chamados', verificarToken, async (req, res) => { 
+    let q = `
+      SELECT c.*, e.nome as equipamento_nome, e.filial as equipamento_filial, u.usuario as aberto_por 
+      FROM chamados c 
+      LEFT JOIN equipamentos e ON c.equipamento_id = e.id 
+      LEFT JOIN usuarios u ON c.usuario_id = u.id 
+      WHERE 1=1
+    `; 
+    const p = []; 
+    
+    if (req.userRole !== 'DEV') { 
+      // Permite que OS antigas de teste (sem empresa definida) apareçam
+      q += ' AND (c.empresa = ? OR c.empresa IS NULL OR c.empresa = "")'; 
+      p.push(req.userEmpresa); 
+      
+      if (req.userRole === 'LOJA') { 
+        // Permite OS sem filial ou que pertençam à filial do equipamento associado
+        q += ` AND (c.filial = ? OR c.filial IS NULL OR c.filial = "" OR e.filial = ?)`; 
+        p.push(req.userFilial, req.userFilial); 
+      } 
+    } 
+    
+    const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); 
+    res.json(r); 
+  });
+  // POST: Abrir OS (Agora herda automaticamente a filial da Loja se o equipamento falhar)
+  app.post('/api/chamados', verificarToken, async (req, res) => { 
+    try { 
+      const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel, urgencia } = req.body; 
+      let filialStr = req.userFilial; // Garante que recebe a filial de quem está logado
+      
+      try { 
+        const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); 
+        if (eq.length > 0 && eq[0].filial) filialStr = eq[0].filial; 
+      } catch (e) { } 
+      
+      await pool.execute(
+        `INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, urgencia, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberto')`, 
+        [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa, urgencia || 'Pendente']
+      ); 
+      
+      io.emit('atualizacao_dados'); 
+      res.status(201).send(); 
+    } catch (error) { res.status(500).send(); } 
+  });
   app.put('/api/chamados/:id/status', verificarToken, async (req, res) => {
     try {
       const { status } = req.body;
@@ -267,6 +559,7 @@ module.exports = (app, io) => {
   app.put('/api/notificacoes/:id/resolver', verificarToken, async (req, res) => { try { await pool.execute('UPDATE notificacoes SET resolvido=TRUE, nota_resolucao=? WHERE id=?', [req.body.nota_resolucao || 'Resolvido pelo operador.', req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/notificacoes/resolver-todas', verificarToken, async (req, res) => { try { let q = 'UPDATE notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id SET n.resolvido=TRUE, n.nota_resolucao="Limpeza em Lote" WHERE n.resolvido=FALSE'; let p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } } await pool.execute(q, p); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.get('/api/relatorios', verificarToken, async (req, res) => { let q = `SELECT l.id, l.temperatura, l.umidade, l.consumo_kwh, l.data_hora, e.nome, e.setor, e.filial FROM leituras l JOIN equipamentos e ON l.equipamento_id = e.id WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } if (req.query.data_inicio && req.query.data_fim) { q += ' AND l.data_hora BETWEEN ? AND ?'; p.push(new Date(req.query.data_inicio), new Date(req.query.data_fim)); } else { q += ' AND l.data_hora >= DATE_SUB(NOW(), INTERVAL 6 HOUR)'; } const [r] = await pool.execute(q + ' ORDER BY l.data_hora ASC LIMIT 3000', p); res.json(r); });
+  
   app.get('/api/operacao/resumo', verificarToken, async (req, res) => {
     try {
       const filialFiltro = req.query.filial || req.userFilial || 'Todas';
@@ -362,73 +655,206 @@ module.exports = (app, io) => {
     }
   });
 
+  // ============================================================================
+  // ROTAS DE CHECKLIST / TAREFAS DE OPERAÇÃO (CRUD COMPLETO)
+  // ============================================================================
+
   app.get('/api/operacao/tarefas', verificarToken, async (req, res) => {
     try {
       const tipo = req.query.tipo || 'checklist_turno';
       const filial = req.query.filial || req.userFilial || 'Todas';
       const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
-      let rows = [];
 
-      try {
-        const [dbRows] = await pool.execute('SELECT * FROM operacao_tarefas WHERE tipo = ? AND empresa = ? AND (filial IS NULL OR filial = ? OR filial = "Todas" OR ? = "Todas") ORDER BY ordem, id', [tipo, empresa, filial, filial]);
-        rows = dbRows;
-      } catch (e) {
-        rows = [];
+      let sql = 'SELECT * FROM operacao_tarefas WHERE tipo = ?';
+      const params = [tipo];
+
+      if (req.userRole !== 'DEV') {
+          sql += ' AND empresa = ?';
+          params.push(empresa);
       }
 
-      if (!rows.length) {
-        const defaults = tipo === 'plano_dia'
-          ? [
-            { chave: 'plano-1', titulo: 'Revisar alertas críticos', descricao: 'Verificar anomalias prioritárias', horario: '08:00' },
-            { chave: 'plano-2', titulo: 'Validar temperaturas das áreas prioritárias', descricao: 'Acompanhar desvios térmicos', horario: '09:00' },
-            { chave: 'plano-3', titulo: 'Acompanhar chamados em andamento', descricao: 'Escalar pendências relevantes', horario: '11:00' }
-          ]
-          : [
-            { chave: 'pre-turno', titulo: 'Confirmar status geral do painel e das notificações.', descricao: 'Validações iniciais antes de iniciar a operação.', horario: '08:00' },
-            { chave: 'operacao', titulo: 'Validar temperatura e umidade das áreas críticas.', descricao: 'Acompanhar desvios operacionais', horario: '10:00' },
-            { chave: 'encerramento', titulo: 'Registrar ocorrências relevantes no histórico da operação.', descricao: 'Encerrar o turno com contexto', horario: '16:00' }
-          ];
-
-        try {
-          for (const [index, item] of defaults.entries()) {
-            await pool.execute('INSERT INTO operacao_tarefas (tipo, chave, titulo, descricao, horario, ordem, filial, empresa, concluida) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [tipo, item.chave, item.titulo, item.descricao || null, item.horario || null, index + 1, filial, empresa, 0]);
-          }
-        } catch (e) { }
-
-        return res.json(defaults.map((item, index) => ({
-          id: `fallback-${tipo}-${index + 1}`,
-          tipo,
-          chave: item.chave,
-          titulo: item.titulo,
-          descricao: item.descricao,
-          horario: item.horario,
-          concluida: false,
-          ordem: index + 1,
-          filial,
-          empresa
-        })));
+      if (filial && filial !== 'Todas') {
+          sql += ' AND (filial = ? OR filial = "Matriz" OR filial = "Todas" OR filial IS NULL)';
+          params.push(filial);
       }
 
+      sql += ' ORDER BY created_at ASC';
+
+      const [rows] = await pool.execute(sql, params);
       res.json(rows);
-    } catch (e) {
-      res.json([]);
+    } catch (error) {
+      console.error('[ERRO] GET /operacao/tarefas:', error);
+      res.status(500).json({ error: 'Erro ao buscar tarefas.' });
+    }
+  });
+
+  app.post('/api/operacao/tarefas', verificarToken, async (req, res) => {
+    try {
+      if (req.userRole === 'LOJA') return res.status(403).json({ error: 'Acesso negado.' });
+
+      const { tipo, chave, titulo, descricao, concluida, filial } = req.body;
+      const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
+
+      if (!chave || !titulo) {
+          return res.status(400).json({ error: 'Chave e título são obrigatórios.' });
+      }
+
+      const sql = `
+          INSERT INTO operacao_tarefas 
+          (tipo, chave, titulo, descricao, concluida, filial, empresa) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      const params = [
+          tipo || 'checklist_turno', 
+          chave, 
+          titulo, 
+          descricao || null, 
+          concluida ? 1 : 0, 
+          filial || 'Matriz',
+          empresa
+      ];
+
+      const [result] = await pool.execute(sql, params);
+      await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
+
+      res.status(201).json({ success: true, id: result.insertId });
+    } catch (error) {
+      console.error('[ERRO] POST /operacao/tarefas:', error);
+      res.status(500).json({ error: 'Erro ao criar tarefa.' });
     }
   });
 
   app.put('/api/operacao/tarefas/:id', verificarToken, async (req, res) => {
     try {
+      const { id } = req.params;
       const { concluida } = req.body;
       const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
-      await pool.execute('UPDATE operacao_tarefas SET concluida = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND empresa = ?', [concluida ? 1 : 0, req.params.id, empresa]);
+
+      let horario = null;
+      if (concluida) {
+          const dataAtual = new Date();
+          horario = dataAtual.toLocaleTimeString('pt-BR', { 
+              timeZone: 'America/Sao_Paulo', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+          });
+      }
+
+      let sql = 'UPDATE operacao_tarefas SET concluida = ?, horario = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+      const params = [concluida ? 1 : 0, horario, id];
+
+      if (req.userRole !== 'DEV') {
+          sql += ' AND empresa = ?';
+          params.push(empresa);
+      }
+
+      const [result] = await pool.execute(sql, params);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'Tarefa não encontrada ou sem permissão.' });
+      }
+
       await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
-      res.json({ success: true });
-    } catch (e) {
-      res.status(500).json({ error: 'Falha ao atualizar tarefa.' });
+
+      res.status(200).json({ success: true, concluida, horario });
+    } catch (error) {
+      console.error('[ERRO] PUT /operacao/tarefas:', error);
+      res.status(500).json({ error: 'Erro ao atualizar tarefa.' });
     }
   });
+
+  app.delete('/api/operacao/tarefas/:id', verificarToken, async (req, res) => {
+    try {
+      if (req.userRole === 'LOJA') return res.status(403).json({ error: 'Acesso negado.' });
+
+      const { id } = req.params;
+      const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
+
+      let sql = 'DELETE FROM operacao_tarefas WHERE id = ?';
+      const params = [id];
+
+      if (req.userRole !== 'DEV') {
+          sql += ' AND empresa = ?';
+          params.push(empresa);
+      }
+
+      const [result] = await pool.execute(sql, params);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'Tarefa não encontrada ou sem permissão.' });
+      }
+
+      await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('[ERRO] DELETE /operacao/tarefas:', error);
+      res.status(500).json({ error: 'Erro ao excluir tarefa.' });
+    }
+  });
+
   app.get('/api/auxiliares/filiais', verificarToken, async (req, res) => { try { let q1 = 'SELECT DISTINCT nome AS filial FROM loja WHERE 1=1'; let q2 = 'SELECT DISTINCT filial FROM equipamentos WHERE filial IS NOT NULL'; let p = []; if (req.userRole !== 'DEV') { q1 += ' AND empresa = ?'; q2 += ' AND empresa = ?'; p.push(req.userEmpresa); } const [r1] = await pool.execute(q1, req.userRole !== 'DEV' ? [req.userEmpresa] : []); const [r2] = await pool.execute(q2, req.userRole !== 'DEV' ? [req.userEmpresa] : []); res.json(Array.from(new Set([...r1.map(x => x.filial), ...r2.map(x => x.filial)])).sort()); } catch (e) { res.status(500).send(); } });
-  app.get('/api/contatos', verificarToken, async (req, res) => { try { let q = 'SELECT id, usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico FROM usuarios WHERE id != ?'; let p = [req.userId]; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } const [rows] = await pool.execute(q, p); res.json(rows.map(u => { let nome = u.usuario; let cargo = 'Usuário'; if (u.role === 'ADMIN' || u.role === 'DEV') { nome = 'Administração'; cargo = 'Suporte Master'; } else if (u.role === 'MANUTENCAO') { nome = u.nome_tecnico || u.usuario; cargo = 'Técnico Manutenção'; } else if (u.role === 'LOJA') { if (u.nome_gerente) { nome = u.nome_gerente; cargo = `Gerente - ${u.filial}`; } else if (u.nome_coordenador) { nome = u.nome_coordenador; cargo = `Coordenador - ${u.filial}`; } else { nome = `Equipe ${u.filial}`; cargo = 'Operador Loja'; } } return { id: u.id, nome, cargo, role: u.role, filial: u.filial }; })); } catch (error) { res.status(500).json({ error: error.message }); } });
-  app.get('/api/chat/historico', verificarToken, async (req, res) => { try { const [r] = await pool.execute('SELECT * FROM chat_mensagens ORDER BY data_hora ASC LIMIT 150'); res.json(r); } catch (e) { res.status(500).send(); } });
+  
+  app.get('/api/contatos', verificarToken, async (req, res) => { 
+    try { 
+      let q = 'SELECT id, usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa FROM usuarios WHERE id != ?'; 
+      let p = [req.userId]; 
+      
+      if (req.userRole !== 'DEV') { 
+        q += ' AND (empresa = ? OR role = "DEV")'; 
+        p.push(req.userEmpresa); 
+      } 
+      
+      const [rows] = await pool.execute(q, p); 
+      res.json(rows.map(u => { 
+        let nome = u.usuario; 
+        let cargo = 'Usuário'; 
+        if (u.role === 'DEV') { nome = 'NOC (Desenvolvedor)'; cargo = 'Suporte Master'; } 
+        else if (u.role === 'ADMIN') { nome = 'Administração'; cargo = 'Suporte Corporativo'; } 
+        else if (u.role === 'MANUTENCAO') { nome = u.nome_tecnico || u.usuario; cargo = 'Técnico Manutenção'; } 
+        else if (u.role === 'LOJA') { 
+          if (u.nome_gerente) { nome = u.nome_gerente; cargo = `Gerente - ${u.filial}`; } 
+          else if (u.nome_coordenador) { nome = u.nome_coordenador; cargo = `Coordenador - ${u.filial}`; } 
+          else { nome = `Equipe ${u.filial}`; cargo = 'Operador Loja'; } 
+        } 
+        return { id: u.id, nome, cargo, role: u.role, filial: u.filial, empresa: u.empresa }; 
+      })); 
+    } catch (error) { res.status(500).json({ error: error.message }); } 
+  });
+  
+  // ============================================================================
+  // RECUPERAÇÃO DO HISTÓRICO DE CHAT COM MAPEAMENTO EXATO DE COLUNAS
+  // ============================================================================
+  app.get('/api/chat/historico', verificarToken, async (req, res) => { 
+    try { 
+      // Busca mapeando para os nomes de propriedades que o Frontend (React) espera
+      const [r] = await pool.execute(`
+        SELECT 
+          id, 
+          remetente_id AS remetenteId, 
+          remetente_nome AS remetenteNome, 
+          destino_id AS destinoId, 
+          texto, 
+          data_hora AS data 
+        FROM chat_mensagens 
+        ORDER BY data_hora ASC 
+        LIMIT 150
+      `); 
+
+      // Processa a direção da mensagem (Enviada vs Recebida) de forma segura
+      const historicoMapeado = r.map(msg => ({
+        ...msg,
+        tipo: String(msg.remetenteId) === String(req.userId) ? 'sent' : 'received'
+      }));
+
+      res.json(historicoMapeado); 
+    } catch (e) { 
+      console.error("Erro no chat histórico:", e);
+      res.status(500).send(); 
+    } 
+  });
+  // ============================================================================
+
   app.get('/api/tecnicos', verificarToken, async (req, res) => { try { let q = 'SELECT id, usuario, nome_tecnico, empresa FROM usuarios WHERE role = "MANUTENCAO" AND nome_tecnico IS NOT NULL'; const p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } q += ' ORDER BY nome_tecnico ASC'; const [r] = await pool.execute(q, p); res.json(r); } catch (e) { res.status(500).send(); } });
   app.get('/api/auxiliares/equipamentos-abertura', verificarToken, async (req, res) => { try { let q = 'SELECT id, nome, setor, filial, empresa FROM equipamentos WHERE 1=1'; const p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } q += ' ORDER BY filial ASC, setor ASC, nome ASC'; const [r] = await pool.execute(q, p); res.json(r); } catch (e) { res.status(500).send(); } });
   app.get('/api/setores', verificarToken, async (req, res) => { try { const [r] = await pool.execute('SELECT id, nome FROM setores ORDER BY nome ASC'); res.json(r); } catch (e) { res.status(500).send(); } });
@@ -597,7 +1023,6 @@ module.exports = (app, io) => {
     } catch (e) { res.status(500).send(); }
   });
 
-  // Rota para registrar a geração de um relatório executivo
   app.post('/api/system/reports/log', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).send();
     try {
@@ -610,15 +1035,10 @@ module.exports = (app, io) => {
     } catch (e) { res.status(500).send(); }
   });
 
-
-  // ============================================================================
-  // NOVA ROTA DO SISTEMA: DEPLOY E ATUALIZAÇÃO VIA ARQUIVO .ZIP DO PAINEL DEV
-  // ============================================================================
   app.post('/api/system/deploy-update', verificarToken, upload.single('updatePackage'), (req, res) => {
 
-    // 1. Bloqueia qualquer pessoa que não seja o DEV
     if (req.userRole !== 'DEV') {
-      if (req.file) fs.unlinkSync(req.file.path); // Apaga ficheiro se foi enviado
+      if (req.file) fs.unlinkSync(req.file.path); 
       return res.status(403).json({ error: 'Acesso negado. Permissão exclusiva de SysAdmin (DEV).' });
     }
 
@@ -626,28 +1046,17 @@ module.exports = (app, io) => {
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'Nenhum pacote (.zip) foi enviado.' });
 
-      // 2. ⚠️ ATENÇÃO: DEFINA AQUI A PASTA ONDE FICA O FRONTEND (REACT) NO SEU SERVIDOR
-      // Exemplo cPanel: path.join(__dirname, '../public_html')
-      // Exemplo VPS Padrão: path.join(__dirname, '../frontend/build')
       const pastaPublicaInterface = path.join(__dirname, '../public_html');
 
-      // 3. Extrai o conteúdo sobrescrevendo os ficheiros antigos
       const zip = new AdmZip(file.path);
       zip.extractAllTo(pastaPublicaInterface, true);
-
-      // 4. Limpa o ficheiro zip temporário do servidor
       fs.unlinkSync(file.path);
 
       registrarAuditoria('DEPLOY_SISTEMA', 'Root/Dev', `Nova versão injetada via Painel NOC`, 'warning');
-
-      // 5. Retorna sucesso para a interface ANTES de derrubar o servidor
       res.json({ success: true, message: 'Ficheiros extraídos e atualizados com sucesso.' });
 
-      // 6. Reinicia a API (Derruba os sockets e aplica novo código Node se houver)
       setTimeout(() => {
         console.log('⚠️ ALERTA: A reiniciar o sistema via atualização do Painel Dev...');
-
-        // Se usar PM2, altere "all" para o nome do seu processo, ex: "pm2 restart termosync"
         exec('pm2 restart all', (error) => {
           if (error) console.error(`Erro ao tentar reiniciar o PM2: ${error}`);
         });
@@ -655,15 +1064,11 @@ module.exports = (app, io) => {
 
     } catch (error) {
       console.error('❌ Erro crítico no Deploy:', error);
-      if (req.file) fs.unlinkSync(req.file.path); // Garante que não deixa lixo no servidor em caso de erro
+      if (req.file) fs.unlinkSync(req.file.path); 
       res.status(500).json({ error: 'Falha ao processar o pacote de atualização.' });
     }
   });
 
-
-  // ============================================================================
-  // NOVA ROTA DO SISTEMA: EXECUTOR DE QUERIES RAW (CONSOLE SQL)
-  // ============================================================================
   app.post('/api/system/query-raw', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') {
       return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios de SysAdmin (DEV) necessários.' });
@@ -674,13 +1079,10 @@ module.exports = (app, io) => {
 
     try {
       const [rows] = await pool.execute(sql);
-
-      // Registo na auditoria SOC para fins de conformidade e segurança zero-trust
       await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query executada: ${sql.substring(0, 100)}...`, 'danger');
-
       res.json({ success: true, data: rows });
     } catch (error) {
       res.json({ success: false, error: error.message });
     };
-});
+  });
 };

@@ -274,6 +274,14 @@ body {
   letter-spacing: -1px;
 }
 
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -1px;
+}
+
 .sidebar.collapsed {
   width: 88px;
 }

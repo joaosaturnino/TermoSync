@@ -148,7 +148,7 @@ export default function Dashboard({
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#020617', zIndex: 99999, padding: '2rem', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.5s' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
-          <h1 style={{ color: '#10b981', fontFamily: 'JetBrains Mono', margin: 0, fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}><Activity className="pulse-success-icon" size={40} /> KIOSK MODE: {saudeRede.status}</h1>
+          <h1 style={{ color: '#10b981', fontFamily: 'Montserrat', margin: 0, fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}><Activity className="pulse-success-icon" size={40} /> KIOSK MODE: {saudeRede.status}</h1>
           <button onClick={() => setKioskMode(false)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>SAIR [ESC]</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem', marginBottom: '3rem' }}>
@@ -166,7 +166,7 @@ export default function Dashboard({
                 <div key={i} style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '20px', borderRadius: '12px', marginBottom: '15px', borderLeft: '8px solid #ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                    <div style={{ fontSize: '1.8rem', color: 'white', fontWeight: 'bold' }}>{n.equipamento_nome}</div>
                    <div style={{ fontSize: '1.4rem', color: '#ef4444' }}>{n.mensagem}</div>
-                   <div style={{ fontSize: '1.5rem', color: '#94a3b8', fontFamily: 'monospace' }}>{new Date(n.data_hora).toLocaleTimeString()}</div>
+                   <div style={{ fontSize: '1.5rem', color: '#94a3b8', fontFamily: 'Montserrat' }}>{new Date(n.data_hora).toLocaleTimeString()}</div>
                 </div>
               ))
            )}

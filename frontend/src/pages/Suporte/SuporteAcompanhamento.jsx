@@ -1,29 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState, memo } from 'react';
-import {
-  BookOpen,
-  ClipboardList,
-  Clock3,
-  Filter,
-  LifeBuoy,
-  MessageSquare,
-  Search,
-  Sparkles,
-  User,
-  ArrowRight,
-  BadgeCheck,
-  AlertTriangle
-} from 'lucide-react';
+import { BookOpen, ClipboardList, Clock3, Filter, LifeBuoy, MessageSquare, Search, Sparkles, User, ArrowRight, BadgeCheck, AlertTriangle, Hourglass, Activity } from 'lucide-react';
 import './SuporteTelas.css';
 
 const STATUS_OPTIONS = ['Todos', 'Aberto', 'Em análise', 'Respondido', 'Concluído'];
 
 const statusClass = (status) => {
-  const map = {
-    'Aberto': 'status-aberto',
-    'Em análise': 'status-analise',
-    'Respondido': 'status-respondido',
-    'Concluído': 'status-concluido'
-  };
+  const map = { 'Aberto': 'status-aberto', 'Em análise': 'status-analise', 'Respondido': 'status-respondido', 'Concluído': 'status-concluido' };
   return map[status] || 'status-aberto';
 };
 
@@ -32,6 +14,29 @@ const formatDate = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Data indisponível';
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+// --- NOVO: LÓGICA DE SLA ---
+const calcularSLA = (prioridade, dataCriacao, status) => {
+  if (status === 'Concluído' || status === 'Respondido') return { percent: 100, text: 'SLA Cumprido', color: 'var(--success)' };
+  
+  const horasMeta = prioridade === 'Crítica' ? 4 : prioridade === 'Alta' ? 12 : prioridade === 'Baixa' ? 48 : 24;
+  const criadoMs = new Date(dataCriacao || Date.now()).getTime();
+  const limiteSLA = criadoMs + (horasMeta * 60 * 60 * 1000);
+  const agora = Date.now();
+  
+  if (agora > limiteSLA) return { percent: 100, text: 'SLA Expirado', color: 'var(--danger)' };
+  
+  const restamMs = limiteSLA - agora;
+  const restamHoras = Math.floor(restamMs / (1000 * 60 * 60));
+  const restamMins = Math.floor((restamMs % (1000 * 60 * 60)) / (1000 * 60));
+  const elapsedPercent = Math.max(0, Math.min(100, ((agora - criadoMs) / (horasMeta * 60 * 60 * 1000)) * 100));
+
+  return { 
+    percent: elapsedPercent, 
+    text: `Restam ${restamHoras}h ${restamMins}m`, 
+    color: elapsedPercent > 80 ? 'var(--danger)' : elapsedPercent > 50 ? 'var(--warning)' : 'var(--success)' 
+  };
 };
 
 const SupportTicketCard = memo(({ ticket, selected, onClick }) => {
@@ -53,13 +58,9 @@ const SupportTicketCard = memo(({ ticket, selected, onClick }) => {
         <span><BookOpen size={14} /> {ticket.categoria || 'Geral'}</span>
       </div>
       {ticket.resposta ? (
-        <div className="support-flow-response-preview">
-          <BadgeCheck size={14} /> {ticket.resposta}
-        </div>
+        <div className="support-flow-response-preview"><BadgeCheck size={14} /> {ticket.resposta}</div>
       ) : (
-        <div className="support-flow-response-empty">
-          <AlertTriangle size={14} /> Aguardando retorno do suporte.
-        </div>
+        <div className="support-flow-response-empty"><AlertTriangle size={14} /> Aguardando retorno do suporte.</div>
       )}
     </button>
   );
@@ -78,14 +79,10 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
     try {
       const res = await api.get('/suporte/chamados');
       setTickets(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      showToast?.('Não foi possível carregar os tickets de suporte.', 'error');
-    }
+    } catch (error) { showToast?.('Não foi possível carregar os tickets de suporte.', 'error'); }
   }, [api, isOffline, showToast]);
 
-  useEffect(() => {
-    carregarTickets();
-  }, [carregarTickets]);
+  useEffect(() => { carregarTickets(); }, [carregarTickets]);
 
   useEffect(() => {
     if (!socket) return undefined;
@@ -104,21 +101,15 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
         if (!isDev) {
           const solicitante = String(ticket.solicitante || '').toLowerCase();
           const filial = String(ticket.filial || '').toLowerCase();
-          const pertenceAoUsuario = nomeLower ? solicitante === nomeLower : false;
-          const pertenceAFilial = filialLower ? filial === filialLower : false;
-          if (!pertenceAoUsuario && !pertenceAFilial) return false;
+          if (solicitante !== nomeLower && filial !== filialLower) return false;
         }
-
         if (filtroStatus !== 'Todos' && ticket.status !== filtroStatus) return false;
-
         if (termo) {
           const texto = `${ticket.titulo} ${ticket.descricao} ${ticket.solicitante} ${ticket.categoria} ${ticket.resposta} ${ticket.empresa} ${ticket.filial}`.toLowerCase();
           if (!texto.includes(termo)) return false;
         }
-
         return true;
-      })
-      .sort((a, b) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
+      }).sort((a, b) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
   }, [tickets, busca, filtroStatus, isDev, nomeLogado, userFilial]);
 
   const resumo = useMemo(() => {
@@ -129,33 +120,23 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
   }, [ticketsVisiveis]);
 
   useEffect(() => {
-    if (!selecionado && ticketsVisiveis.length > 0) {
-      setSelecionado(ticketsVisiveis[0]);
-    }
-    if (selecionado && !ticketsVisiveis.some((ticket) => ticket.id === selecionado.id)) {
-      setSelecionado(ticketsVisiveis[0] || null);
-    }
+    if (!selecionado && ticketsVisiveis.length > 0) setSelecionado(ticketsVisiveis[0]);
+    if (selecionado && !ticketsVisiveis.some((ticket) => ticket.id === selecionado.id)) setSelecionado(ticketsVisiveis[0] || null);
   }, [ticketsVisiveis, selecionado]);
 
   useEffect(() => {
     const carregarHistorico = async () => {
-      if (!api || isOffline || !selecionado?.id) {
-        setHistorico([]);
-        return;
-      }
-
+      if (!api || isOffline || !selecionado?.id) { setHistorico([]); return; }
       try {
         const res = await api.get(`/suporte/chamados/${selecionado.id}/historico`);
         setHistorico(Array.isArray(res.data) ? res.data : []);
-      } catch (error) {
-        setHistorico([]);
-      }
+      } catch (error) { setHistorico([]); }
     };
-
     carregarHistorico();
   }, [api, isOffline, selecionado?.id]);
 
   const detalheSelecionado = selecionado || ticketsVisiveis[0] || null;
+  const currentSLA = detalheSelecionado ? calcularSLA(detalheSelecionado.prioridade, detalheSelecionado.criado_em, detalheSelecionado.status) : null;
 
   return (
     <div className="support-flow-shell anim-fade-in">
@@ -177,22 +158,10 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
         </div>
 
         <div className="support-flow-stats">
-          <div className="support-flow-stat">
-            <strong>{ticketsVisiveis.length}</strong>
-            <span>Tickets visíveis</span>
-          </div>
-          <div className="support-flow-stat">
-            <strong>{resumo.aberto + resumo.analise}</strong>
-            <span>Em atendimento</span>
-          </div>
-          <div className="support-flow-stat">
-            <strong>{resumo.respondidos}</strong>
-            <span>Respondidos</span>
-          </div>
-          <div className="support-flow-stat">
-            <strong>{isDev ? 'DEV' : 'USUÁRIO'}</strong>
-            <span>Modo de visão</span>
-          </div>
+          <div className="support-flow-stat"><strong>{ticketsVisiveis.length}</strong><span>Tickets visíveis</span></div>
+          <div className="support-flow-stat"><strong>{resumo.aberto + resumo.analise}</strong><span>Em atendimento</span></div>
+          <div className="support-flow-stat"><strong>{resumo.respondidos}</strong><span>Respondidos</span></div>
+          <div className="support-flow-stat"><strong>{isDev ? 'DEV' : 'USUÁRIO'}</strong><span>Modo de visão</span></div>
         </div>
       </section>
 
@@ -204,14 +173,7 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
         <div className="support-flow-filters">
           <Filter size={16} className="support-flow-filter-icon" />
           {STATUS_OPTIONS.map((status) => (
-            <button
-              key={status}
-              type="button"
-              className={`support-flow-filter ${filtroStatus === status ? 'active' : ''}`}
-              onClick={() => setFiltroStatus(status)}
-            >
-              {status}
-            </button>
+            <button key={status} type="button" className={`support-flow-filter ${filtroStatus === status ? 'active' : ''}`} onClick={() => setFiltroStatus(status)}>{status}</button>
           ))}
         </div>
       </div>
@@ -219,10 +181,7 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
       <section className="support-flow-grid">
         <div className="support-flow-panel">
           <div className="support-flow-panel-head">
-            <div>
-              <span className="panel-icon"><ClipboardList size={18} /></span>
-              <h2>Fila de tickets</h2>
-            </div>
+            <div><span className="panel-icon"><ClipboardList size={18} /></span><h2>Fila de tickets</h2></div>
             <span className="panel-badge">{ticketsVisiveis.length} itens</span>
           </div>
 
@@ -235,12 +194,7 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
               </div>
             ) : (
               ticketsVisiveis.map((ticket) => (
-                <SupportTicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  selected={detalheSelecionado?.id === ticket.id}
-                  onClick={setSelecionado}
-                />
+                <SupportTicketCard key={ticket.id} ticket={ticket} selected={detalheSelecionado?.id === ticket.id} onClick={setSelecionado} />
               ))
             )}
           </div>
@@ -259,6 +213,17 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
                 </span>
               </div>
 
+              {/* NOVO: MOTOR DE SLA VISUAL */}
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px', color: currentSLA.color, textTransform: 'uppercase' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Hourglass size={14}/> Acordo de Nível de Serviço (SLA)</span>
+                    <span>{currentSLA.text}</span>
+                 </div>
+                 <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+                    <div style={{ width: `${currentSLA.percent}%`, height: '100%', background: currentSLA.color, transition: 'width 1s ease' }}></div>
+                 </div>
+              </div>
+
               <div className="support-flow-detail-meta">
                 <span><User size={14} /> {detalheSelecionado.solicitante || 'Usuário'}</span>
                 <span><Clock3 size={14} /> {formatDate(detalheSelecionado.criado_em)}</span>
@@ -268,33 +233,21 @@ export default function SuporteAcompanhamento({ api, socket, userRole, nomeLogad
               <p className="support-flow-detail-text">{detalheSelecionado.descricao}</p>
 
               <div className="support-flow-note-box">
-                <strong>Retorno do suporte</strong>
-                <p>{detalheSelecionado.resposta || 'Ainda não houve resposta registrada para este ticket.'}</p>
+                <strong style={{ color: 'white' }}>Retorno do suporte</strong>
+                <p style={{ color: detalheSelecionado.resposta ? 'var(--success)' : 'var(--text-muted)' }}>
+                   {detalheSelecionado.resposta || 'Ainda não houve resposta registrada para este ticket.'}
+                </p>
               </div>
 
               <div className="support-flow-note-box muted">
-                <strong>Contexto</strong>
-                <p>{detalheSelecionado.empresa ? `Empresa: ${detalheSelecionado.empresa}` : 'Ticket global do sistema.'}{detalheSelecionado.filial ? ` Filial: ${detalheSelecionado.filial}.` : ''}</p>
+                <strong>Contexto do Sistema</strong>
+                <p>
+                  {detalheSelecionado.empresa ? `Empresa: ${detalheSelecionado.empresa}` : 'Ticket global do sistema.'}
+                  {detalheSelecionado.filial ? ` Filial: ${detalheSelecionado.filial}.` : ''}
+                </p>
               </div>
 
-              <div className="support-flow-note-box">
-                <strong>Linha do tempo</strong>
-                <div className="support-flow-history">
-                  {historico.length === 0 ? (
-                    <p>Nenhum evento registrado ainda.</p>
-                  ) : (
-                    historico.map((item) => (
-                      <div key={item.id} className="support-flow-history-item">
-                        <span>{item.evento}</span>
-                        <strong>{item.autor}</strong>
-                        <p>{item.mensagem || 'Sem observação.'}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <button className="btn btn-outline w-100" type="button" onClick={() => onNavigate?.('suporte')}>
+              <button className="btn btn-outline w-100" type="button" onClick={() => onNavigate?.('suporte')} style={{ marginTop: 'auto' }}>
                 <ArrowRight size={16} /> Abrir outro ticket
               </button>
             </div>

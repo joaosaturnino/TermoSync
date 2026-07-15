@@ -86,7 +86,7 @@ class ErrorBoundary extends Component {
             <Terminal size={56} className="crash-icon pulse-danger-icon" style={{color: 'var(--danger)', marginBottom: '1rem'}} />
             <h2 style={{color: 'white', marginBottom: '1rem'}}>SISTEMA INTERROMPIDO</h2>
             <p className="crash-text" style={{color: '#94a3b8', marginBottom: '1.5rem'}}>Ocorreu uma falha crítica ao renderizar este módulo. A sua sessão e os dados da rede permanecem seguros.</p>
-            <div className="crash-code" style={{background: 'rgba(0,0,0,0.5)', padding: '10px', color: '#fca5a5', fontFamily: 'monospace', marginBottom: '2rem'}}>ERR_UI_RENDER_FAIL</div>
+            <div className="crash-code" style={{background: 'rgba(0,0,0,0.5)', padding: '10px', color: '#fca5a5', fontFamily: 'Montserrat', marginBottom: '2rem'}}>ERR_UI_RENDER_FAIL</div>
             <button className="btn btn-danger w-100" onClick={() => window.location.reload()}><Activity size={18} /> REINICIAR NÚCLEO</button>
           </div>
         </div>
@@ -246,6 +246,95 @@ export default function App() {
     setIsDevAuthenticated(false); 
   }, []);
 
+  // RESTAURAÇÃO DAS FUNÇÕES DE LOGIN QUE FALTAVAM
+  const fazerLogin = async (usuarioInput, senhaInput) => {
+    if (isOffline) {
+      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'Sinal de rede perdido.', type: 'error' }});
+      window.dispatchEvent(fakeEvent);
+      return;
+    }
+    setLoginErro(''); 
+    setIsLoginLoading(true); 
+    
+    try {
+      const res = await axios.post(`${getApiUrl()}/login`, { usuario: usuarioInput, senha: senhaInput });
+      
+      if (sysConfig.maintenanceMode && res.data.role !== 'DEV') {
+        const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'SISTEMA EM MANUTENÇÃO. Acesso restrito.', type: 'warning' }});
+        window.dispatchEvent(fakeEvent);
+        setIsLoginLoading(false);
+        return;
+      }
+
+      const gNome = res.data.nome_gerente || ''; 
+      const cNome = res.data.nome_coordenador || '';
+      let identityName = usuarioInput; 
+      let roleTitle = 'Gestor de Loja';
+      
+      if (res.data.role === 'DEV') { 
+        identityName = 'Desenvolvedor do Sistema'; 
+        roleTitle = 'SysAdmin / Root'; 
+        setDevBootData({ token: res.data.token, id: res.data.id, role: res.data.role, filial: res.data.filial, identityName, roleTitle, loginName: usuarioInput });
+        setIsDevBooting(true); 
+        setIsLoginLoading(false); 
+        return;
+      }
+      else if (res.data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
+      else if (res.data.role === 'MANUTENCAO') { identityName = res.data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
+      else if (res.data.role === 'LOJA') { 
+        if (gNome) { identityName = gNome; roleTitle = 'Gerente da Loja'; } 
+        else if (cNome) { identityName = cNome; roleTitle = 'Coordenador da Loja'; } 
+        else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; } 
+      }
+      
+      setToken(res.data.token); 
+      setUserId(res.data.id); 
+      setUserRole(res.data.role); 
+      setUserFilial(res.data.filial); 
+      setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
+      setAbaAtiva('dashboard'); 
+      setMenuAberto(false);
+      
+      setNomeLogado(identityName); 
+      setPapelLogado(roleTitle); 
+      setLoginAtivo(usuarioInput);
+      
+      sessionStorage.setItem('token', res.data.token); 
+      sessionStorage.setItem('userId', res.data.id); 
+      sessionStorage.setItem('userRole', res.data.role); 
+      sessionStorage.setItem('userFilial', res.data.filial); 
+      sessionStorage.setItem('nomeLogado', identityName); 
+      sessionStorage.setItem('papelLogado', roleTitle); 
+      sessionStorage.setItem('loginAtivo', usuarioInput);
+      
+      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `Protocolo aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }});
+      window.dispatchEvent(fakeEvent);
+    } catch (error) { 
+      setLoginErro('Credenciais inválidas.'); 
+      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'Acesso Negado.', type: 'error' }});
+      window.dispatchEvent(fakeEvent);
+    } finally { 
+      setIsLoginLoading(false); 
+    }
+  };
+
+  const completeDevBoot = () => {
+    if (!devBootData) return;
+    const { token, id, role, filial, identityName, roleTitle, loginName } = devBootData;
+    
+    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); 
+    setFilialAtiva('Todas'); setAbaAtiva('dev_panel'); setMenuAberto(false);
+    setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName);
+    setIsDevAuthenticated(true); 
+    
+    sessionStorage.setItem('token', token); sessionStorage.setItem('userId', id); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', filial); sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', loginName);
+    sessionStorage.setItem('devAuth', 'true');
+    
+    const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `Protocolo ROOT aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }});
+    window.dispatchEvent(fakeEvent);
+    setIsDevBooting(false); setDevBootData(null);
+  };
+
   useEffect(() => {
     const handleKillSwitch = (e) => {
       if (e.key === 'termosync_force_logout' && e.newValue) {
@@ -291,7 +380,10 @@ export default function App() {
   useEffect(() => { if (showCommandPalette && commandInputRef.current) commandInputRef.current.focus(); }, [showCommandPalette]);
 
   const toggleFullScreen = () => { 
-    if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => showToast("Modo TV bloqueado.", "warning")); } 
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => {
+      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: "Modo TV bloqueado.", type: 'warning' }});
+      window.dispatchEvent(fakeEvent);
+    }); } 
     else { document.exitFullscreen(); } 
   };
   
@@ -309,7 +401,6 @@ export default function App() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
   const [historicoAlertas, setHistoricoAlertas] = useState([]);
-  const [relatorios, setRelatorios] = useState([]);
   const [chamados, setChamados] = useState([]);
   const [usuariosLista, setUsuariosLista] = useState([]);
   const [lojasCadastradas, setLojasCadastradas] = useState([]); 
@@ -328,9 +419,6 @@ export default function App() {
   const [listaSetores, setListaSetores] = useState([]);
   const [listaTipos, setListaTipos] = useState([]);
   
-  const [dataInicio, setDataInicio] = useState(new Date(new Date().setDate(new Date().getDate() - 1)));
-  const [dataFim, setDataFim] = useState(new Date());
-  const [equipamentoFiltro, setEquipamentoFiltro] = useState('');
   const [termoPesquisa, setTermoPesquisa] = useState('');
   
   const [toasts, setToasts] = useState([]);
@@ -342,7 +430,6 @@ export default function App() {
   useEffect(() => { abaAtivaRef.current = abaAtiva; }, [abaAtiva]);
 
   const bufferLeiturasRef = useRef({});
-  const relatoriosBufferRef = useRef([]);
 
   useEffect(() => {
     const iotFlushInterval = setInterval(() => {
@@ -354,10 +441,6 @@ export default function App() {
           return eq;
         }));
         bufferLeiturasRef.current = {}; 
-      }
-      if (relatoriosBufferRef.current.length > 0) {
-        setRelatorios(prev => { const att = [...prev, ...relatoriosBufferRef.current]; if (att.length > 2000) return att.slice(att.length - 2000); return att; });
-        relatoriosBufferRef.current = [];
       }
     }, 1000); 
     return () => clearInterval(iotFlushInterval);
@@ -428,52 +511,6 @@ export default function App() {
     } 
   }, [somAtivoState, showToast, isFeatureEnabled]);
 
-  const fazerLogin = async (usuarioInput, senhaInput) => {
-    if (isOffline) return showToast('Sinal de rede perdido.', 'error');
-    setLoginErro(''); setIsLoginLoading(true); 
-    try {
-      const res = await axios.post(`${getApiUrl()}/login`, { usuario: usuarioInput, senha: senhaInput });
-      if (sysConfig.maintenanceMode && res.data.role !== 'DEV') return showToast('SISTEMA EM MANUTENÇÃO. Acesso restrito.', 'warning');
-
-      const gNome = res.data.nome_gerente || ''; const cNome = res.data.nome_coordenador || '';
-      let identityName = usuarioInput; let roleTitle = 'Gestor de Loja';
-      
-      if (res.data.role === 'DEV') { 
-        identityName = 'Desenvolvedor do Sistema'; roleTitle = 'SysAdmin / Root'; 
-        setDevBootData({ token: res.data.token, id: res.data.id, role: res.data.role, filial: res.data.filial, identityName, roleTitle, loginName: usuarioInput });
-        setIsDevBooting(true); setIsLoginLoading(false); return;
-      }
-      else if (res.data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
-      else if (res.data.role === 'MANUTENCAO') { identityName = res.data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
-      else if (res.data.role === 'LOJA') { if (gNome) { identityName = gNome; roleTitle = 'Gerente da Loja'; } else if (cNome) { identityName = cNome; roleTitle = 'Coordenador da Loja'; } else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; } }
-      
-      setToken(res.data.token); setUserId(res.data.id); setUserRole(res.data.role); setUserFilial(res.data.filial); 
-      setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
-      setAbaAtiva('dashboard'); setMenuAberto(false);
-      
-      setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(usuarioInput);
-      
-      sessionStorage.setItem('token', res.data.token); sessionStorage.setItem('userId', res.data.id); sessionStorage.setItem('userRole', res.data.role); sessionStorage.setItem('userFilial', res.data.filial); sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', usuarioInput);
-      showToast(`Protocolo aceito. Bem-vindo(a), ${identityName}.`, 'success');
-    } catch (error) { setLoginErro('Credenciais inválidas.'); showToast('Acesso Negado.', 'error'); } finally { setIsLoginLoading(false); }
-  };
-
-  const completeDevBoot = () => {
-    if (!devBootData) return;
-    const { token, id, role, filial, identityName, roleTitle, loginName } = devBootData;
-    
-    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); 
-    setFilialAtiva('Todas'); setAbaAtiva('dev_panel'); setMenuAberto(false);
-    setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName);
-    setIsDevAuthenticated(true); 
-    
-    sessionStorage.setItem('token', token); sessionStorage.setItem('userId', id); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', filial); sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', loginName);
-    sessionStorage.setItem('devAuth', 'true');
-    
-    showToast(`Protocolo ROOT aceito. Bem-vindo(a), ${identityName}.`, 'success');
-    setIsDevBooting(false); setDevBootData(null);
-  };
-
   const carregarChamados = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get('/chamados'); setChamados(Array.isArray(res.data) ? res.data : []); } catch (e) { } }, [token, isOffline, api]);
   const carregarUsuarios = useCallback(async () => { if ((userRole !== 'ADMIN' && userRole !== 'DEV') || !token || isOffline) return; try { const res = await api.get('/usuarios'); setUsuariosLista(Array.isArray(res.data) ? res.data : []); } catch (e) {} }, [api, userRole, token, isOffline]);
   const carregarLojas = useCallback(async () => { if ((userRole !== 'ADMIN' && userRole !== 'DEV') || !token || isOffline) return; try { const res = await api.get('/lojas'); setLojasCadastradas(Array.isArray(res.data) ? res.data : []); } catch (e) {} }, [api, userRole, token, isOffline]);
@@ -540,7 +577,6 @@ export default function App() {
     
     socket.on('nova_leitura', (dadosNovaLeitura) => { 
       bufferLeiturasRef.current[dadosNovaLeitura.equipamento_id] = dadosNovaLeitura; 
-      if (abaAtivaRef.current === 'relatorios') relatoriosBufferRef.current.push(dadosNovaLeitura); 
     });
     
     let timeoutAtualizacao;
@@ -560,7 +596,7 @@ export default function App() {
             const tiposCriticos = ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'];
             if (tiposCriticos.includes(alertaCompleto.tipo_alerta)) {
               tocarAlarmeRef.current();
-              showToastRef.current(`?? <b>ANOMALIA DETECTADA:</b> O equipamento <b>${alertaCompleto.equipamento_nome}</b> registrou uma ocorrência: ${alertaCompleto.mensagem}`, 'error');
+              showToastRef.current(`🚨 <b>ANOMALIA DETECTADA:</b> O equipamento <b>${alertaCompleto.equipamento_nome}</b> registrou uma ocorrência: ${alertaCompleto.mensagem}`, 'error');
             }
           }
         }
@@ -604,13 +640,11 @@ export default function App() {
 
   useEffect(() => { if (token) { carregarDadosBase(); carregarTecnicos(); carregarContatos(); carregarHistoricoChat(); } }, [token, carregarDadosBase, carregarTecnicos, carregarContatos, carregarHistoricoChat]);
   useEffect(() => { const handleOnline = () => { setIsOffline(false); showToast('Sinal Restabelecido.', 'success'); carregarDadosBase(); carregarHistoricoChat(); }; const handleOffline = () => { setIsOffline(true); showToast('Sem Conexão ao Servidor.', 'warning'); }; window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline); return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }; }, [carregarDadosBase, carregarHistoricoChat, showToast]);
-  const carregarRelatorios = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get(`/relatorios?data_inicio=${dataInicio.toISOString()}&data_fim=${dataFim.toISOString()}`); setRelatorios(Array.isArray(res.data) ? res.data : []); } catch (error) {} }, [token, isOffline, api, dataInicio, dataFim]);
   
   useEffect(() => { if ((['usuarios', 'dev_panel', 'saas', 'billing', 'bi'].includes(abaAtiva)) && (userRole === 'ADMIN' || userRole === 'DEV')) carregarUsuarios(); }, [abaAtiva, carregarUsuarios, userRole]);
   useEffect(() => { if (abaAtiva === 'lojas' && (userRole === 'ADMIN' || userRole === 'DEV')) carregarLojas(); }, [abaAtiva, carregarLojas, userRole]);
   useEffect(() => { if (abaAtiva === 'chamados' || abaAtiva === 'historico_chamados') carregarChamados(); }, [abaAtiva, carregarChamados]); 
   useEffect(() => { if (abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV')) carregarParametrosGerais(); }, [abaAtiva, carregarParametrosGerais, userRole]); 
-  useEffect(() => { if (token && abaAtiva === 'relatorios') carregarRelatorios(); }, [token, abaAtiva, dataInicio, dataFim, carregarRelatorios]);
 
   const listaFiliais = useMemo(() => { 
     if (papelLogado.includes('Impersonate') || userRole === 'LOJA') return [userFilial];
@@ -631,13 +665,7 @@ export default function App() {
   const eqPesquisaLower = termoPesquisa.toLowerCase();
   const equipamentosFiltradosLista = useMemo(() => equipamentosDaFilial?.filter(eq => eq.nome?.toLowerCase().includes(eqPesquisaLower) || (eq.setor && eq.setor.toLowerCase().includes(eqPesquisaLower))), [equipamentosDaFilial, eqPesquisaLower]);
   const historicoFiltradoLista = useMemo(() => { let hist = filialAtiva === 'Todas' ? historicoAlertas : historicoAlertas?.filter(h => (h.filial || 'Loja Principal') === filialAtiva); return hist?.filter(h => h.equipamento_nome?.toLowerCase().includes(eqPesquisaLower) || (h.setor && h.setor.toLowerCase().includes(eqPesquisaLower))); }, [historicoAlertas, filialAtiva, eqPesquisaLower]);
-  const dadosRelatorioBrutos = useMemo(() => { let r = filialAtiva === 'Todas' ? relatorios : relatorios?.filter(x => (x.filial || 'Loja Principal') === filialAtiva); return r?.filter(x => equipamentoFiltro === '' || x.nome === equipamentoFiltro); }, [relatorios, filialAtiva, equipamentoFiltro]);
-  const dadosGrafico = useMemo(() => dadosRelatorioBrutos?.map(r => ({ hora: new Date(r.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), dataExata: new Date(r.data_hora).toLocaleString(), temperatura: parseFloat(r.temperatura), umidade: parseFloat(r.umidade || 0), consumo_kwh: parseFloat(r.consumo_kwh || 0), nome: r.nome, filial: r.filial || 'Loja Principal' })), [dadosRelatorioBrutos]);
-  const dadosGraficoFiltrados = useMemo(() => { if (dadosGrafico?.length <= 200) return dadosGrafico; return dadosGrafico?.filter((_, idx) => idx % Math.ceil(dadosGrafico.length / 200) === 0); }, [dadosGrafico]);
-  const ultimasLeiturasRaw = useMemo(() => [...(dadosGrafico || [])].reverse().slice(0, 150), [dadosGrafico]);
-  const { kpis, slaCompliance, totalEnergia } = useMemo(() => { let kpiMaxT = -Infinity, kpiMinT = Infinity, kpiMaxU = -Infinity, kpiMinU = Infinity, somaUmid = 0, countUmid = 0, somaTemp = 0, leiturasNoLimite = 0, somaKwh = 0; dadosGrafico?.forEach(d => { if (d.temperatura > kpiMaxT) kpiMaxT = d.temperatura; if (d.temperatura < kpiMinT) kpiMinT = d.temperatura; somaTemp += d.temperatura; if (d.umidade > 0) { if (d.umidade > kpiMaxU) kpiMaxU = d.umidade; if (d.umidade < kpiMinU) kpiMinU = d.umidade; somaUmid += d.umidade; countUmid++; } somaKwh += d.consumo_kwh; const eqRef = equipamentos?.find(e => e.nome === d.nome); if (eqRef && d.temperatura >= eqRef.temp_min && d.temperatura <= eqRef.temp_max) leiturasNoLimite++; }); const sla = dadosGrafico?.length > 0 ? ((leiturasNoLimite / dadosGrafico.length) * 100).toFixed(1) : '--'; return { kpis: { kpiMaxT: kpiMaxT === -Infinity ? '--' : kpiMaxT, kpiMinT: kpiMinT === Infinity ? '--' : kpiMinT, kpiMediaT: dadosGrafico?.length > 0 ? (somaTemp / dadosGrafico.length).toFixed(2) : '--', kpiMaxU: kpiMaxU === -Infinity ? '--' : kpiMaxU, kpiMinU: kpiMinU === Infinity ? '--' : kpiMinU, kpiMediaU: countUmid > 0 ? (somaUmid / countUmid).toFixed(1) : '--' }, slaCompliance: sla, totalEnergia: somaKwh }; }, [dadosGrafico, equipamentos]);
-  const mktValueProcessado = useMemo(() => { const arr = dadosRelatorioBrutos?.map(d => parseFloat(d.temperatura)) || []; if (arr.length === 0) return '--'; let soma = 0; arr.forEach(t => soma += Math.exp(-83.144 / (0.0083144 * (t + 273.15)))); return ((83.144 / 0.0083144) / (-Math.log(soma / arr.length)) - 273.15).toFixed(2); }, [dadosRelatorioBrutos]);
-  const equipamentoSelecionado = useMemo(() => equipamentosDaFilial?.find(e => e.nome === equipamentoFiltro), [equipamentosDaFilial, equipamentoFiltro]);
+  
   const dadosDonutStatus = useMemo(() => [ { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' } ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
 
   const editarEquipamento = (eq) => { if (isOffline || isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada.', 'warning'); setEquipEditando(eq.id); setFormEditEquip({ nome: eq.nome, tipo: eq.tipo, temp_min: eq.temp_min, temp_max: eq.temp_max, umidade_min: eq.umidade_min || '', umidade_max: eq.umidade_max || '', intervalo_degelo: eq.intervalo_degelo, duracao_degelo: eq.duracao_degelo, setor: eq.setor, filial: eq.filial, data_calibracao: eq.data_calibracao ? new Date(eq.data_calibracao).toISOString().split('T')[0] : '' }); };
@@ -681,38 +709,35 @@ export default function App() {
     }); 
   };
   
+  // Função Global de Exportação
   const gerarExportacao = (tipo) => { 
     if (!isFeatureEnabled('allowExports')) return showToast('A exportação de dados foi bloqueada pelas diretrizes do sistema.', 'error');
-    let fd = abaAtiva === 'historico' ? historicoFiltradoLista : (equipamentoFiltro ? relatorios.filter(r => r.nome === equipamentoFiltro) : relatorios); 
-    if (fd.length === 0) return showToast("Sem dados para exportar.", "warning"); 
-    
-    if (tipo === 'pdf') { 
-      const doc = new jsPDF(); 
-      doc.setFontSize(18); 
-      doc.text(abaAtiva === 'historico' ? "Auditoria de Ocorrências" : "Auditoria de Qualidade", 14, 20); 
-      doc.setFontSize(11); 
-      doc.text(`Emitido: ${new Date().toLocaleString()}`, 14, 28); 
-      
-      let head = abaAtiva === 'historico' ? [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]] : [["Data", "Local / Eq.", "Temp", "Umid", "Consumo"]]; 
-      let body = abaAtiva === 'historico' 
-        ? fd.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao]) 
-        : fd.map(r => [new Date(r.data_hora).toLocaleString(), `${r.filial} - ${r.nome}`, `${r.temperatura}°C`, `${r.umidade}%`, `${r.consumo_kwh}kWh`]); 
-      
-      autoTable(doc, { head, body, startY: 40, theme: 'grid' }); 
-      doc.save(`Auditoria_${new Date().getTime()}.pdf`); 
-    } else { 
-      let csv = abaAtiva === 'historico' ? "Data,Equipamento,Setor,Ocorrencia,Tecnico\n" : "Data,Filial,Equipamento,Temp,Umid,Consumo(kWh)\n"; 
-      fd.forEach(row => { 
-        csv += abaAtiva === 'historico' 
-          ? `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n` 
-          : `"${new Date(row.data_hora).toLocaleString()}","${row.filial}","${row.nome}","${row.temperatura}","${row.umidade}","${row.consumo_kwh}"\n`; 
-      }); 
-      const link = document.createElement("a"); 
-      link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' })); 
-      link.download = `Dados_${new Date().getTime()}.csv`; 
-      link.click(); 
-    } 
-    showToast('Pacote de dados gerado.', 'success'); 
+    if (abaAtiva === 'historico') {
+      if (historicoFiltradoLista.length === 0) return showToast("Sem dados para exportar.", "warning");
+      if (tipo === 'pdf') { 
+        const doc = new jsPDF(); 
+        doc.setFontSize(18); 
+        doc.text("Auditoria de Ocorrências", 14, 20); 
+        doc.setFontSize(11); 
+        doc.text(`Emitido: ${new Date().toLocaleString()}`, 14, 28); 
+        let head = [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]]; 
+        let body = historicoFiltradoLista.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao]); 
+        autoTable(doc, { head, body, startY: 40, theme: 'grid' }); 
+        doc.save(`Auditoria_Ocorrencias_${new Date().getTime()}.pdf`); 
+      } else { 
+        let csv = "Data,Equipamento,Setor,Ocorrencia,Tecnico\n"; 
+        historicoFiltradoLista.forEach(row => { 
+          csv += `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n`; 
+        }); 
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' })); 
+        link.download = `Auditoria_${new Date().getTime()}.csv`; 
+        link.click(); 
+      } 
+      showToast('Pacote de dados gerado.', 'success'); 
+    } else {
+      showToast('Funcionalidade de PDF não implementada no frontend (usando backend).', 'info');
+    }
   };
   
   const gerarLoteOS = (listaChamados) => { 
@@ -758,7 +783,7 @@ export default function App() {
     { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas, type: 'Serviços' },
     
     { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria' },
-      { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
+    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
     { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
     
     { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Sistema' },
@@ -839,7 +864,7 @@ export default function App() {
       <aside className={`sidebar ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <TermoSyncLogo size={32} color="var(--secondary)" className="hide-on-collapse" />
-          <h2 className="hide-on-collapse" style={{marginLeft: '10px'}}>TermoSync</h2>
+          <h2 className="hide-on-collapse" style={{marginLeft: '10px'}}>ThermoSync</h2>
           <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={20} /></button>
         </div>
 
@@ -922,7 +947,7 @@ export default function App() {
         <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <button className="btn-icon" onClick={() => { if (window.innerWidth <= 768) setMenuAberto(true); else setMenuRecolhido(!menuRecolhido); }}><Menu size={22} /></button>
-            <h1 className="page-title desktop-only">{NAVIGATION.find(n => n.id === abaAtiva)?.label || 'TermoSync NOC'}</h1>
+            <h1 className="page-title desktop-only">{NAVIGATION.find(n => n.id === abaAtiva)?.label || 'ThermoSync NOC'}</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             
@@ -995,40 +1020,22 @@ export default function App() {
           <ErrorBoundary>
             {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
             {!isModuloOculto('assistente') && abaAtiva === 'assistente' && (
-              <AssistenteOperacao
-                equipamentosDaFilial={equipamentosDaFilial}
-                notificacoesDaFilial={notificacoesDaFilial}
-                chamados={chamados}
-                userRole={userRole}
-                filialAtiva={filialAtiva}
-              />
+              <AssistenteOperacao equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} />
             )}
             {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && (
-              <ResumoLoja
-                equipamentosDaFilial={equipamentosDaFilial}
-                notificacoesDaFilial={notificacoesDaFilial}
-                chamados={chamados}
-                filialAtiva={filialAtiva}
-                userRole={userRole}
-              />
+              <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} />
             )}
             {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && (
               <CentralProcedimentos />
             )}
             {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && (
-              <ChecklistTurno api={api} filialAtiva={filialAtiva} />
+              <ChecklistTurno api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} />
             )}
             {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && (
-              <ResumoTurno
-                equipamentosDaFilial={equipamentosDaFilial}
-                notificacoesDaFilial={notificacoesDaFilial}
-                chamados={chamados}
-                filialAtiva={filialAtiva}
-                userRole={userRole}
-              />
+              <ResumoTurno equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} />
             )}
             {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && (
-              <PlanoDia api={api} filialAtiva={filialAtiva} />
+              <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} />
             )}
             {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && (
               <ResumoExecutivo api={api} filialAtiva={filialAtiva} />
@@ -1037,22 +1044,9 @@ export default function App() {
               <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} />
             )}
             {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && (
-              <CentroComando
-                onNavigate={(id) => setAbaAtiva(id)}
-                qtdTotal={qtdTotal}
-                qtdOperando={qtdOperando}
-                qtdDegelo={qtdDegelo}
-                qtdFalha={qtdFalha}
-                notificacoesDaFilial={notificacoesDaFilial}
-                chamados={chamados}
-                equipamentosDaFilial={equipamentosDaFilial}
-                isOffline={isOffline}
-                userRole={userRole}
-                filialAtiva={filialAtiva}
-              />
+              <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} />
             )}
             
-            {/* Telas Corporativas */}
             {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} /> )}
             {!isModuloOculto('kanban') && abaAtiva === 'kanban' && ( <Kanban chamados={chamados} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} /> )}
             {!isModuloOculto('metrologia') && abaAtiva === 'metrologia' && ( <Metrologia equipamentosDaFilial={equipamentosDaFilial} editarEquipamento={editarEquipamento} /> )}
@@ -1064,7 +1058,28 @@ export default function App() {
             {!isModuloOculto('motores') && abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
             {!isModuloOculto('umidade') && abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
             {!isModuloOculto('equipamentos') && abaAtiva === 'equipamentos' && ( <Equipamentos api={api} showToast={showToast} isOffline={isOffline} userRole={userRole} userFilial={userFilial} filiaisDb={filiaisDb} listaSetores={listaSetores} listaTipos={listaTipos} carregarDadosBase={carregarDadosBase} equipamentosFiltradosLista={equipamentosFiltradosLista} editarEquipamento={editarEquipamento} pedirExclusao={pedirExclusao} /> )}
-            {!isModuloOculto('relatorios') && abaAtiva === 'relatorios' && ( <Relatorios totalEnergia={totalEnergia} slaCompliance={slaCompliance} kpis={kpis} mktValueProcessado={mktValueProcessado} dataInicio={dataInicio} setDataInicio={setDataInicio} dataFim={dataFim} setDataFim={setDataFim} isOffline={isOffline} equipamentoFiltro={equipamentoFiltro} setEquipamentoFiltro={setEquipamentoFiltro} equipamentosDaFilial={equipamentosDaFilial} gerarExportacao={gerarExportacao} dadosGraficoFiltrados={dadosGraficoFiltrados} isDarkMode={isDarkMode} equipamentoSelecionado={equipamentoSelecionado} ultimasLeiturasRaw={ultimasLeiturasRaw} /> )}
+            
+            {/* Telas Atualizadas com a Integração Correta de Banco de Dados */}
+            {!isModuloOculto('relatorios') && abaAtiva === 'relatorios' && ( 
+              <Relatorios 
+                api={api} 
+                filialAtiva={filialAtiva} 
+                showToast={showToast} 
+                isDarkMode={isDarkMode} 
+                isOffline={isOffline} 
+              /> 
+            )}
+            
+            {!isModuloOculto('energia') && abaAtiva === 'energia' && ( 
+              <GestaoEnergetica 
+                api={api} 
+                filialAtiva={filialAtiva} 
+                showToast={showToast} 
+                isDarkMode={isDarkMode} 
+                isOffline={isOffline} 
+              /> 
+            )}
+
             {!isModuloOculto('historico') && abaAtiva === 'historico' && ( <HistoricoLogs historicoFiltradoLista={historicoFiltradoLista} gerarExportacao={gerarExportacao} /> )}
             {!isModuloOculto('chamados') && abaAtiva === 'chamados' && ( <Chamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} equipamentosDaFilial={equipamentosDaFilial} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} gerarLoteOS={gerarLoteOS} /> )}
             {!isModuloOculto('historico_chamados') && abaAtiva === 'historico_chamados' && ( <HistoricoChamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} gerarLoteOS={gerarLoteOS} api={api} carregarChamados={carregarChamados} showToast={showToast} /> )}
@@ -1072,11 +1087,9 @@ export default function App() {
             {!isModuloOculto('lojas') && abaAtiva === 'lojas' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoLojas api={api} showToast={showToast} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('usuarios') && abaAtiva === 'usuarios' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
-            
-            {!isModuloOculto('energia') && abaAtiva === 'energia' && ( <GestaoEnergetica isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} /> )}
 
             {/* ? AS NOVAS TELAS ESTÃO RENDERIZADAS AQUI */}
-              {abaAtiva === 'bi' && <CentroInteligenciaBI isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} />}
+            {abaAtiva === 'bi' && <CentroInteligenciaBI isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} />}
             {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && ( 
               <PainelDesenvolvedor 
                 api={api}

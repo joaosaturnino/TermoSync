@@ -7,6 +7,8 @@
    barras de metrologia (SLA de aferição) e KPIs superiores.
    ========================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
 /* --- CABEÇALHO DA PÁGINA --- */
 .equipamentos-header {
   display: flex;
@@ -19,10 +21,11 @@
 
 .equipamentos-title {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  font-weight: 900;
   color: var(--text-main);
   letter-spacing: -0.5px;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .equipamentos-subtitle {
@@ -88,6 +91,22 @@
   color: var(--text-muted);
 }
 
+/* Banner de Segurança (Modo Leitura) */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* =========================================
    PAINEL DE KPIS (INDICADORES DE PERFORMANCE)
    Cartões superiores que mostram o total de máquinas e riscos
@@ -109,13 +128,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .kpi-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
 .kpi-icon {
@@ -125,6 +144,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .kpi-data {
@@ -133,17 +153,18 @@
 }
 
 .kpi-value {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.5rem;
+  font-weight: 900;
   color: var(--text-main);
   line-height: 1.1;
   margin-bottom: 2px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .kpi-label {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -189,8 +210,6 @@
 
 /* =========================================
    SMART PANEL (Formulário Oculto)
-   Utiliza a técnica de max-height para animar a abertura e 
-   fechamento do formulário de criação de equipamentos.
    ========================================= */
 .smart-form-panel {
   max-height: 0;
@@ -199,10 +218,8 @@
   transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
 }
 
-/* Classe adicionada dinamicamente pelo React para revelar o painel */
 .smart-form-panel.open {
   max-height: 2000px;
-  /* Suficientemente grande para acomodar o form sem cortar */
   opacity: 1;
   overflow: visible;
 }
@@ -297,7 +314,6 @@
 
 /* =========================================
    TABELA DE ATIVOS (ESTILO NOC)
-   Listagem detalhada das máquinas cadastradas
    ========================================= */
 .iot-table-row {
   transition: all 0.2s ease;
@@ -317,7 +333,7 @@
   font-size: 0.95rem;
 }
 
-/* Ponto colorido ao lado do nome da filial indicando o status atual */
+/* Ponto colorido indicando o status atual */
 .status-ring {
   display: inline-block;
   width: 10px;
@@ -364,7 +380,7 @@
   margin-top: 2px;
 }
 
-/* Barra de Metrologia Visual (Health Bar indicando validade da calibração) */
+/* Barra de Metrologia Visual (Health Bar) */
 .metrology-box {
   display: flex;
   flex-direction: column;
@@ -433,7 +449,7 @@
   gap: 6px;
   font-size: 0.75rem;
   font-weight: 800;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: var(--bg-color);
   padding: 4px 8px;
   border-radius: 6px;
@@ -449,7 +465,7 @@
   color: var(--info);
 }
 
-/* Botões de Ação na Tabela (Editar e Excluir) */
+/* Botões de Ação na Tabela */
 .btn-action {
   background: transparent;
   border: 1px solid var(--border);
@@ -469,8 +485,8 @@
 
 .btn-action.edit:hover {
   background: var(--card-bg);
-  color: var(--text-main);
-  border-color: var(--text-main);
+  color: var(--info);
+  border-color: var(--info);
   transform: translateY(-2px);
 }
 
@@ -485,9 +501,17 @@
   transform: translateY(-2px);
 }
 
+.lock-icon-read {
+  color: var(--text-muted);
+  opacity: 0.5;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* =========================================
    RESPONSIVIDADE DA TABELA (MOBILE)
-   Converte o layout tabular tradicional em uma lista de cartões empilhados
    ========================================= */
 @media (max-width: 768px) {
   .equipamentos-header {
@@ -505,6 +529,11 @@
   .search-box-iot {
     width: 100%;
     justify-content: center;
+  }
+
+  .read-only-banner {
+    justify-content: center;
+    text-align: center;
   }
 
   .iot-kpi-bar {

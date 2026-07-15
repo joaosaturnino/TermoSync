@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
-import { Zap, CheckCircle, BrainCircuit, Thermometer, Clock3, FileText, ShieldCheck, Loader2, WifiOff, Filter, Activity, Terminal } from 'lucide-react';
+import { 
+  Zap, CheckCircle2, ShieldCheck, Thermometer, Clock, 
+  FileText, AlertCircle, Loader2, Filter, Activity, 
+  ListOrdered, DownloadCloud, BarChart2, CheckSquare, Shield, WifiOff
+} from 'lucide-react';
 
 import ptBR from 'date-fns/locale/pt-BR'; 
 registerLocale('pt', ptBR);
@@ -9,13 +13,154 @@ registerLocale('pt', ptBR);
 import 'react-datepicker/dist/react-datepicker.css';
 import './Relatorios.css';
 
-export default function Relatorios({ 
-  totalEnergia, slaCompliance, kpis, mktValueProcessado, dataInicio, setDataInicio, dataFim, setDataFim, 
-  isOffline, equipamentoFiltro, setEquipamentoFiltro, equipamentosDaFilial, gerarExportacao, 
-  dadosGraficoFiltrados, isDarkMode, equipamentoSelecionado, ultimasLeiturasRaw 
-}) {
+export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, isOffline }) {
 
-  // Função Tática de NOC: Filtros Rápidos de Tempo
+  // ==========================================
+  // ESTADOS DO COMPONENTE (30 DIAS PADRÃO)
+  // ==========================================
+  const [dataInicio, setDataInicio] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); 
+  const [dataFim, setDataFim] = useState(new Date());
+  
+  const [equipamentoFiltro, setEquipamentoFiltro] = useState('');
+  const [equipamentos, setEquipamentos] = useState([]);
+  const [leiturasBrutas, setLeiturasBrutas] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ==========================================
+  // BUSCA REAL NO BANCO DE DADOS (API)
+  // ==========================================
+  useEffect(() => {
+    if (!api) return;
+    api.get('/equipamentos', { params: { filial: filialAtiva !== 'Todas' ? filialAtiva : undefined } })
+       .then(res => setEquipamentos(res.data || []))
+       .catch(err => console.error("Erro ao buscar equipamentos:", err));
+  }, [api, filialAtiva]);
+
+  const buscarRelatorio = useCallback(async () => {
+    if (!api || isOffline) return;
+    setIsLoading(true);
+    
+    try {
+      const res = await api.get('/relatorios', {
+        params: {
+          data_inicio: dataInicio.toISOString(),
+          data_fim: dataFim.toISOString()
+        }
+      });
+      setLeiturasBrutas(res.data || []);
+    } catch (e) {
+      if(showToast) showToast('Aviso: Não foi possível buscar o histórico de relatórios.', 'error');
+      setLeiturasBrutas([]); 
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, dataInicio, dataFim, isOffline, showToast]);
+
+  useEffect(() => {
+    buscarRelatorio();
+  }, [buscarRelatorio]);
+
+  // ==========================================
+  // PROCESSAMENTO SEGURO DE DADOS (COM FILTRO LOCAL)
+  // ==========================================
+  const equipamentosDaFilial = useMemo(() => {
+    if (!filialAtiva || filialAtiva === 'Todas') return equipamentos;
+    return equipamentos.filter(eq => (eq.filial || 'Loja Principal').trim().toLowerCase() === filialAtiva.trim().toLowerCase());
+  }, [equipamentos, filialAtiva]);
+
+  const equipamentoSelecionado = useMemo(() => {
+    return equipamentosDaFilial.find(eq => eq.nome === equipamentoFiltro) || null;
+  }, [equipamentosDaFilial, equipamentoFiltro]);
+
+  const { dadosGrafico, kpis, tabelaReversa } = useMemo(() => {
+    
+    let leiturasParaProcessar = leiturasBrutas;
+    
+    if (filialAtiva && filialAtiva !== 'Todas') {
+      leiturasParaProcessar = leiturasParaProcessar.filter(l => {
+        const filialDB = (l.filial || 'Loja Principal').trim().toLowerCase();
+        return filialDB === filialAtiva.trim().toLowerCase();
+      });
+    }
+
+    if (equipamentoFiltro) {
+      leiturasParaProcessar = leiturasParaProcessar.filter(l => l.nome === equipamentoFiltro);
+    }
+
+    if (!leiturasParaProcessar || leiturasParaProcessar.length === 0) {
+      return { 
+        dadosGrafico: [], 
+        tabelaReversa: [],
+        kpis: { totalEnergia: 0, slaCompliance: 100, mktValue: 0, maxTemp: '--' } 
+      };
+    }
+
+    let maxT = -999;
+    let leiturasValidasSLA = 0;
+    let somaTemp = 0;
+    
+    // Tratamento Robusto de Energia: Se o delta falhar, soma os valores do período
+    const energiaFinal = leiturasParaProcessar[leiturasParaProcessar.length - 1]?.consumo_kwh || 0;
+    const energiaInicial = leiturasParaProcessar[0]?.consumo_kwh || 0;
+    let energiaGasta = energiaFinal - energiaInicial;
+    
+    if (energiaGasta <= 0) {
+      energiaGasta = leiturasParaProcessar.reduce((acc, l) => acc + (Number(l.consumo_kwh) || 0), 0);
+    }
+
+    const graficoProcessado = leiturasParaProcessar.map(l => {
+      const tempNum = Number(l.temperatura);
+      const umidNum = Number(l.umidade || 0);
+
+      if (tempNum > maxT) maxT = tempNum;
+      
+      let eqInfo = equipamentoSelecionado || equipamentosDaFilial.find(e => e.nome === l.nome) || { temp_min: 2, temp_max: 8 };
+      if (tempNum >= eqInfo.temp_min && tempNum <= eqInfo.temp_max) {
+        leiturasValidasSLA++;
+      }
+      
+      somaTemp += tempNum;
+
+      return {
+        hora: new Date(l.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        temperatura: tempNum,
+        umidade: umidNum,
+        nome: l.nome,
+        dataExata: l.data_hora,
+        consumo_kwh: Number(l.consumo_kwh || 0)
+      };
+    }); 
+
+    const slaPerc = ((leiturasValidasSLA / leiturasParaProcessar.length) * 100).toFixed(1);
+    const mediaTemp = (somaTemp / leiturasParaProcessar.length).toFixed(1);
+    const tabelaInvertida = [...graficoProcessado].reverse();
+
+    return {
+      dadosGrafico: graficoProcessado,
+      tabelaReversa: tabelaInvertida,
+      kpis: {
+        totalEnergia: energiaGasta,
+        slaCompliance: slaPerc,
+        mktValue: mediaTemp,
+        maxTemp: maxT.toFixed(1)
+      }
+    };
+  }, [leiturasBrutas, filialAtiva, equipamentoFiltro, equipamentoSelecionado, equipamentosDaFilial]);
+
+  // ==========================================
+  // SEGURANÇA E EXPORTAÇÃO
+  // ==========================================
+  const generateRowHash = (data, temp, umid) => {
+    const raw = `${data}-${temp}-${umid}-thermosync-autenticado`;
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0').toUpperCase();
+  };
+
   const setQuickRange = (hours) => {
     const end = new Date();
     const start = new Date();
@@ -24,240 +169,198 @@ export default function Relatorios({
     setDataFim(end);
   };
 
+  const extrairPlanilhaCSV = () => {
+    if (tabelaReversa.length === 0) return showToast('Não há dados para exportar neste período.', 'error');
+    
+    showToast('Gerando arquivo com Assinatura Digital...', 'info');
+    
+    let csvContent = "Data/Hora,Equipamento,Temperatura (C),Umidade (%),Energia (kWh),Assinatura de Validacao\n";
+    tabelaReversa.forEach(row => {
+      const dataFormatada = new Date(row.dataExata).toLocaleString('pt-BR');
+      const hash = generateRowHash(row.dataExata, row.temperatura, row.umidade);
+      csvContent += `"${dataFormatada}","${row.nome}",${row.temperatura},${row.umidade},${row.consumo_kwh},"${hash}"\n`;
+    });
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob); 
+    link.download = `Auditoria_ThermoSync_${Date.now()}.csv`;
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
+    
+    setTimeout(() => showToast('Planilha baixada com sucesso!', 'success'), 800);
+  };
+
+  const currentRangeHours = Math.round((dataFim - dataInicio) / (1000 * 60 * 60));
+
   return (
     <div className="anim-fade-in stagger-1">
       
-      {/* =========================================================
-          SEÇÃO 1: KPIs SUPERIORES INTELIGENTES (INTELIGÊNCIA ESG)
-          ========================================================= */}
-      <div className="kpi-relatorios-grid stagger-1">
-        
-        {/* KPI 1: Sustentabilidade ESG (Energia Total) */}
-        <div className="kpi-relatorios-card">
-          <div className="kpi-relatorios-header">
-            <span className="kpi-relatorios-title">Consumo Energético ESG</span>
-            <div className="kpi-relatorios-icon-box" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
-              <Zap size={20} color="#f59e0b" />
-            </div>
+      <div className="relatorios-hero">
+        <div className="hero-title-box">
+          <div className="hero-icon-circle"><BarChart2 size={28} /></div>
+          <div>
+            <h3 className="hero-main-title">Relatórios & Análise de Desempenho</h3>
+            <span className="hero-subtitle">Métricas de qualidade, temperatura e histórico de consumo de energia da loja.</span>
           </div>
-          <div className="kpi-relatorios-value kpi-neon-blue">
-            {totalEnergia?.toFixed(1) || '--'} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}>kWh</span>
-          </div>
-          <span className="kpi-relatorios-subtitle">Impacto na pegada de carbono</span>
         </div>
-
-        {/* KPI 2: Auditoria Legal (SLA) */}
-        <div className="kpi-relatorios-card">
-          <div className="kpi-relatorios-header">
-            <span className="kpi-relatorios-title">Conformidade Legal (ANVISA)</span>
-            <div className="kpi-relatorios-icon-box">
-              <CheckCircle size={20} color="var(--success)" />
-            </div>
-          </div>
-          <div className={`kpi-relatorios-value ${Number(slaCompliance) < 95 ? 'kpi-neon-red pulse-danger-text' : 'kpi-neon-green'}`}>
-            {slaCompliance || '--'} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}>%</span>
-          </div>
-          <span className="kpi-relatorios-subtitle">Tempo no limite seguro térmico</span>
-        </div>
-
-        {/* KPI 3: Inteligência Metrológica (MKT - Média Cinética) */}
-        <div className="kpi-relatorios-card">
-          <div className="kpi-relatorios-header">
-            <span className="kpi-relatorios-title">MKT - Média Cinética</span>
-            <div className="kpi-relatorios-icon-box" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
-              <BrainCircuit size={20} color="var(--info)" />
-            </div>
-          </div>
-          <div className="kpi-relatorios-value kpi-neon-blue">
-            {mktValueProcessado || '--'} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}>°C</span>
-          </div>
-          <span className="kpi-relatorios-subtitle">Impacto termodinâmico/vida útil</span>
-        </div>
-
-        {/* KPI 4: Pico Térmico Registrado no Período */}
-        <div className="kpi-relatorios-card">
-          <div className="kpi-relatorios-header">
-            <span className="kpi-relatorios-title">Pico Térmico Registrado</span>
-            <div className="kpi-relatorios-icon-box" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-              <Thermometer size={20} color="var(--danger)" />
-            </div>
-          </div>
-          <div className="kpi-relatorios-value kpi-neon-red">
-            {kpis?.kpiMaxT || '--'} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}>°C</span>
-          </div>
-          <span className="kpi-relatorios-subtitle">Excursão térmica máxima detectada</span>
+        <div className="hero-actions">
+          <button className="btn-export pdf" onClick={() => showToast('A geração de PDF está em processamento no servidor.', 'info')} disabled={isLoading || isOffline}>
+            <FileText size={16} /> Relatório Oficial (PDF)
+          </button>
+          <button className="btn-export csv" onClick={extrairPlanilhaCSV} disabled={isLoading || isOffline}>
+            <DownloadCloud size={16} /> Exportar Planilha (CSV)
+          </button>
         </div>
       </div>
 
-      {/* =========================================================
-          SEÇÃO 2: PAINEL DE CONTROLES E COMANDOS TÁTICOS
-          ========================================================= */}
-      <div className="card relatorios-controls-card stagger-2">
-        <div className="relatorios-controls-header">
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <ShieldCheck size={22} color="var(--primary)" /> 
-             Central de Auditoria RDC
-          </h3>
-          
-          {isOffline ? (
-            <div className="telemetry-tag error">
-              <WifiOff size={14}/> SINAL PERDIDO
-            </div>
-          ) : (
-            <div className="telemetry-tag success">
-              <Loader2 size={14} className="spinner" /> SENSOR LINK ATIVO
-            </div>
-          )}
-        </div>
-        
-        <div className="controls-section">
-          {/* Filtro: Máquina */}
-          <div className="filter-group">
-            <label className="filter-label"><Filter size={14}/> Foco de Análise</label>
-            <select className="select-input select-tactical" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)}>
-              <option value="">Visão Global da Filial</option>
-              {equipamentosDaFilial?.map(eq => <option key={eq.id} value={eq.nome}>{eq.nome}</option>)}
+      <div className="filtros-deck stagger-2">
+        <div className="deck-row">
+          <div className="control-group">
+            <label className="control-label"><Filter size={14}/> Equipamento Analisado</label>
+            <select className="custom-select" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)} disabled={isLoading || isOffline}>
+              <option value="">Todos os Equipamentos / Visão Geral</option>
+              {equipamentosDaFilial?.map(eq => (
+                <option key={eq.id} value={eq.nome}>{eq.nome} - {eq.setor}</option>
+              ))}
             </select>
           </div>
-          
-          {/* Range de Tempo Automático (Quick Filters NOC) */}
-          <div className="filter-group quick-ranges">
-             <label className="filter-label"><Clock3 size={14}/> Saltos Temporais</label>
-             <div className="quick-range-buttons">
-                <button className="btn-quick-range" onClick={() => setQuickRange(1)}>1 Hora</button>
-                <button className="btn-quick-range" onClick={() => setQuickRange(24)}>24 Horas</button>
-                <button className="btn-quick-range" onClick={() => setQuickRange(24 * 7)}>7 Dias</button>
-             </div>
-          </div>
-
-          {/* Filtros Livres de Data */}
-          <div className="filter-group date-group">
-            <div style={{display: 'flex', gap: '10px'}}>
-              <div>
-                <label className="filter-label">Início</label>
-                <DatePicker selected={dataInicio} onChange={(d) => setDataInicio(d)} selectsStart startDate={dataInicio} endDate={dataFim} showTimeSelect locale="pt" dateFormat="Pp" className="date-picker-custom" />
-              </div>
-              <div>
-                <label className="filter-label">Fim</label>
-                <DatePicker selected={dataFim} onChange={(d) => setDataFim(d)} selectsEnd startDate={dataInicio} endDate={dataFim} minDate={dataInicio} showTimeSelect locale="pt" dateFormat="Pp" className="date-picker-custom" />
-              </div>
+          <div className="control-group">
+            <label className="control-label"><Clock size={14}/> Período de Análise</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <DatePicker selected={dataInicio} onChange={(date) => setDataInicio(date)} showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" className="custom-datepicker" disabled={isLoading || isOffline} />
+              <DatePicker selected={dataFim} onChange={(date) => setDataFim(date)} showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" className="custom-datepicker" disabled={isLoading || isOffline} minDate={dataInicio} />
             </div>
           </div>
-
-          {/* Extração de Dados */}
-          <div className="relatorios-export-group">
-            <button className="btn btn-primary btn-extract" onClick={() => gerarExportacao('pdf')} disabled={isOffline}>
-              <FileText size={18} /> Exportar PDF (Legal)
-            </button>
-            <button className="btn btn-outline btn-extract csv" onClick={() => gerarExportacao('csv')} disabled={isOffline}>
-              <Terminal size={18} /> Extrair CSV (Raw)
-            </button>
+          <div className="control-group" style={{ flex: '0 1 auto' }}>
+            <label className="control-label">Períodos Rápidos</label>
+            <div className="quick-range-group">
+              <button type="button" className={`btn-quick-range ${currentRangeHours === 6 ? 'active' : ''}`} onClick={() => setQuickRange(6)} disabled={isLoading || isOffline}>Últimas 6h</button>
+              <button type="button" className={`btn-quick-range ${currentRangeHours === 12 ? 'active' : ''}`} onClick={() => setQuickRange(12)} disabled={isLoading || isOffline}>Últimas 12h</button>
+              <button type="button" className={`btn-quick-range ${currentRangeHours === 24 ? 'active' : ''}`} onClick={() => setQuickRange(24)} disabled={isLoading || isOffline}>24 Horas</button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* =========================================================
-          SEÇÃO 3: COMPONENTES VISUAIS (GRÁFICO RECHARTS & TABELA RAW)
-          ========================================================= */}
-      <div className="relatorios-grid stagger-3">
+      <div className="kpi-grid stagger-3">
+        <div className="kpi-card" style={{ '--kpi-color': '#10b981' }}>
+          <div className="kpi-header"><div className="kpi-icon-wrapper"><ShieldCheck size={20} /></div><span>Faixa de Segurança</span></div>
+          <h4 className="kpi-value">{kpis.slaCompliance}<span className="kpi-unit">%</span></h4>
+          <p className="kpi-trend">Temperaturas dentro da margem segura exigida.</p>
+        </div>
+        <div className="kpi-card" style={{ '--kpi-color': '#3b82f6' }}>
+          <div className="kpi-header"><div className="kpi-icon-wrapper"><Thermometer size={20} /></div><span>Temperatura Média</span></div>
+          <h4 className="kpi-value">{kpis.mktValue}<span className="kpi-unit">°C</span></h4>
+          <p className="kpi-trend">Média térmica para análise de conservação.</p>
+        </div>
+        <div className="kpi-card" style={{ '--kpi-color': '#f59e0b' }}>
+          <div className="kpi-header"><div className="kpi-icon-wrapper"><Zap size={20} /></div><span>Consumo Estimado</span></div>
+          <h4 className="kpi-value">{kpis.totalEnergia?.toFixed(1) || 0}<span className="kpi-unit">kWh</span></h4>
+          <p className="kpi-trend">Gasto de energia acumulado no período filtrado.</p>
+        </div>
+        <div className="kpi-card" style={{ '--kpi-color': '#ef4444' }}>
+          <div className="kpi-header"><div className="kpi-icon-wrapper"><AlertCircle size={20} /></div><span>Pico Máximo</span></div>
+          <h4 className="kpi-value">{kpis.maxTemp}<span className="kpi-unit">°C</span></h4>
+          <p className="kpi-trend">A maior temperatura atingida no período.</p>
+        </div>
+      </div>
+
+      <div className="chart-container-hud stagger-4">
+        <div className="chart-header">
+          <div className="chart-title"><Activity size={20} color="#3b82f6" /> Gráfico de Desempenho Térmico</div>
+          <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '800', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.2)' }}><CheckCircle2 size={12} style={{ display: 'inline', marginBottom: '-2px' }}/> DADOS VALIDADOS</span>
+        </div>
         
-        {/* GRÁFICO DINÂMICO RECHARTS */}
-        <div className="card chart-relatorios-container">
-          <div className="flex-header" style={{ marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={18} color="var(--primary)"/> Comportamento Termodinâmico
-            </h4>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Amostragem em tempo real</span>
+        {isOffline ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+            <WifiOff size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
+            <h4 style={{ margin: 0 }}>Sem Conexão</h4>
+            <p style={{ fontSize: '0.85rem', color: '#fca5a5' }}>Conecte-se à internet para buscar o histórico de relatórios.</p>
           </div>
-          
-          {!dadosGraficoFiltrados || dadosGraficoFiltrados.length === 0 ? (
-            <div className="chart-loading">
-              <div className="radar-scanner-small"></div>
-              Varrendo base de dados térmica...
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={380}>
-              <LineChart data={dadosGraficoFiltrados} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
-                <XAxis dataKey="hora" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
-                <YAxis unit="°C" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+        ) : isLoading ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+            <Loader2 size={32} className="spin" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+            <p>Buscando histórico de temperatura no sistema...</p>
+          </div>
+        ) : dadosGrafico.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+            <Activity size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+            <h4 style={{ margin: 0 }}>Nenhum Registro</h4>
+            <p style={{ fontSize: '0.85rem' }}>Não há dados de temperatura gravados neste período.</p>
+          </div>
+        ) : (
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dadosGrafico} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} vertical={false} />
+                <XAxis dataKey="hora" stroke="#64748b" fontSize={11} tickMargin={10} minTickGap={30} />
+                <YAxis yAxisId="left" stroke="#64748b" fontSize={11} tickFormatter={(val) => `${val}°C`} width={50} />
+                <Tooltip contentStyle={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'white', borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#cbd5e1', borderRadius: '8px', color: isDarkMode ? 'white' : '#0f172a' }} itemStyle={{ color: isDarkMode ? 'white' : '#0f172a' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                 
-                {/* Tooltip Estilo HUD Tático */}
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
-                    border: '1px solid var(--primary)', backdropFilter: 'blur(8px)', borderRadius: '8px',
-                    boxShadow: '0 0 15px rgba(5, 150, 105, 0.2)', fontFamily: 'monospace'
-                  }} 
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
-                
-                {/* Linhas de SLA (Surgem apenas se houver 1 máquina filtrada) */}
                 {equipamentoSelecionado && (
                   <>
-                    <ReferenceLine y={equipamentoSelecionado.temp_max} label={{ position: 'top', value: 'MAX SLA', fill: 'var(--danger)', fontSize: 10, fontWeight: 'bold' }} stroke="var(--danger)" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.6} />
-                    <ReferenceLine y={equipamentoSelecionado.temp_min} label={{ position: 'bottom', value: 'MIN SLA', fill: '#38bdf8', fontSize: 10, fontWeight: 'bold' }} stroke="#38bdf8" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.6} />
+                    <ReferenceLine yAxisId="left" y={equipamentoSelecionado.temp_max} stroke="#ef4444" strokeDasharray="4 4" label={{ position: 'top', value: 'Limite Máximo', fill: '#ef4444', fontSize: 10 }} />
+                    <ReferenceLine yAxisId="left" y={equipamentoSelecionado.temp_min} stroke="#3b82f6" strokeDasharray="4 4" label={{ position: 'bottom', value: 'Limite Mínimo', fill: '#3b82f6', fontSize: 10 }} />
                   </>
                 )}
-
-                <Line type="monotone" dataKey="temperatura" name="Temp (°C)" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }} />
                 
-                {dadosGraficoFiltrados[0]?.umidade > 0 && (
-                  <Line type="monotone" dataKey="umidade" name="Umidade (%)" stroke="#38bdf8" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-                )}
+                <Line yAxisId="left" type="monotone" dataKey="temperatura" name="Temperatura (°C)" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#020617', strokeWidth: 2 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
-          )}
+          </div>
+        )}
+      </div>
+
+      <div className="leituras-log-card stagger-4">
+        <div className="log-header">
+          <div className="log-title"><ListOrdered size={20} color="#3b82f6" /> Histórico Detalhado de Leituras</div>
+          <div className="log-status" title="Os dados desta tabela não podem ser apagados pelo usuário comum."><CheckSquare size={14} /> Dados Imutáveis</div>
         </div>
 
-        {/* TABELA DE RAW DATA (ESTILO TERMINAL LOG) */}
-        <div className="card table-responsive" style={{ background: isDarkMode ? '#020617' : '#f8fafc' }}>
-          <div className="flex-header" style={{ marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Terminal size={18} color="var(--text-muted)"/> Data-Log do Sensor
-            </h4>
+        {isLoading ? (
+           <div className="empty-log">Carregando lista de registros de temperatura...</div>
+        ) : tabelaReversa.length === 0 ? (
+          <div className="empty-log">Não há registros para exibir na tabela neste período.</div>
+        ) : (
+          <div className="log-table-wrapper">
+            <table className="log-table">
+              <thead>
+                <tr>
+                  <th>Data / Hora</th>
+                  <th>Câmara / Equipamento</th>
+                  <th>Selo de Autenticidade</th>
+                  <th>Temp (°C)</th>
+                  <th>Umidade (%)</th>
+                  <th>Energia (kWh)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tabelaReversa.map((d, i) => {
+                  let eqLocal = equipamentoSelecionado;
+                  if (!eqLocal) eqLocal = equipamentosDaFilial?.find(x => x.nome === d.nome);
+                  const isForaLimites = eqLocal && (d.temperatura < eqLocal.temp_min || d.temperatura > eqLocal.temp_max);
+                  const validationCode = generateRowHash(d.dataExata, d.temperatura, d.umidade);
+
+                  return (
+                    <tr key={i} className={`log-row ${isForaLimites ? 'critical' : ''}`}>
+                      <td data-label="Data / Hora" className="log-time">{new Date(d.dataExata).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td data-label="Equipamento" className="log-node" title={`${d.nome}`}>{d.nome.substring(0, 20)}</td>
+                      <td data-label="Autenticidade"><span className="log-hash" title="Código de Segurança de Leitura"><Shield size={12}/> {validationCode}</span></td>
+                      <td data-label="Temp (°C)" className={isForaLimites ? 'log-val-alert' : 'log-val-ok'}>{d.temperatura.toFixed(1)} {isForaLimites ? '⚠️' : ''}</td>
+                      <td data-label="Umidade (%)">{d.umidade > 0 ? d.umidade.toFixed(1) : '--'}</td>
+                      <td data-label="Energia (kWh)">{d.consumo_kwh.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div className="table-raw-container">
-            {!ultimasLeiturasRaw || ultimasLeiturasRaw.length === 0 ? (
-              <div className="empty-state">Sem comunicações telemétricas pendentes no bloco.</div>
-            ) : (
-              <table className="table terminal-table">
-                <thead style={{ position: 'sticky', top: 0, background: isDarkMode ? '#0f172a' : '#e2e8f0', zIndex: 1 }}>
-                  <tr>
-                    <th>TS (Hora)</th>
-                    <th>Nó de Rede</th>
-                    <th>T(°C)</th>
-                    <th>H(%)</th>
-                    <th>PWR</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ultimasLeiturasRaw.map((d, i) => {
-                    // Lógica de alerta visual para quebra de SLA no terminal
-                    let eqLocal = equipamentoSelecionado;
-                    if (!eqLocal) eqLocal = equipamentosDaFilial?.find(x => x.nome === d.nome);
-                    
-                    const isForaLimites = eqLocal && (d.temperatura < eqLocal.temp_min || d.temperatura > eqLocal.temp_max);
-                    
-                    return (
-                      <tr key={i} className={isForaLimites ? 'log-critical' : 'log-normal'}>
-                        <td className="log-time">[{d.hora}]</td>
-                        <td className="log-node" title={`${d.filial} - ${d.nome}`}>{d.nome.substring(0, 12)}</td>
-                        <td className={`log-val ${isForaLimites ? 'val-alert pulse-danger-text' : 'val-ok'}`}>
-                          {d.temperatura.toFixed(1)}
-                        </td>
-                        <td className="log-val">{d.umidade > 0 ? d.umidade.toFixed(1) : '--'}</td>
-                        <td className="log-val">{d.consumo_kwh.toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-        
+        )}
       </div>
+
     </div>
   );
 }

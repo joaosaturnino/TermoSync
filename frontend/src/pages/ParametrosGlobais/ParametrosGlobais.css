@@ -2,6 +2,8 @@
    ESTILOS PREMIUM: POLÍTICAS E COMPLIANCE (NOC)
    ========================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
 .parametros-header-area {
   display: flex;
   justify-content: space-between;
@@ -30,10 +32,11 @@
 
 .parametros-main-title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
   font-weight: 900;
   color: var(--text-main);
   letter-spacing: -0.5px;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .parametros-subtitle {
@@ -54,12 +57,29 @@
   color: var(--info);
   border-color: rgba(56, 189, 248, 0.3);
   background: rgba(56, 189, 248, 0.05);
+  font-weight: 700;
 }
 
 .zone-btn:hover {
   background: rgba(56, 189, 248, 0.15);
   border-color: var(--info);
   color: var(--info);
+}
+
+/* Banner de Segurança (Modo Leitura) */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* =========================================
@@ -70,6 +90,7 @@
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 2rem;
+  width: 100%;
 }
 
 .kpi-item {
@@ -82,13 +103,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .kpi-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
 .kpi-icon {
@@ -98,6 +119,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .kpi-icon.zone {
@@ -123,17 +145,18 @@
 }
 
 .kpi-value {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.5rem;
+  font-weight: 900;
   color: var(--text-main);
   line-height: 1.1;
   margin-bottom: 2px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .kpi-label {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -155,16 +178,22 @@
    ========================================= */
 .parametros-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
+  width: 100%;
 }
 
 .policy-card {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 350px);
   min-height: 400px;
+  max-height: 600px;
   border-top: 4px solid var(--info);
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  padding: 1.2rem;
 }
 
 .policy-card.border-green {
@@ -196,18 +225,23 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-color);
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 6px 10px;
   width: 100%;
-  max-width: 200px;
+  max-width: 220px;
   transition: all 0.3s;
+}
+
+.dark-theme .search-box-policy {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .search-box-policy:focus-within {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
+  background: var(--card-bg);
 }
 
 .search-box-policy input {
@@ -218,6 +252,7 @@
   font-family: inherit;
   font-size: 0.85rem;
   color: var(--text-main);
+  min-width: 0;
 }
 
 /* Listagem */
@@ -228,6 +263,7 @@
   flex-direction: column;
   gap: 10px;
   padding-right: 5px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .policy-list::-webkit-scrollbar {
@@ -252,6 +288,8 @@
   color: var(--text-muted);
   font-weight: 600;
   opacity: 0.8;
+  padding: 2rem;
+  text-align: center;
 }
 
 .policy-list-item {
@@ -263,6 +301,7 @@
   padding: 12px 16px;
   border-radius: 12px;
   transition: all 0.2s;
+  gap: 10px;
 }
 
 .policy-list-item:hover {
@@ -275,18 +314,22 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .policy-info strong {
   color: var(--text-main);
   font-size: 1rem;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .policy-info span {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
 }
 
@@ -300,19 +343,23 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .sla-title-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
+  gap: 10px;
 }
 
 .sla-title-row strong {
   color: var(--text-main);
   font-size: 1rem;
   font-weight: 800;
+  word-break: break-word;
+  line-height: 1.2;
 }
 
 .sla-limits-grid {
@@ -327,12 +374,13 @@
   gap: 4px;
   font-size: 0.7rem;
   font-weight: 800;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: var(--card-bg);
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid var(--border);
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .sla-tag.termico {
@@ -366,12 +414,13 @@
 .policy-actions {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .btn-action-small {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  padding: 6px;
+  padding: 8px;
   border-radius: 8px;
   cursor: pointer;
   transition: 0.2s;
@@ -400,22 +449,66 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.lock-icon-read {
+  color: var(--text-muted);
+  opacity: 0.5;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* =========================================
    MODAL EDITOR DE POLÍTICAS (POLICY EDITOR)
    ========================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
 .policy-modal-content {
+  background: var(--card-bg);
+  width: 100%;
   max-width: 500px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   padding: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scroll interno do modal */
+.policy-modal-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.policy-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.policy-modal-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
 }
 
 .policy-modal-header {
-  padding: 1.5rem 2rem;
+  padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 15px;
   background: rgba(0, 0, 0, 0.02);
   border-bottom: 2px solid var(--border);
+  flex-shrink: 0;
 }
 
 .dark-theme .policy-modal-header {
@@ -455,13 +548,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.policy-modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .policy-modal-header h3 {
-  margin: 0 0 4px 0;
+  margin: 0;
   font-size: 1.3rem;
   font-weight: 900;
   color: var(--text-main);
+  line-height: 1.2;
 }
 
 .policy-modal-header span {
@@ -472,11 +573,16 @@
 }
 
 .policy-modal-form {
-  padding: 2rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .form-section-policy {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-section-policy label {
@@ -484,7 +590,28 @@
   font-size: 0.85rem;
   font-weight: 800;
   color: var(--text-main);
-  margin-bottom: 8px;
+}
+
+.form-section-policy input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: 0.2s;
+}
+
+.dark-theme .form-section-policy input {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.form-section-policy input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
 .section-divider {
@@ -495,13 +622,22 @@
   font-weight: 800;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin: 0 0 1rem 0;
+  margin: 0;
   padding-bottom: 6px;
   border-bottom: 1px dashed var(--border);
 }
 
+.form-grid-modal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 .policy-modal-actions {
-  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 0.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
 }
@@ -513,6 +649,7 @@
   .parametros-header-area {
     flex-direction: column;
     align-items: flex-start;
+    gap: 1rem;
   }
 
   .parametros-actions {
@@ -525,8 +662,19 @@
     justify-content: center;
   }
 
+  .read-only-banner {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
   .policy-kpi-bar {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .kpi-item {
+    width: 100%;
   }
 
   .parametros-grid {
@@ -535,13 +683,8 @@
 
   .policy-card {
     height: auto;
-    min-height: 300px;
-    max-height: 500px;
-  }
-
-  .search-box-policy {
-    max-width: 100%;
-    margin-top: 10px;
+    min-height: 400px;
+    max-height: none;
   }
 
   .policy-card-header {
@@ -549,11 +692,26 @@
     align-items: stretch;
   }
 
-  .policy-modal-form {
-    padding: 1.5rem;
+  .search-box-policy {
+    max-width: 100%;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr !important;
+  .policy-modal-form {
+    padding: 1.25rem;
+  }
+
+  .form-grid-modal {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .policy-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .policy-modal-actions button {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
   }
 }

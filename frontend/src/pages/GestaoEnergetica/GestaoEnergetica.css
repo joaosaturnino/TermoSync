@@ -1,117 +1,276 @@
-.energy-loading-container {
+/* =========================================
+   GestaoEnergetica.css - Sustentabilidade e FinOps
+   ========================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+.anim-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- HERO SECTION --- */
+.energy-hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid #f59e0b; /* Laranja Energia */
+  border-radius: 16px;
+  padding: 1.8rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: center;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hero-title-box {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-icon-circle {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: center;
-  height: 60vh;
-  text-align: center;
-  color: var(--text-color, #475569);
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+  flex-shrink: 0;
 }
 
-.energy-dashboard-container {
+.hero-main-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+/* --- PAINEL DE FILTROS --- */
+.filtros-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  background: rgba(15, 23, 42, 0.6);
   padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.energy-header {
-  margin-bottom: 2rem;
-}
-
-.energy-title {
+.deck-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 2rem;
-  color: var(--text-color);
-  margin-bottom: 0.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.energy-icon-glow {
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));
-  color: #f59e0b;
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 250px;
 }
 
-.energy-subtitle {
-  color: #64748b;
-  font-size: 1rem;
+.control-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.energy-kpi-grid {
+.custom-datepicker {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  text-align: center;
+}
+
+.custom-datepicker:focus {
+  border-color: #f59e0b;
+  box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.15);
+}
+
+.quick-range-group {
+  display: flex;
+  gap: 8px;
+  background: rgba(0,0,0,0.3);
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  flex-wrap: wrap;
+}
+
+.btn-quick-range {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quick-range:hover { background: rgba(255,255,255,0.05); color: white; }
+.btn-quick-range.active { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+/* --- KPIs DE NEGÓCIO --- */
+.kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  gap: 1.2rem;
 }
 
-.energy-kpi-card {
-  background: var(--card-bg, #ffffff);
-  border-radius: 12px;
+.kpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   padding: 1.5rem;
+  backdrop-filter: blur(12px);
   display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border: 1px solid var(--border-color, #e2e8f0);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-.energy-kpi-card:hover {
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--kpi-color);
+  box-shadow: 0 0 15px var(--kpi-color);
+}
+
+.kpi-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
-.energy-kpi-icon {
-  padding: 1rem;
-  border-radius: 50%;
+.kpi-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  color: var(--kpi-color);
 }
 
-.energy-kpi-icon.yellow { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.energy-kpi-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.energy-kpi-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.energy-kpi-icon.red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
-.energy-kpi-info h3 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 0.25rem 0;
-  color: var(--text-color);
+.kpi-icon-wrapper {
+  background: color-mix(in srgb, var(--kpi-color) 15%, transparent);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
 }
 
-.energy-kpi-info p {
+.kpi-header span {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: white;
+  font-family: 'JetBrains Mono', monospace;
   margin: 0;
-  font-size: 0.85rem;
-  color: #64748b;
-  font-weight: 500;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  letter-spacing: -1px;
 }
 
-.energy-charts-grid {
+.kpi-unit { font-size: 0.9rem; color: #64748b; font-weight: 700; letter-spacing: 0; }
+.kpi-trend { font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin: 0; }
+
+/* --- GRÁFICOS --- */
+.charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
   gap: 1.5rem;
 }
 
-.energy-chart-box {
-  background: var(--card-bg, #ffffff);
-  border-radius: 12px;
+.chart-container-hud {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--border-color, #e2e8f0);
+  backdrop-filter: blur(12px);
+  height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
-.energy-chart-box h3 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-size: 1.1rem;
-  color: var(--text-color);
-  font-weight: 600;
-}
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.chart-title { display: flex; align-items: center; gap: 10px; color: white; font-size: 1.05rem; font-weight: 800; }
 
-/* Responsividade */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px);
+}
+.recharts-tooltip-item { color: white !important; font-weight: 600; font-family: 'Montserrat', sans-serif; }
+.recharts-tooltip-label { color: #94a3b8 !important; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-bottom: 5px; }
+
 @media (max-width: 768px) {
-  .energy-charts-grid {
-    grid-template-columns: 1fr;
-  }
+  .energy-hero { flex-direction: column; align-items: stretch; padding: 1.5rem; }
+  .deck-row { flex-direction: column; align-items: stretch; }
+  .control-group { min-width: 100%; width: 100%; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-container-hud { height: 350px; padding: 1rem; }
 }

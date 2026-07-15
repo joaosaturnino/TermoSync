@@ -2,6 +2,8 @@
    ESTILOS PREMIUM: HISTÓRICO DE CHAMADOS
    ========================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
 .historico-header {
   display: flex;
   justify-content: space-between;
@@ -9,14 +11,16 @@
   flex-wrap: wrap;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .historico-chamados-title {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  font-weight: 900;
   color: var(--text-main);
   letter-spacing: -0.5px;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .historico-chamados-subtitle {
@@ -45,6 +49,7 @@
   padding: 8px 12px;
   transition: all 0.3s ease;
   min-width: 250px;
+  flex: 1;
 }
 
 .dark-theme .search-box-historico {
@@ -59,6 +64,7 @@
 
 .search-box-historico .search-icon {
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .search-box-historico input {
@@ -69,12 +75,25 @@
   color: var(--text-main);
   font-size: 0.9rem;
   outline: none;
+  font-family: 'Montserrat', sans-serif;
+  min-width: 0;
 }
 
 .historico-filter-select {
   min-width: 170px;
   padding: 8px 12px;
   border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  outline: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.historico-filter-select:focus {
+  border-color: var(--primary);
 }
 
 .btn-print-history {
@@ -83,20 +102,26 @@
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-weight: 700;
   border-radius: 12px;
   padding: 8px 14px;
   transition: 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .btn-print-history:hover {
   background: rgba(0, 0, 0, 0.03);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .btn-danger-outline {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background: rgba(239, 68, 68, 0.05);
   color: var(--danger);
@@ -106,6 +131,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .btn-danger-outline:hover {
@@ -136,6 +162,7 @@
   gap: 1rem;
   margin-bottom: 2rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .kpi-box {
@@ -144,22 +171,28 @@
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 1rem;
+  padding: 1.2rem;
   display: flex;
   align-items: center;
   gap: 15px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease;
+}
+
+.kpi-box:hover {
+  transform: translateY(-2px);
 }
 
 .kpi-icon-wrap {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   background: rgba(100, 116, 139, 0.1);
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .kpi-icon-wrap.info {
@@ -173,18 +206,21 @@
 }
 
 .kpi-value {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.6rem;
+  font-weight: 900;
   color: var(--text-main);
   line-height: 1;
   margin-bottom: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -1px;
 }
 
 .kpi-label {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* =========================================
@@ -192,17 +228,16 @@
    ========================================= */
 .historico-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
   will-change: transform;
-  /* Otimização de hardware (GPU) */
+  width: 100%;
 }
 
 .historico-card {
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
-  /* Transições Otimizadas para não asfixiar a CPU */
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
   border-radius: 16px;
   background: linear-gradient(135deg, var(--card-bg) 0%, rgba(0, 0, 0, 0.01) 100%);
@@ -210,6 +245,7 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
   position: relative;
   overflow: hidden;
+  height: 100%;
 }
 
 .dark-theme .historico-card {
@@ -229,7 +265,7 @@
 
 .historico-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.1);
   border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
@@ -247,29 +283,33 @@
 }
 
 .historico-equip-title {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .historico-badges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .historico-badge {
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
   background: rgba(100, 116, 139, 0.1);
   color: var(--text-muted);
   border: 1px solid rgba(100, 116, 139, 0.2);
+  white-space: nowrap;
 }
 
 .badge-urgencia {
@@ -285,10 +325,11 @@
   border-radius: 8px;
   margin-bottom: 1.2rem;
   color: var(--text-main);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.5;
   font-weight: 500;
   border: 1px solid var(--border);
+  word-break: break-word;
 }
 
 .dark-theme .historico-desc-box {
@@ -313,10 +354,16 @@
 
 .historico-meta-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   font-size: 0.85rem;
   color: var(--text-muted);
+  word-break: break-word;
+}
+
+.historico-meta-item svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .historico-meta-item strong {
@@ -346,18 +393,19 @@
   gap: 6px;
   color: var(--success);
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .historico-resolucao-text {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-main);
   line-height: 1.5;
   margin-bottom: 14px;
   font-weight: 500;
+  word-break: break-word;
 }
 
 .historico-resolucao-footer {
@@ -366,15 +414,18 @@
   align-items: flex-end;
   border-top: 1px dashed rgba(16, 185, 129, 0.3);
   padding-top: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .historico-resolucao-date {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .audit-stamp {
@@ -384,46 +435,15 @@
   border: 2px solid var(--success);
   padding: 2px 8px;
   border-radius: 4px;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   opacity: 0.8;
   transform: rotate(-5deg);
+  white-space: nowrap;
 }
 
 /* =========================================
-   BOTÃO DE PERIGO E MODAIS
+   MODAL DE CONFIRMAÇÃO DE EXCLUSÃO
    ========================================= */
-.btn-danger {
-  background-color: var(--danger) !important;
-  color: white !important;
-  border: 1px solid var(--danger) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-}
-
-.btn-danger:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
-}
-
-.btn-danger:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn-danger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Fundo Fixo Global (Garante que fica no meio do ecrã) */
 .historico-fixed-overlay {
   position: fixed !important;
   top: 0 !important;
@@ -439,7 +459,6 @@
   padding: 1rem;
 }
 
-/* Caixa Principal do Modal */
 .historico-modal-box {
   background: var(--card-bg);
   width: 100%;
@@ -455,20 +474,6 @@
   box-shadow: 0 25px 50px -12px rgba(239, 68, 68, 0.3) !important;
 }
 
-/* Scroll interno do modal */
-.historico-modal-box::-webkit-scrollbar {
-  width: 5px;
-}
-
-.historico-modal-box::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.historico-modal-box::-webkit-scrollbar-thumb {
-  background: var(--danger);
-  border-radius: 10px;
-}
-
 .modal-actions-historico {
   display: flex;
   justify-content: flex-end;
@@ -479,7 +484,7 @@
 }
 
 /* =========================================
-   RESPONSIVIDADE (SMARTPHONES E TABLETS)
+   RESPONSIVIDADE 100%
    ========================================= */
 @media (max-width: 768px) {
   .historico-header {
@@ -492,6 +497,7 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: 10px;
   }
 
@@ -500,7 +506,13 @@
   .btn-print-history,
   .btn-danger-outline {
     width: 100%;
+    max-width: 100%;
+  }
+
+  .btn-print-history,
+  .btn-danger-outline {
     justify-content: center;
+    padding: 12px;
   }
 
   .historico-kpis {
@@ -510,20 +522,21 @@
 
   .kpi-box {
     width: 100%;
+    padding: 1rem;
   }
 
   .historico-grid {
     grid-template-columns: 1fr;
   }
 
-  /* Modais em Telemóvel */
-  .historico-modal-box {
+  .historico-card {
     padding: 1.25rem;
-    max-height: 85dvh;
-    /* Evita conflitos com os teclados de telemóvel */
   }
 
-  /* Botões dos modais empilham uns em cima dos outros no Mobile */
+  .historico-modal-box {
+    padding: 1.25rem;
+  }
+
   .modal-actions-historico {
     flex-direction: column-reverse;
   }

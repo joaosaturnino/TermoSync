@@ -1,444 +1,465 @@
 /* =========================================
-   ESTILOS PREMIUM: INTELIGÊNCIA ESG E AUDITORIA (NOC)
+   Relatorios.css - Gestão de Dados & Qualidade (Varejo)
    ========================================= */
 
-/* Grelha de KPIs Glassmorphism */
-.kpi-relatorios-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
-.kpi-relatorios-card {
-  background: var(--card-bg);
-  border-radius: 20px;
-  padding: 1.5rem;
+.anim-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- HERO SECTION --- */
+.relatorios-hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid #3b82f6;
+  border-radius: 16px;
+  padding: 1.8rem;
+  display: flex;
   justify-content: space-between;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--border);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 1.5rem;
+  align-items: center;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.kpi-relatorios-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary);
-}
-
-.kpi-relatorios-header {
+.hero-title-box {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.8rem;
+  align-items: center;
+  gap: 15px;
+  position: relative;
+  z-index: 2;
 }
 
-.kpi-relatorios-title {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-.kpi-relatorios-icon-box {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  padding: 8px;
-  border-radius: 10px;
+.hero-icon-circle {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+  flex-shrink: 0;
 }
 
-.kpi-relatorios-value {
-  font-size: 2.6rem;
+.hero-main-title {
+  margin: 0;
+  font-size: 1.45rem;
   font-weight: 900;
-  color: var(--text-main);
-  line-height: 1;
-  letter-spacing: -1px;
-  font-family: monospace;
+  color: white;
+  letter-spacing: -0.5px;
 }
 
-/* Cores néon para os valores principais (Cyber-look) */
-.kpi-neon-green {
-  color: var(--success);
-  text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
-}
-
-.kpi-neon-red {
-  color: var(--danger);
-  text-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-}
-
-.kpi-neon-blue {
-  color: var(--info);
-  text-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
-}
-
-.kpi-relatorios-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+.hero-subtitle {
+  color: #94a3b8;
+  font-size: 0.85rem;
   font-weight: 600;
-  margin-top: 5px;
+  margin-top: 4px;
   display: block;
 }
 
-/* =========================================
-   PAINEL DE CONTROLOS UNIFICADO E TÁTICO
-   ========================================= */
-.relatorios-controls-card {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
+/* Botões de Exportação */
+.export-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export.pdf { border-bottom: 2px solid #ef4444; }
+.btn-export.pdf:hover:not(:disabled) { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border-color: #ef4444; }
+.btn-export.csv { border-bottom: 2px solid #10b981; }
+.btn-export.csv:hover:not(:disabled) { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border-color: #10b981; }
+
+/* --- PAINEL DE FILTROS --- */
+.filtros-deck {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  border-top: 4px solid var(--primary);
+  gap: 1.2rem;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.relatorios-controls-header {
+.deck-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 1.5rem;
   flex-wrap: wrap;
-  gap: 10px;
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: 15px;
 }
 
-.telemetry-tag {
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 250px;
+}
+
+.control-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 6px;
-  letter-spacing: 0.5px;
 }
 
-.telemetry-tag.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.telemetry-tag.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  animation: pulse-border-red 2s infinite;
-}
-
-.controls-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  align-items: flex-end;
-  /* Alinha tudo pela base dos inputs */
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.filter-label {
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.select-tactical {
-  min-width: 220px;
-  font-weight: 600;
-}
-
-/* Filtros Temporais (Quick Ranges NOC) */
-.quick-range-buttons {
-  display: flex;
-  background: var(--bg-color);
-  border: 1px solid var(--border);
+.custom-select, .custom-datepicker {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 10px 14px;
   border-radius: 10px;
-  overflow: hidden;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.custom-select:focus, .custom-datepicker:focus {
+  border-color: #3b82f6;
+  box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.15);
+}
+
+.custom-datepicker { cursor: pointer; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+
+/* DatePicker Core Styles */
+.react-datepicker-wrapper { width: 100%; }
+.react-datepicker__input-container { width: 100%; display: block; }
+.react-datepicker {
+  background-color: #0f172a !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  font-family: 'Montserrat', sans-serif !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.react-datepicker__header { background-color: rgba(0,0,0,0.3) !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important; }
+.react-datepicker__current-month, .react-datepicker-time__header, .react-datepicker-year-header { color: white !important; }
+.react-datepicker__day-name, .react-datepicker__day, .react-datepicker__time-name { color: #cbd5e1 !important; }
+.react-datepicker__day:hover { background-color: rgba(59, 130, 246, 0.3) !important; }
+.react-datepicker__day--selected, .react-datepicker__day--keyboard-selected { background-color: #3b82f6 !important; color: white !important; }
+
+/* Botões de Tempo Rápido */
+.quick-range-group {
+  display: flex;
+  gap: 8px;
+  background: rgba(0,0,0,0.3);
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  flex-wrap: wrap;
 }
 
 .btn-quick-range {
   background: transparent;
   border: none;
-  padding: 10px 14px;
+  color: #94a3b8;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-main);
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: 0.2s;
-  border-right: 1px solid var(--border);
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.btn-quick-range:last-child {
-  border-right: none;
-}
+.btn-quick-range:hover { background: rgba(255,255,255,0.05); color: white; }
+.btn-quick-range.active { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
 
-.btn-quick-range:hover {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
-}
-
-.dark-theme .btn-quick-range:hover {
-  background: color-mix(in srgb, var(--primary) 20%, transparent);
-}
-
-/* Estilização do DatePicker */
-.date-picker-custom {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.3s;
-  width: 170px;
-}
-
-.date-picker-custom:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
-}
-
-.dark-theme .date-picker-custom {
-  background-color: rgba(0, 0, 0, 0.2);
-}
-
-.relatorios-export-group {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
-  /* Empurra os botões para a direita */
-}
-
-.btn-extract {
-  padding: 10px 16px;
-  font-size: 0.85rem;
-}
-
-.btn-extract.csv {
-  border-style: dashed;
-}
-
-/* =========================================
-   VISUALIZAÇÃO DE DADOS (GRÁFICO E TABELA TÁTICA)
-   ========================================= */
-.relatorios-grid {
+/* --- KPIs DE NEGÓCIO --- */
+.kpi-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.2rem;
 }
 
-@media (min-width: 1200px) {
-  .relatorios-grid {
-    grid-template-columns: 2fr 1fr;
-  }
-}
-
-.chart-relatorios-container {
-  min-height: 440px;
-  height: 100%;
-}
-
-.chart-loading {
-  height: 100%;
-  min-height: 350px;
+.kpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  font-family: monospace;
-  font-size: 0.9rem;
-  font-weight: bold;
-}
-
-/* Radar Scanner (Loading do Gráfico) */
-.radar-scanner-small {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  margin-bottom: 1rem;
+  gap: 12px;
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-.radar-scanner-small::after {
+.kpi-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
-  height: 50%;
-  background: conic-gradient(transparent 70%, rgba(16, 185, 129, 0.8) 100%);
-  transform-origin: 100% 100%;
-  animation: spin 2s linear infinite;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--kpi-color);
+  box-shadow: 0 0 15px var(--kpi-color);
 }
 
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
+.kpi-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
-/* =========================================
-   TABELA DATA-LOG (ESTILO TERMINAL)
-   ========================================= */
-.table-raw-container {
-  max-height: 440px;
-  overflow-y: auto;
+.kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--kpi-color);
 }
 
-.table-raw-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.table-raw-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.table-raw-container::-webkit-scrollbar-thumb {
-  background-color: var(--border);
+.kpi-icon-wrapper {
+  background: color-mix(in srgb, var(--kpi-color) 15%, transparent);
+  padding: 8px;
   border-radius: 10px;
+  display: flex;
 }
 
-/* Transformação da Tabela Normal em Terminal */
-.terminal-table {
-  font-family: monospace;
-  font-size: 0.85rem;
-  border-collapse: separate;
-  border-spacing: 0;
+.kpi-header span {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
 }
 
-.terminal-table th {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 10px;
+.kpi-value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: white;
+  font-family: 'JetBrains Mono', monospace;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  letter-spacing: -1px;
 }
 
-.terminal-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(100, 116, 139, 0.1);
+.kpi-unit { font-size: 0.9rem; color: #64748b; font-weight: 700; }
+.kpi-trend { font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 6px; }
+
+/* --- GRÁFICO --- */
+.chart-container-hud {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(12px);
+  height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
-.terminal-table tr {
-  transition: background-color 0.1s;
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.chart-title { display: flex; align-items: center; gap: 10px; color: white; font-size: 1.05rem; font-weight: 800; }
+
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.recharts-tooltip-item { color: white !important; font-weight: 600; font-family: 'Montserrat', sans-serif; }
+.recharts-tooltip-label { color: #94a3b8 !important; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-bottom: 5px; }
+
+/* --- TABELA DE LEITURAS (HISTÓRICO AUTENTICADO) --- */
+.leituras-log-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
 }
 
-.terminal-table tr:hover {
-  background-color: color-mix(in srgb, var(--primary) 5%, transparent) !important;
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
-/* Cores das Colunas do Terminal */
-.log-time {
-  color: var(--text-muted);
+.log-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.log-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
+  font-weight: 800;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  text-transform: uppercase;
 }
 
-.log-node {
-  color: var(--secondary);
-  font-weight: 700;
+.log-table-wrapper {
+  overflow-x: auto;
+  max-height: 400px;
 }
 
-.log-val {
-  color: var(--text-main);
-  font-weight: 700;
-  text-align: right;
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  text-align: left;
 }
 
-.log-normal:nth-child(even) {
-  background: rgba(0, 0, 0, 0.01);
+.log-table th {
+  color: #94a3b8;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  padding: 12px;
+  position: sticky;
+  top: 0;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-.dark-theme .log-normal:nth-child(even) {
-  background: rgba(255, 255, 255, 0.01);
+.log-table td {
+  padding: 12px;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 
-/* Destaque Tático para Falhas de SLA (Terminal Critical) */
-.log-critical {
-  background: rgba(239, 68, 68, 0.05) !important;
-  border-left: 2px solid var(--danger);
-}
+.log-row:hover { background: rgba(255,255,255,0.02); }
+.log-row.critical { background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; }
 
-.val-alert {
-  color: var(--danger) !important;
+.log-time { color: #94a3b8; font-weight: 600; }
+.log-node { color: white; font-weight: 700; }
+.log-hash { 
+  font-family: 'JetBrains Mono', monospace; 
+  color: #3b82f6; 
+  font-size: 0.75rem; 
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
+.log-val-alert { color: #ef4444; font-weight: 800; }
+.log-val-ok { color: #10b981; font-weight: 600; }
 
-.val-ok {
-  color: var(--success) !important;
+.empty-log {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  font-weight: 600;
 }
 
 /* =========================================
-   RESPONSIVIDADE (MOBILE)
+   RESPONSIVIDADE (MOBILE CARDS)
    ========================================= */
 @media (max-width: 768px) {
-  .controls-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .filter-group,
-  .select-tactical,
-  .date-picker-custom {
-    width: 100%;
-  }
-
-  .date-group>div {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .date-group>div>div {
-    width: 100%;
-  }
-
-  .relatorios-export-group {
-    flex-direction: column;
-    margin-left: 0;
-    margin-top: 10px;
-  }
-
-  .btn-extract {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* Ajuste tabela terminal no mobile */
-  .terminal-table thead {
-    display: none;
-  }
-
-  .terminal-table tr {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border);
-    margin-bottom: 10px;
-    border-radius: 8px;
+  .relatorios-hero { flex-direction: column; align-items: stretch; padding: 1.5rem; gap: 1.5rem; }
+  .hero-actions { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
+  .btn-export { width: 100%; justify-content: center; }
+  
+  .deck-row { flex-direction: column; align-items: stretch; gap: 1rem; }
+  .control-group { min-width: 100%; width: 100%; }
+  .quick-range-group { justify-content: space-between; }
+  .btn-quick-range { flex: 1; text-align: center; padding: 8px 4px; }
+  
+  .kpi-grid { grid-template-columns: 1fr; }
+  .chart-container-hud { padding: 1rem; height: 350px; }
+  
+  .leituras-log-card { padding: 1rem; }
+  
+  /* Tabela em Cards no Mobile */
+  .log-table thead { display: none; }
+  .log-table, .log-table tbody, .log-table tr, .log-table td { display: block; width: 100%; }
+  .log-row { 
+    background: rgba(0,0,0,0.2); 
+    border: 1px solid rgba(255,255,255,0.05); 
+    border-radius: 12px; 
+    margin-bottom: 1rem; 
     padding: 10px;
   }
-
-  .terminal-table td {
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px dashed rgba(100, 116, 139, 0.2);
+  .log-table td { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 8px 0; 
+    border-bottom: 1px dashed rgba(255,255,255,0.05); 
   }
-
-  .terminal-table td:last-child {
-    border-bottom: none;
+  .log-table td:last-child { border-bottom: none; }
+  .log-table td::before { 
+    content: attr(data-label); 
+    font-weight: 800; 
+    color: #64748b; 
+    font-size: 0.7rem; 
+    text-transform: uppercase; 
   }
 }

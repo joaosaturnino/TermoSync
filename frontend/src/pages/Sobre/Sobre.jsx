@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
-  ShieldCheck, Database, Award, Server, Cpu, GraduationCap, 
-  Code2, GitBranch, Github, Linkedin, Globe, Terminal, Layers 
+  ShieldCheck, Database, Server, GraduationCap, 
+  Code2, GitBranch, Github, Linkedin, Globe, Layers, Activity, Fingerprint, Cpu, Network, Radio
 } from 'lucide-react';
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Sobre.css';
@@ -12,121 +12,137 @@ export default function Sobre() {
       
       {/* SEÇÃO HERO DA PLATAFORMA */}
       <div className="sobre-hero">
-        <TermoSyncLogo size={90} color="var(--primary)" />
-        <h1 style={{ fontSize: '3.8rem', margin: '1rem 0 0 0', fontWeight: '900', letterSpacing: '-1.5px', color: 'var(--text-main)' }}>
-          TermoSync
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', marginBottom: '1.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: '900', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--secondary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-            NOC PLATFORM
-          </span>
-          <span style={{ fontSize: '0.75rem', fontWeight: '900', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-            v10.5 ENTERPRISE
-          </span>
+        <div className="hero-content">
+          <TermoSyncLogo size={90} color="#10b981" />
+          <h1>ThermoSync</h1>
+          
+          <div className="hero-tags">
+            <span className="hero-tag tag-noc">
+              <Activity size={16}/> NOC PLATFORM
+            </span>
+            <span className="hero-tag tag-ver">
+              <Radio size={16}/> v10.5 ENTERPRISE
+            </span>
+            <span className="hero-tag tag-tcc">
+              <GraduationCap size={16}/> TCC - REDES DE COMPUTADORES
+            </span>
+          </div>
+          
+          <p>
+            Sistema integrado de monitorização frigorífica e orquestração de redes IoT. Construído sobre uma arquitetura puramente assíncrona, o ecossistema ThermoSync realiza a ingestão massiva de telemetria proveniente de hardwares dedicados dispostos na borda operacional da infraestrutura.
+          </p>
         </div>
-        
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.15rem', lineHeight: '1.6', maxWidth: '750px', margin: '0 auto' }}>
-          Sistema integrado de monitoramento geoespacial e orquestração de redes frias corporativas. Construído sobre uma arquitetura puramente assíncrona, o ecossistema realiza a ingestão massiva de telemetria proveniente de hardwares dedicados dispostos na borda operacional da rede.
-        </p>
       </div>
 
       {/* TRIPÉ DA INFRAESTRUTURA TÉCNICA */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-        <Layers size={20} color="var(--primary)" />
-        <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', uppercase: 'true', letterSpacing: '0.5px', color: 'var(--text-main)' }}>
-          Especificações Arquiteturais
-        </h3>
+      <div className="dev-section-title stagger-2">
+        <Layers size={28} color="#38bdf8" />
+        Especificações Arquiteturais
       </div>
 
       <div className="sobre-tech-grid stagger-2">
-        <div className="sobre-tech-card" style={{ '--card-color': 'var(--primary)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)' }}>
-            <Server size={24} />
-            <strong style={{ fontSize: '1rem' }}>Edge Computing & IoT</strong>
+        <div className="sobre-tech-card" style={{ '--card-color': '#10b981' }}>
+          <div className="tech-card-header">
+            <div className="tech-icon-wrapper">
+              <Cpu size={26} color="#10b981" />
+            </div>
+            <strong>Edge Computing & IoT</strong>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
-            Comunicação escalável em tempo real através de WebSockets bidirecionais (Socket.io) acoplados a microcontroladores ESP32/Arduino, operando sob barramentos estáveis de telemetria.
+          <p>
+            Comunicação escalável em tempo real através de WebSockets bidirecionais, integrando microcontroladores IoT (Arduino/ESP32) sob barramentos estáveis de telemetria na borda da rede.
           </p>
         </div>
 
-        <div className="sobre-tech-card" style={{ '--card-color': 'var(--success)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--success)' }}>
-            <ShieldCheck size={24} />
-            <strong style={{ fontSize: '1rem' }}>Compliance & Governança</strong>
+        <div className="sobre-tech-card" style={{ '--card-color': '#38bdf8' }}>
+          <div className="tech-card-header">
+            <div className="tech-icon-wrapper">
+              <ShieldCheck size={26} color="#38bdf8" />
+            </div>
+            <strong>Compliance Operacional</strong>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
-            Rastreabilidade total das cadeias frias e conformidade automatizada com as normativas da ANVISA (RDC) e regras globais de HACCP para ativos termolábeis e insumos clínicos.
+          <p>
+            Rastreabilidade total das cadeias frias corporativas e conformidade automatizada com métricas rigorosas de preservação para ativos termolábeis e redução de quebras térmicas.
           </p>
         </div>
 
-        <div className="sobre-tech-card" style={{ '--card-color': 'var(--warning)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--warning)' }}>
-            <Database size={24} />
-            <strong style={{ fontSize: '1rem' }}>SaaS Isolation Core</strong>
+        <div className="sobre-tech-card" style={{ '--card-color': '#a78bfa' }}>
+          <div className="tech-card-header">
+            <div className="tech-icon-wrapper">
+              <Database size={26} color="#a78bfa" />
+            </div>
+            <strong>SaaS Isolation Core</strong>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
-            Arquitetura de dados orientada ao isolamento lógico Multi-Tenant. Abstração completa de instâncias e criptografia adaptativa de tokens de acesso em logs imutáveis (SOC Ledger).
+          <p>
+            Arquitetura de banco de dados orientada ao isolamento lógico Multi-Tenant. Abstração completa de instâncias, autenticação JWT robusta e criptografia de logs de auditoria imutáveis.
           </p>
         </div>
       </div>
 
-      {/* PORTFÓLIO DO DESENVOLVEDOR */}
-      <div className="stagger-3" style={{ marginTop: '4rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-          <Award size={22} color="var(--primary)" />
-          <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', letterSpacing: '0.5px', color: 'var(--text-main)' }}>
-            Engenharia de Plataforma
-          </h3>
+      {/* PORTFÓLIO DO DESENVOLVEDOR (ID BADGE) */}
+      <div className="dev-section-title stagger-3" style={{ marginTop: '3rem' }}>
+        <Fingerprint size={28} color="#10b981" />
+        Engenharia & Autoria
+      </div>
+
+      <div className="developer-profile-card stagger-3">
+        
+        {/* Links Sociais no Topo Direito (Desktop) */}
+        <div className="dev-social-links">
+          <a href="https://github.com/joaosaturnino" target="_blank" rel="noopener noreferrer" className="social-btn github">
+            <Github size={18} /> GitHub
+          </a>
+          <a href="https://www.linkedin.com/in/jo%C3%A3o-henrique-00288621a/" target="_blank" rel="noopener noreferrer" className="social-btn linkedin">
+            <Linkedin size={18} /> LinkedIn
+          </a>
         </div>
 
-        <div className="developer-profile-card">
-          <div className="dev-avatar-container">
-            <div className="dev-avatar">JH</div>
+        <div className="dev-avatar-container">
+          <div className="dev-avatar">
+            <div className="status-online-dot" title="Status: Online e Operante"></div>
+            JH
+            <div className="clearance-badge">SYS.ROOT</div>
+          </div>
+          <span className="dev-id-serial">ID: TS-ROOT-001</span>
+        </div>
+        
+        <div className="dev-info">
+          <div>
+            <h2 className="dev-name">João Henrique</h2>
+            <div className="dev-role">
+              <Code2 size={18} /> SOFTWARE ARCHITECT & FULL-STACK ENGINEER
+            </div>
+          </div>
+
+          <div className="tech-stack-pills">
+             <span className="pill">React.js</span>
+             <span className="pill">Node.js</span>
+             <span className="pill">MySQL</span>
+             <span className="pill">WebSockets</span>
+             <span className="pill">C++ / Arduino (IoT)</span>
           </div>
           
-          <div className="dev-info">
-            <div className="dev-name-row">
-              <div>
-                <h2 className="dev-name">João Henrique</h2>
-                <div className="dev-role">
-                  <Code2 size={16} /> Software Architect & Full-Stack Engineer
-                </div>
-              </div>
+          <p className="dev-bio">
+            Engenheiro responsável pela idealização do ecossistema <strong>ThermoSync</strong>. O sistema nasceu como um <strong>Trabalho de Conclusão de Curso (TCC) em Redes de Computadores</strong>, evoluindo para uma robusta plataforma empresarial que une o desenvolvimento Full-Stack de software (interfaces e APIs) com o controlo direto de hardware e telemetria periférica.
+          </p>
 
-              {/* REPOSITÓRIOS E REDES SOCIAIS */}
-              <div className="dev-social-links">
-                <a href="https://github.com/joaosaturnino" target="_blank" rel="noopener noreferrer" className="social-btn github">
-                  <Github size={16} /> GitHub
-                </a>
-                <a href="https://www.linkedin.com/in/jo%C3%A3o-henrique-00288621a/" target="_blank" rel="noopener noreferrer" className="social-btn linkedin">
-                  <Linkedin size={16} /> LinkedIn
-                </a>
-              </div>
+          {/* GRADE ACADÊMICA COMPLETA */}
+          <div className="dev-courses-grid">
+            <div className="course-badge">
+              <Network size={22} style={{ color: '#10b981', flexShrink: 0 }} />
+              <span>Técnico em Redes de Computadores</span>
             </div>
             
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '4px 0 12px 0', lineHeight: '1.6' }}>
-              Arquiteto responsável pela idealização full-stack do ecossistema, mapeamento de topologias de rede, projeto físico do banco de dados relacional e controle lógico dos microcontroladores de telemetria periférica.
-            </p>
-
-            {/* GRADE ACADÊMICA COMPLETA */}
-            <div className="dev-courses-grid">
-              <div className="course-badge" title="Desenvolvimento Web, Mobile e Engenharia de Software">
-                <GraduationCap size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                <span>Técnico em Desenvolvimento de Sistemas</span>
-              </div>
-              
-              <div className="course-badge" title="Sistemas Web, Protocolos HTTP/REST e Cloud Computing">
-                <Globe size={18} style={{ color: 'var(--secondary)', flexShrink: 0 }} />
-                <span>Técnico em Informática para Internet</span>
-              </div>
-              
-              <div className="course-badge" title="Infraestrutura de Redes, Firewall e Roteamento">
-                <GitBranch size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                <span>Técnico em Redes de Computadores</span>
-              </div>
+            <div className="course-badge">
+              <GraduationCap size={22} style={{ color: '#38bdf8', flexShrink: 0 }} />
+              <span>Técnico em Desenvolvimento de Sistemas</span>
             </div>
-
+            
+            <div className="course-badge">
+              <Globe size={22} style={{ color: '#a78bfa', flexShrink: 0 }} />
+              <span>Técnico em Informática para Internet</span>
+            </div>
           </div>
+
         </div>
       </div>
 

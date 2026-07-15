@@ -1,26 +1,38 @@
 /* =========================================
-   Metrologia.css - Painel de Compliance
+   ESTILOS PREMIUM: METROLOGIA E COMPLIANCE
    ========================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 /* --- HEADER & TOOLBAR --- */
 .metrologia-header-actions {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 1.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .search-box-metrologia {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 14px;
   min-width: 300px;
   transition: all 0.3s ease;
+  flex: 1;
 }
 
 .dark-theme .search-box-metrologia {
@@ -41,14 +53,85 @@
   color: var(--text-main);
   outline: none;
   font-size: 0.9rem;
+  font-family: 'Montserrat', sans-serif;
+  min-width: 0;
+}
+
+/* Banner de Segurança (Modo Leitura) */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning);
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 /* --- KPI BAR --- */
 .metrologia-kpi-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin: 1.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.kpi-item {
+  flex: 1;
+  min-width: 160px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+.kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-data {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1.1;
+  margin-bottom: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* --- TABELA DE AUDITORIA --- */
@@ -57,7 +140,12 @@
   background: var(--card-bg);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+}
+
+.metrologia-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .metrologia-table th {
@@ -66,22 +154,37 @@
   letter-spacing: 1px;
   color: var(--text-muted);
   background: rgba(0,0,0,0.02);
+  padding: 12px 15px;
+  font-weight: 800;
+  text-align: left;
 }
 
-.dark-theme .metrologia-table th {
-  background: rgba(255,255,255,0.02);
-}
+.dark-theme .metrologia-table th { background: rgba(255,255,255,0.02); }
 
 .metrologia-row {
   transition: background 0.2s ease;
+  border-bottom: 1px solid var(--border);
 }
 
-.metrologia-row:hover {
-  background: color-mix(in srgb, var(--info) 3%, transparent) !important;
+.metrologia-row:last-child {
+  border-bottom: none;
 }
 
-.metrologia-row.row-vencida {
-  background: color-mix(in srgb, var(--danger) 3%, transparent);
+.metrologia-row:hover td {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+.dark-theme .metrologia-row:hover td {
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.metrologia-row.row-vencida td {
+  background-color: rgba(239, 68, 68, 0.02);
+}
+
+.metrologia-table td {
+  padding: 12px 15px;
+  vertical-align: middle;
 }
 
 .equip-ident-box {
@@ -93,23 +196,30 @@
 .equip-icon {
   background: color-mix(in srgb, var(--info) 10%, transparent);
   color: var(--info);
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .row-vencida .equip-icon {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   color: var(--danger);
+  animation: pulse-border-red 2s infinite;
+}
+
+@keyframes pulse-border-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
 }
 
 .dias-box {
-  font-family: 'JetBrains Mono', monospace, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -118,14 +228,15 @@
 /* --- BADGES DE STATUS (ANVISA) --- */
 .badge-metro {
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 900;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .badge-conforme {
@@ -144,4 +255,80 @@
   background: rgba(239, 68, 68, 0.1);
   color: var(--danger);
   border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.lock-icon-read {
+  color: var(--text-muted);
+  opacity: 0.5;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================
+   RESPONSIVIDADE (MOBILE APP FEEL)
+   ========================================= */
+@media (max-width: 768px) {
+  .metrologia-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .search-box-metrologia {
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .read-only-banner {
+    justify-content: center;
+  }
+
+  .metrologia-kpi-bar {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .kpi-item {
+    width: 100%;
+  }
+
+  /* Transforma a Tabela em Cartões no Telemóvel */
+  .metrologia-table thead {
+    display: none;
+  }
+
+  .metrologia-row {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 4px solid var(--border);
+    padding: 10px 0;
+  }
+
+  .metrologia-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 15px;
+    border-bottom: 1px dashed var(--border);
+    gap: 5px;
+  }
+
+  .metrologia-table td:last-child {
+    border-bottom: none;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  /* Injeta as labels nas células para fácil identificação */
+  .metrologia-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
 }

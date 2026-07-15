@@ -52,7 +52,7 @@ const DevBootScreen = ({ onComplete }) => {
   const playSuccess = useCallback(() => { playSound(600, 'sine', 0.1); setTimeout(() => playSound(1200, 'sine', 0.3), 100); }, [playSound]);
   const playError = useCallback(() => playSound(150, 'sawtooth', 0.4), [playSound]);
 
-  // Detetar Teclas para "Skip Boot"
+  // Detectar Teclas para "Skip Boot"
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!showInput && bootStarted && (e.key === 'Enter' || e.key === 'Escape')) {
@@ -73,7 +73,7 @@ const DevBootScreen = ({ onComplete }) => {
     const runBootSequence = async () => {
       const sequence = [
         { text: asciiLogo, delay: 100, color: '#10b981', isPre: true },
-        { text: "⚡ TERMOSYNC CORE SYSTEM v13.1.SENTINEL", delay: 200, color: '#10b981', isBold: true },
+        { text: "⚡ THERMOSYNC CORE SYSTEM v13.1.SENTINEL", delay: 200, color: '#10b981', isBold: true },
         { text: "INITIALIZING FIRMWARE HARDWARE INTERFACE...", delay: 100, color: '#94a3b8' },
         { text: "------------------------------------------------------------", delay: 50, color: '#475569' },
         { text: "CPU: AMD EPYC 9754 Core @ 3.20GHz (Hyper-Threading: ACTIVE)", delay: 80 },
@@ -141,7 +141,7 @@ const DevBootScreen = ({ onComplete }) => {
     
     const typed = passcode;
     setPasscode('');
-    setLogs(prev => [...prev, { text: `root@termosync:~$ ${typed.replace(/./g, '●')}`, color: '#10b981' }]);
+    setLogs(prev => [...prev, { text: `root@thermosync:~$ ${typed.replace(/./g, '●')}`, color: '#10b981' }]);
     
     await new Promise(r => setTimeout(r, 600));
     playTyping();
@@ -151,7 +151,7 @@ const DevBootScreen = ({ onComplete }) => {
       playSuccess();
       setLogs(prev => [...prev, { text: "SIGNATURE CHECK: VALID ROOT Privileges Conceded.", color: '#10b981', isBold: true }]);
       await new Promise(r => setTimeout(r, 400));
-      setLogs(prev => [...prev, { text: "A injetar daemons na consola de controlo...", color: '#94a3b8' }]);
+      setLogs(prev => [...prev, { text: "A injetar daemons no console de controle...", color: '#94a3b8' }]);
       await new Promise(r => setTimeout(r, 600));
       onComplete();
     } else {
@@ -179,12 +179,13 @@ const DevBootScreen = ({ onComplete }) => {
           <div className="noc-scanlines"></div>
           <div style={{ textAlign: 'center', zIndex: 10 }}>
             <Server size={64} color="#10b981" style={{ marginBottom: '20px', opacity: 0.8 }} className="pulse-icon" />
-            <h1 style={{ color: 'white', fontFamily: 'JetBrains Mono', fontSize: '1.5rem', marginBottom: '10px' }}>TermoSync Core System</h1>
-            <p style={{ color: '#64748b', fontFamily: 'JetBrains Mono', fontSize: '0.85rem', marginBottom: '30px' }}>Aguardando inicialização do Operador de Rede.</p>
+            <h1 style={{ color: 'white', fontFamily: 'Montserrat', fontSize: '1.5rem', marginBottom: '10px' }}>ThermoSync Core System</h1>
+            <p style={{ color: '#64748b', fontFamily: 'Montserrat', fontSize: '0.85rem', marginBottom: '30px' }}>Comando, controle e sincronização térmica.</p>
+            <p style={{ color: '#64748b', fontFamily: 'Montserrat', fontSize: '0.85rem', marginBottom: '30px' }}>Aguardando inicialização do Operador de Rede.</p>
             <button 
               onClick={() => setBootStarted(true)} 
               className="btn btn-outline" 
-              style={{ borderColor: '#10b981', color: '#10b981', fontFamily: 'JetBrains Mono', fontSize: '1rem', padding: '12px 24px', borderWidth: '2px', background: 'rgba(16, 185, 129, 0.1)' }}
+              style={{ borderColor: '#10b981', color: '#10b981', fontFamily: 'Montserrat', fontSize: '1rem', padding: '12px 24px', borderWidth: '2px', background: 'rgba(16, 185, 129, 0.1)' }}
             >
               <Power size={18} style={{ marginRight: '10px', display: 'inline-block' }} />
               INICIAR TERMINAL
@@ -199,30 +200,30 @@ const DevBootScreen = ({ onComplete }) => {
       <div className="noc-scanlines"></div>
       
       {!showInput && countdown === 0 && (
-          <div style={{ position: 'absolute', top: '20px', right: '30px', color: '#64748b', fontFamily: 'JetBrains Mono', fontSize: '0.75rem', zIndex: 10 }}>
-            [ENTER] para saltar o boot
+          <div style={{ position: 'absolute', top: '20px', right: '30px', color: '#64748b', fontFamily: 'Montserrat', fontSize: '0.75rem', zIndex: 10 }}>
+            [ENTER] para pular o boot
           </div>
       )}
 
       <div className="boot-terminal-box" style={{ background: 'transparent', boxShadow: 'none', position: 'relative', zIndex: 5, padding: '2rem', flex: 1, overflowY: 'auto' }}>
         {logs.map((log, index) => (
-          <div key={index} className="boot-log" style={{ color: log.color || '#cbd5e1', fontWeight: log.isBold ? 'bold' : 'normal', textShadow: log.color === '#10b981' ? '0 0 4px rgba(16,185,129,0.4)' : 'none', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-            {log.isPre ? <pre style={{ margin: 0, padding: 0, fontFamily: 'inherit' }}>{log.text}</pre> : log.text}
+          <div key={index} className="boot-log" style={{ color: log.color || '#cbd5e1', fontWeight: log.isBold ? 'bold' : 'normal', textShadow: log.color === '#10b981' ? '0 0 4px rgba(16,185,129,0.4)' : 'none', fontFamily: 'Montserrat', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+            {log.isPre ? <pre style={{ margin: 0, padding: 0, fontFamily: 'Montserrat' }}>{log.text}</pre> : log.text}
           </div>
         ))}
         
         {showInput && countdown === 0 && (
           <form onSubmit={handleAuth} className="boot-form" style={{ display: 'flex', marginTop: '15px', position: 'relative', alignItems: 'center' }}>
-            <span className="boot-prompt" style={{ color: '#10b981', fontWeight: 900, fontFamily: 'JetBrains Mono' }}>root@termosync:~$</span>
+            <span className="boot-prompt" style={{ color: '#10b981', fontWeight: 900, fontFamily: 'Montserrat' }}>root@thermosync:~$</span>
             <div className="boot-input-wrapper" style={{ display: 'flex', flex: 1, minWidth: '250px', position: 'relative', alignItems: 'center' }}>
-              <input ref={inputRef} type="password" value={passcode} onChange={e => setPasscode(e.target.value)} className="boot-input" autoComplete="off" disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', fontFamily: 'JetBrains Mono', width: '100%', caretColor: 'transparent', letterSpacing: '2px', textShadow: '0 0 5px #fff' }} />
+              <input ref={inputRef} type="password" value={passcode} onChange={e => setPasscode(e.target.value)} className="boot-input" autoComplete="off" disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', fontFamily: 'Montserrat', width: '100%', caretColor: 'transparent', letterSpacing: '2px', textShadow: '0 0 5px #fff' }} />
               <span className="boot-cursor-blink" style={{ display: 'inline-block', width: '10px', height: '1.2em', background: '#10b981', boxShadow: '0 0 8px #10b981', animation: 'blink 1s step-end infinite', marginLeft: '4px' }}></span>
             </div>
           </form>
         )}
 
         {countdown > 0 && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '15px', color: '#ef4444', fontFamily: 'JetBrains Mono', fontSize: '0.9rem', marginTop: '15px', fontWeight: 'bold', display: 'inline-block' }} className="pulse-icon">
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '15px', color: '#ef4444', fontFamily: 'Montserrat', fontSize: '0.9rem', marginTop: '15px', fontWeight: 'bold', display: 'inline-block' }} className="pulse-icon">
             <Lock size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }} />
             DISPOSITIVO BLOQUEADO PROTOCOLO ANTI-BRUTE-FORCE: AGUARDE {countdown}s...
           </div>

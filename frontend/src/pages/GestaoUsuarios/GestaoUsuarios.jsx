@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
-  UserPlus, Wrench, Settings, Users, Edit, X, Save, 
-  ShieldAlert, Store, UserCircle, KeyRound, MapPin, 
-  Search, Shield, ShieldCheck, Lock, Briefcase
+  Wrench, Edit, X, Save, ShieldAlert, Store, 
+  UserCircle, MapPin, Search, Shield, ShieldCheck, 
+  Lock, Briefcase, Eye, EyeOff, Users, Settings
 } from 'lucide-react';
 import './GestaoUsuarios.css';
 
@@ -23,16 +23,16 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
   
   const [busca, setBusca] = useState('');
   const [filtroPrivilegio, setFiltroPrivilegio] = useState('TODOS');
+  
+  // Segurança UX
+  const [showPassword, setShowPassword] = useState(false);
 
-  // ==========================================
-  // BUSCA INDEPENDENTE DOS DADOS 
-  // ==========================================
   const carregarUsuarios = useCallback(async () => {
     try {
       const res = await api.get('/usuarios');
       setUsuariosLocais(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      showToast('Erro ao carregar a lista de identidades.', 'error');
+      showToast('Erro ao carregar a lista de usuários do sistema.', 'error');
     }
   }, [api, showToast]);
 
@@ -41,7 +41,6 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
       const resF = await api.get('/auxiliares/filiais');
       setFiliaisDb(Array.isArray(resF.data) ? resF.data : []);
       
-      // Se for DEV, carrega a lista de empresas para poder amarrar no momento de criar
       if (roleLogada === 'DEV') {
         const resE = await api.get('/empresas');
         setEmpresasDb(Array.isArray(resE.data) ? resE.data : []);
@@ -56,15 +55,13 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
     carregarDependencias();
   }, [carregarUsuarios, carregarDependencias]);
 
-  // ==========================================
-  // AÇÕES DO MODAL
-  // ==========================================
   const abrirModalUsuario = (tipoAcesso) => {
     let roleTarget = 'LOJA';
     if (tipoAcesso === 'TECNICO') roleTarget = 'MANUTENCAO';
     if (tipoAcesso === 'OUTROS') roleTarget = 'ADMIN';
 
     setFormUsuario({ ...formInicialUsuario, role: roleTarget, tipo_acesso: tipoAcesso });
+    setShowPassword(false);
     setModalUsuario(true);
   };
 
@@ -75,7 +72,7 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
         usuario: formUsuario.usuario,
         role: formUsuario.role,
         nome: formUsuario.nome,
-        empresa: formUsuario.empresa // Importante para o DEV
+        empresa: formUsuario.empresa
       };
       
       if (formUsuario.role === 'LOJA') payload.filial = formUsuario.filial;
@@ -93,41 +90,38 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
 
       if (formUsuario.id) {
         await api.put(`/usuarios/${formUsuario.id}`, payload);
-        showToast('Credencial de acesso atualizada com sucesso.', 'success');
+        showToast('Perfil de acesso atualizado com sucesso.', 'success');
       } else {
-        if (!payload.senha) return showToast('A senha inicial é obrigatória.', 'error');
+        if (!payload.senha) return showToast('A senha inicial é obrigatória para o cadastro.', 'error');
         await api.post('/usuarios', payload);
-        showToast('Nova identidade provisionada na rede.', 'success');
+        showToast('Novo usuário cadastrado no sistema.', 'success');
       }
 
       setModalUsuario(false);
       carregarUsuarios();
     } catch (err) {
-      showToast('Falha na operação. Verifique se os dados estão corretos.', 'error');
+      showToast('Falha no cadastro. Verifique se o login já existe.', 'error');
     }
   };
 
   const pedirExclusaoUsuario = (id, nome) => {
     setModalConfig({
       isOpen: true,
-      title: 'Revogar Credencial',
-      message: `Atenção: Tem certeza que deseja revogar permanentemente o acesso de "${nome}"?`,
+      title: 'Excluir Usuário',
+      message: `Tem certeza que deseja excluir o acesso de "${nome}"? Esta ação removerá os privilégios dele imediatamente.`,
       isPrompt: false,
       onConfirm: async () => {
         try {
           await api.delete(`/usuarios/${id}`);
-          showToast('Credencial revogada com sucesso.', 'success');
+          showToast('Acesso removido com sucesso.', 'success');
           carregarUsuarios();
         } catch (e) {
-          showToast('Erro ao tentar revogar acesso.', 'error');
+          showToast('Erro ao tentar excluir o usuário.', 'error');
         }
       }
     });
   };
 
-  // ==========================================
-  // FILTROS E KPIS
-  // ==========================================
   const usuariosExibidos = useMemo(() => {
     if (!usuariosLocais) return [];
     
@@ -161,54 +155,69 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
     return { total: usuariosLocais.length, admin, tech, loja };
   }, [usuariosLocais]);
 
-  const getModalConfigInfo = () => {
-    if (formUsuario.role === 'ADMIN') return { icon: ShieldAlert, color: 'var(--danger)', title: 'Privilégios Master (Admin)' };
-    if (formUsuario.role === 'MANUTENCAO') return { icon: Wrench, color: 'var(--info)', title: 'Acesso Técnico Global' };
-    return { icon: Store, color: 'var(--success)', title: 'Operação Local (Loja)' };
-  };
-  const modalHeaderInfo = getModalConfigInfo();
+  const modalHeaderInfo = useMemo(() => {
+    if (formUsuario.role === 'ADMIN') return { icon: ShieldAlert, color: '#ef4444', title: 'Acesso Administrativo (Total)' };
+    if (formUsuario.role === 'MANUTENCAO') return { icon: Wrench, color: '#38bdf8', title: 'Acesso Técnico (Manutenção)' };
+    return { icon: Store, color: '#10b981', title: 'Acesso Operacional (Loja)' };
+  }, [formUsuario.role]);
+
+  // Cálculo de Força da Senha
+  const passwordStrength = useMemo(() => {
+    const p = formUsuario.senha;
+    if (!p) return { score: 0, text: '', color: 'transparent' };
+    let score = 0;
+    if (p.length > 5) score += 1;
+    if (p.length >= 8) score += 1;
+    if (/[A-Z]/.test(p)) score += 1;
+    if (/[0-9]/.test(p)) score += 1;
+    if (/[^A-Za-z0-9]/.test(p)) score += 1;
+
+    if (score <= 2) return { score: 1, text: 'Senha Fraca', color: '#ef4444' };
+    if (score === 3 || score === 4) return { score: 2, text: 'Segurança Média', color: '#f59e0b' };
+    return { score: 3, text: 'Senha Forte', color: '#10b981' };
+  }, [formUsuario.senha]);
 
   return (
     <div className="anim-fade-in stagger-1">
       
-      <div className="flex-header iam-header">
-        <div className="iam-title-box">
-          <div className="icon-circle" style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--info)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-            <KeyRound size={26} />
+      {/* HERO SECTION */}
+      <div className="usuarios-hero">
+        <div className="hero-title-box">
+          <div className="hero-icon-circle">
+            <Users size={28} />
           </div>
           <div>
-            <h3 className="iam-main-title">Controle de Acessos e Identidade (IAM)</h3>
-            <span className="iam-subtitle">Provisionamento seguro de credenciais, privilégios e revogações.</span>
+            <h3 className="hero-main-title">Gestão de Usuários & Acessos</h3>
+            <span className="hero-subtitle">Controle de senhas, permissões e perfis de operação do sistema.</span>
           </div>
         </div>
 
-        <div className="iam-provision-actions">
-          <button className="btn btn-outline tech-btn" onClick={() => abrirModalUsuario('TECNICO')}>
-            <Wrench size={16} /> Emitir Acesso Técnico
+        <div className="hero-actions">
+          <button className="btn-provision tech" onClick={() => abrirModalUsuario('TECNICO')}>
+            <Wrench size={16} /> Cadastrar Técnico
           </button>
-          <button className="btn btn-outline store-btn" onClick={() => abrirModalUsuario('GERENTE')}>
-            <Store size={16} /> Registrar Operador
+          <button className="btn-provision store" onClick={() => abrirModalUsuario('GERENTE')}>
+            <Store size={16} /> Cadastrar Funcionário
           </button>
 
-          {/* 🔥 APENAS O DESENVOLVEDOR (DEV) PODE CRIAR NOVOS ADMINISTRADORES MASTER */}
           {roleLogada === 'DEV' && (
-            <button className="btn btn-danger-outline" onClick={() => abrirModalUsuario('OUTROS')}>
-              <ShieldAlert size={16} /> Provisionar Master
+            <button className="btn-provision master" onClick={() => abrirModalUsuario('OUTROS')}>
+              <ShieldAlert size={16} /> Cadastrar Administrador
             </button>
           )}
-
         </div>
       </div>
 
-      <div className="iam-control-panel stagger-2">
-        <div className="iam-kpi-bar">
-          <div className="kpi-item-small" onClick={() => setFiltroPrivilegio('TODOS')}>
+      {/* CONTROLES E KPIS */}
+      <div className="control-panel stagger-2">
+        <div className="kpi-bar">
+          <div className={`kpi-item-small ${filtroPrivilegio === 'TODOS' ? 'active' : ''}`} onClick={() => setFiltroPrivilegio('TODOS')}>
             <span className="kpi-val">{kpis.total}</span>
-            <span className="kpi-lbl">Credenciais Ativas</span>
+            <span className="kpi-lbl">Todos os Usuários</span>
           </div>
           <div className={`kpi-item-small danger ${filtroPrivilegio === 'ADMIN' ? 'active' : ''}`} onClick={() => setFiltroPrivilegio('ADMIN')}>
             <span className="kpi-val">{kpis.admin}</span>
-            <span className="kpi-lbl">Acesso Master</span>
+            <span className="kpi-lbl">Administradores</span>
           </div>
           <div className={`kpi-item-small info ${filtroPrivilegio === 'MANUTENCAO' ? 'active' : ''}`} onClick={() => setFiltroPrivilegio('MANUTENCAO')}>
             <span className="kpi-val">{kpis.tech}</span>
@@ -216,212 +225,237 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
           </div>
           <div className={`kpi-item-small success ${filtroPrivilegio === 'LOJA' ? 'active' : ''}`} onClick={() => setFiltroPrivilegio('LOJA')}>
             <span className="kpi-val">{kpis.loja}</span>
-            <span className="kpi-lbl">Operadores (Loja)</span>
+            <span className="kpi-lbl">Usuários de Loja</span>
           </div>
         </div>
 
-        <div className="search-box-iam">
-          <Search size={18} color="var(--text-muted)" />
-          <input type="text" placeholder="Pesquisar identidade, login ou filial..." value={busca} onChange={e => setBusca(e.target.value)} />
+        <div className="search-box">
+          <Search size={18} color="#94a3b8" />
+          <input type="text" placeholder="Buscar usuário por nome, login ou loja..." value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
       </div>
 
-      <div className="card table-responsive iam-table-card stagger-3">
+      {/* TABELA DE USUÁRIOS */}
+      <div className="table-card stagger-3">
         {(!usuariosExibidos || usuariosExibidos.length === 0) ? (
-           <div className="empty-state">
-             <Shield size={48} style={{ opacity: 0.3, marginBottom: '1rem', color: 'var(--text-main)' }} />
-             <h3>Nenhuma credencial localizada</h3>
-             <p>Ajuste os filtros de privilégio ou os termos de pesquisa.</p>
+           <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+             <Users size={48} style={{ opacity: 0.25, marginBottom: '1rem' }} />
+             <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Nenhum usuário localizado</h3>
+             <p>Ajuste os filtros acima ou tente pesquisar outro nome.</p>
            </div>
         ) : (
-          <table className="table iam-table">
-            <thead>
-              <tr>
-                <th>Identidade Operacional</th>
-                <th>Login (Sistema)</th>
-                
-                {/* 🔥 SE FOR DEV, MOSTRA A EMPRESA (TENANT) NA TABELA */}
-                {roleLogada === 'DEV' && <th>Tenant Atribuído</th>}
-                
-                <th>Privilégio IAM</th>
-                <th>Restrição de Filial</th>
-                <th style={{ textAlign: 'right' }}>Auditoria e Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usuariosExibidos.map(u => {
-                
-                const displayNome = u.nome || u.nome_tecnico || u.nome_gerente || u.nome_coordenador || u.usuario || 'Sem Nome';
-                
-                let displayCargo = u.cargo;
-                if (!displayCargo) {
-                  if (u.role === 'ADMIN') displayCargo = 'Administrador de Sistema';
-                  else if (u.role === 'MANUTENCAO') displayCargo = 'Técnico de Manutenção';
-                  else if (u.role === 'LOJA') {
-                    if (u.nome_gerente) displayCargo = 'Gerente de Loja';
-                    else if (u.nome_coordenador) displayCargo = 'Coordenador de Loja';
-                    else displayCargo = 'Operador Local';
-                  } else { displayCargo = 'Usuário Padrão'; }
-                }
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Usuário</th>
+                  <th>Login no Sistema</th>
+                  {roleLogada === 'DEV' && <th>Empresa / Cliente</th>}
+                  <th>Nível de Acesso</th>
+                  <th>Loja Vinculada</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuariosExibidos.map(u => {
+                  
+                  const displayNome = u.nome || u.nome_tecnico || u.nome_gerente || u.nome_coordenador || u.usuario || 'Sem Nome';
+                  
+                  let displayCargo = u.cargo;
+                  if (!displayCargo) {
+                    if (u.role === 'ADMIN') displayCargo = 'Administrador do Sistema';
+                    else if (u.role === 'MANUTENCAO') displayCargo = 'Técnico de Manutenção';
+                    else if (u.role === 'LOJA') {
+                      if (u.nome_gerente) displayCargo = 'Gerente de Loja';
+                      else if (u.nome_coordenador) displayCargo = 'Coordenador / Subgerente';
+                      else displayCargo = 'Operador de Loja';
+                    } else { displayCargo = 'Acesso Restrito'; }
+                  }
 
-                let roleColor = 'var(--success)'; let roleBg = 'rgba(16, 185, 129, 0.1)'; let roleLabel = 'Operador Local'; let IconLevel = Store;
-                if (u.role === 'ADMIN') { roleColor = 'var(--danger)'; roleBg = 'rgba(239, 68, 68, 0.1)'; roleLabel = 'Acesso Master (L3)'; IconLevel = ShieldAlert; } 
-                else if (u.role === 'MANUTENCAO') { roleColor = 'var(--info)'; roleBg = 'rgba(56, 189, 248, 0.1)'; roleLabel = 'Equipe Técnica (L2)'; IconLevel = Wrench; }
+                  let roleColor = '#10b981'; let roleBg = 'rgba(16, 185, 129, 0.1)'; let roleLabel = 'Operação de Loja'; let IconLevel = Store;
+                  if (u.role === 'ADMIN') { roleColor = '#ef4444'; roleBg = 'rgba(239, 68, 68, 0.1)'; roleLabel = 'Administrador Master'; IconLevel = ShieldAlert; } 
+                  else if (u.role === 'MANUTENCAO') { roleColor = '#38bdf8'; roleBg = 'rgba(56, 189, 248, 0.1)'; roleLabel = 'Equipe Técnica'; IconLevel = Wrench; }
 
-                return (
-                  <tr key={u.id} className="iam-table-row">
-                    <td data-label="Identidade">
-                      <div className="user-profile-box">
-                        <div className="user-avatar-circle" style={{ background: `linear-gradient(135deg, ${roleColor}, color-mix(in srgb, ${roleColor} 40%, black))` }}>
-                          {displayNome.charAt(0).toUpperCase()}
+                  return (
+                    <tr key={u.id} className="table-row">
+                      <td data-label="Usuário">
+                        <div className="user-profile-box">
+                          <div className="user-avatar-circle" style={{ background: `linear-gradient(135deg, ${roleColor} 0%, color-mix(in srgb, ${roleColor} 20%, black) 100%)`, border: `1px solid color-mix(in srgb, ${roleColor} 50%, transparent)` }}>
+                            {displayNome.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="user-details">
+                            <span className="user-name-table">{displayNome}</span>
+                            <span className="user-role-table">{displayCargo}</span>
+                          </div>
                         </div>
-                        <div className="user-details">
-                          <span className="user-name-table">{displayNome}</span>
-                          <span className="user-role-table">{displayCargo}</span>
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td data-label="Login">
-                      <div className="login-badge"><UserCircle size={14} /> @{u.usuario}</div>
-                    </td>
-
-                    {/* 🔥 SE FOR DEV, MOSTRA A EMPRESA (TENANT) NA TABELA */}
-                    {roleLogada === 'DEV' && (
-                      <td data-label="Tenant">
-                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Briefcase size={14} color="var(--primary)"/> {u.empresa || 'Desconhecida'}
-                        </span>
                       </td>
-                    )}
-                    
-                    <td data-label="Privilégio">
-                      <div className="role-security-badge" style={{ color: roleColor, background: roleBg, border: `1px solid color-mix(in srgb, ${roleColor} 30%, transparent)` }}>
-                        <IconLevel size={14} /> {roleLabel}
-                      </div>
-                    </td>
-                    
-                    <td data-label="Restrição">
-                      {u.role === 'LOJA' ? (
-                        <span className="location-tag restricted"><MapPin size={12}/> {u.filial || 'Sem Filial'}</span>
-                      ) : (
-                        <span className="location-tag global"><Globe2 size={12}/> Acesso Global</span>
-                      )}
-                    </td>
-                    
-                    <td data-label="Ações" style={{ textAlign: 'right' }}>
-                      <button className="btn btn-action edit" onClick={() => { 
-                          let editTipoAcesso = 'OUTROS';
-                          if (u.role === 'LOJA') {
-                            if (u.nome_gerente) editTipoAcesso = 'GERENTE';
-                            else if (u.nome_coordenador) editTipoAcesso = 'COORDENADOR';
-                          } else if (u.role === 'MANUTENCAO') {
-                            editTipoAcesso = 'TECNICO';
-                          }
+                      
+                      <td data-label="Login">
+                        <div className="login-badge"><UserCircle size={14} color="#38bdf8"/> @{u.usuario}</div>
+                      </td>
 
-                          setFormUsuario({ ...u, nome: displayNome, senha: '', tipo_acesso: editTipoAcesso }); 
-                          setModalUsuario(true); 
-                        }} title="Reconfigurar Permissões">
-                        <Settings size={18} />
-                      </button>
-                      <button className="btn btn-action delete" onClick={() => pedirExclusaoUsuario(u.id, displayNome)} title="Revogar Credencial Permanentemente">
-                        <Lock size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {roleLogada === 'DEV' && (
+                        <td data-label="Empresa / Cliente">
+                          <span className="tenant-badge" title="Empresa vinculada">
+                            <Briefcase size={14}/> {u.empresa || 'Sem Empresa'}
+                          </span>
+                        </td>
+                      )}
+                      
+                      <td data-label="Nível de Acesso">
+                        <div className="role-security-badge" style={{ color: roleColor, background: roleBg, border: `1px solid color-mix(in srgb, ${roleColor} 30%, transparent)` }}>
+                          <IconLevel size={14} /> {roleLabel}
+                        </div>
+                      </td>
+                      
+                      <td data-label="Loja Vinculada">
+                        {u.role === 'LOJA' ? (
+                          <span className="location-tag"><MapPin size={14} color="#f59e0b"/> {u.filial || 'Sem loja'}</span>
+                        ) : (
+                          <span className="location-tag global"><Globe2 size={14}/> Acesso Livre (Todas)</span>
+                        )}
+                      </td>
+                      
+                      <td data-label="Ações" style={{ textAlign: 'right' }}>
+                        <button className="btn-action edit" onClick={() => { 
+                            let editTipoAcesso = 'OUTROS';
+                            if (u.role === 'LOJA') {
+                              if (u.nome_gerente) editTipoAcesso = 'GERENTE';
+                              else if (u.nome_coordenador) editTipoAcesso = 'COORDENADOR';
+                            } else if (u.role === 'MANUTENCAO') {
+                              editTipoAcesso = 'TECNICO';
+                            }
+                            setFormUsuario({ ...u, nome: displayNome, senha: '', tipo_acesso: editTipoAcesso }); 
+                            setShowPassword(false);
+                            setModalUsuario(true); 
+                          }} title="Editar Usuário">
+                          <Settings size={18} />
+                        </button>
+                        <button className="btn-action delete" onClick={() => pedirExclusaoUsuario(u.id, displayNome)} title="Excluir Usuário">
+                          <Lock size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
+      {/* MODAL DE CADASTRO DE USUÁRIO */}
       {modalUsuario && (
         <div className="modal-overlay">
-          <div className="modal-content iam-modal-content">
+          <div className="modal-content-custom anim-slide-up">
             
-            <div className="iam-modal-header" style={{ borderBottomColor: modalHeaderInfo.color }}>
-              <div className="iam-modal-icon-bg" style={{ background: `color-mix(in srgb, ${modalHeaderInfo.color} 15%, transparent)`, color: modalHeaderInfo.color }}>
+            <div className="modal-header-custom" style={{ borderBottomColor: modalHeaderInfo.color }}>
+              <div className="modal-icon-bg" style={{ color: modalHeaderInfo.color, background: `color-mix(in srgb, ${modalHeaderInfo.color} 15%, transparent)`, boxShadow: `inset 0 0 12px color-mix(in srgb, ${modalHeaderInfo.color} 30%, transparent)` }}>
                 <modalHeaderInfo.icon size={28} />
               </div>
               <div>
-                <h3>Emissão de Credencial</h3>
-                <span style={{ color: modalHeaderInfo.color, fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                <h3>{formUsuario.id ? 'Edição de Usuário' : 'Cadastro de Usuário'}</h3>
+                <span style={{ color: modalHeaderInfo.color, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   {modalHeaderInfo.title}
                 </span>
               </div>
             </div>
 
-            <form onSubmit={salvarUsuario} className="iam-modal-form">
-              <div className="form-section-iam">
-                <h4>1. Identificação Operacional</h4>
+            <form onSubmit={salvarUsuario} className="modal-form-custom">
+              
+              <div className="form-group-custom">
                 <div className="form-grid">
                   
-                  {/* 🔥 APENAS O DEV CONSEGUE ESCOLHER A QUAL EMPRESA O USUÁRIO VAI PERTENCER */}
                   {roleLogada === 'DEV' && (
                     <div style={{ gridColumn: '1 / -1', marginBottom: '8px' }}>
-                      <label style={{ color: 'var(--primary)', fontWeight: '800' }}>Associar à Empresa (Tenant Exclusivo DEV)</label>
-                      <select className="select-input w-100" style={{ border: '2px solid var(--primary)', background: 'rgba(5, 150, 105, 0.05)' }} value={formUsuario.empresa} onChange={e => setFormUsuario({ ...formUsuario, empresa: e.target.value })} required>
-                        <option value="">Selecione a Empresa do Cliente...</option>
+                      <label style={{ color: '#10b981' }}>Vincular a uma Empresa / Cliente</label>
+                      <select style={{ border: '1px solid #10b981', background: 'rgba(16, 185, 129, 0.05)', '--focus-color': '#10b981' }} value={formUsuario.empresa} onChange={e => setFormUsuario({ ...formUsuario, empresa: e.target.value })} required>
+                        <option value="">Selecione o cliente...</option>
                         {empresasDb.map(emp => <option key={emp.id} value={emp.nome}>{emp.nome}</option>)}
                       </select>
                     </div>
                   )}
 
-                  <div>
-                    <label>Nome Completo (Identidade Oficial)</label>
-                    <input type="text" value={formUsuario.nome} onChange={e => setFormUsuario({ ...formUsuario, nome: e.target.value })} placeholder="Ex: Engenheiro João Silva" required autoFocus />
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label>Nome Completo do Usuário</label>
+                    <input type="text" value={formUsuario.nome} onChange={e => setFormUsuario({ ...formUsuario, nome: e.target.value })} placeholder="Ex: Carlos Almeida" required autoFocus style={{ '--focus-color': modalHeaderInfo.color }} />
                   </div>
+                  
                   {formUsuario.role === 'LOJA' && (
                     <div>
-                      <label>Cargo Local</label>
-                      <select className="select-input w-100" value={formUsuario.tipo_acesso} onChange={e => setFormUsuario({ ...formUsuario, tipo_acesso: e.target.value })} required>
+                      <label>Cargo na Loja</label>
+                      <select value={formUsuario.tipo_acesso} onChange={e => setFormUsuario({ ...formUsuario, tipo_acesso: e.target.value })} required style={{ '--focus-color': modalHeaderInfo.color }}>
                         <option value="GERENTE">Gerente de Loja</option>
-                        <option value="COORDENADOR">Coordenador/Subgerente</option>
-                        <option value="OUTROS">Outro Cargo</option>
+                        <option value="COORDENADOR">Coordenador / Subgerente</option>
+                        <option value="OUTROS">Operador / Funcionário</option>
                       </select>
                     </div>
                   )}
+
                   {formUsuario.role === 'LOJA' && (
                     <div>
-                      <label>Restrição: Filial Física</label>
-                      <select className="select-input w-100" value={formUsuario.filial} onChange={e => setFormUsuario({ ...formUsuario, filial: e.target.value })} required>
-                        <option value="">Selecione a Filial...</option>
+                      <label>Loja Vinculada</label>
+                      <select value={formUsuario.filial} onChange={e => setFormUsuario({ ...formUsuario, filial: e.target.value })} required style={{ '--focus-color': modalHeaderInfo.color }}>
+                        <option value="">Selecione a loja...</option>
                         {filiaisDb?.map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </div>
                   )}
+
                   {formUsuario.role !== 'LOJA' && (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div className="global-access-warning">
-                        <ShieldCheck size={16} /> Esta credencial possui alcance global para as filiais do Cliente.
-                      </div>
+                    <div className="security-warning-box" style={{ gridColumn: '1 / -1', margin: '0' }}>
+                      <ShieldCheck size={20} style={{ flexShrink: 0 }} /> 
+                      <span>Atenção: Este perfil terá acesso total e poderá visualizar os dados de <strong>todas as lojas</strong> do sistema.</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="form-section-iam">
-                <h4>2. Autenticação & Segurança</h4>
+              <div className="form-group-custom" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
                 <div className="form-grid">
                   <div>
-                    <label>Login (Nome de Usuário)</label>
-                    <input type="text" value={formUsuario.usuario} onChange={e => setFormUsuario({ ...formUsuario, usuario: e.target.value })} placeholder="Ex: jsilva.tech" required />
+                    <label>Login (Usuário)</label>
+                    <input type="text" value={formUsuario.usuario} onChange={e => setFormUsuario({ ...formUsuario, usuario: e.target.value })} placeholder="Ex: carlos.almeida" required style={{ '--focus-color': modalHeaderInfo.color }} />
                   </div>
                   <div>
                     <label>
-                      Chave Criptográfica (Senha) 
-                      {formUsuario.id && <span className="password-hint"> (Deixe em branco para manter a atual)</span>}
+                      Senha de Acesso 
+                      {formUsuario.id && <span style={{color:'#64748b', fontSize:'0.7rem'}}> (Deixe em branco para não alterar)</span>}
                     </label>
-                    <input type="password" value={formUsuario.senha} onChange={e => setFormUsuario({ ...formUsuario, senha: e.target.value })} placeholder="••••••••" required={!formUsuario.id} />
+                    <div className="password-input-wrapper">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        value={formUsuario.senha} 
+                        onChange={e => setFormUsuario({ ...formUsuario, senha: e.target.value })} 
+                        placeholder="••••••••" 
+                        required={!formUsuario.id} 
+                        style={{ '--focus-color': modalHeaderInfo.color }}
+                      />
+                      <button type="button" className="btn-toggle-view" onClick={() => setShowPassword(!showPassword)} tabIndex="-1">
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    {/* Validador de Segurança da Senha */}
+                    {(formUsuario.senha || !formUsuario.id) && (
+                      <div className="password-strength-container">
+                        <div className="strength-bars">
+                          <div className="str-bar" style={{ background: passwordStrength.score >= 1 ? passwordStrength.color : '' }}></div>
+                          <div className="str-bar" style={{ background: passwordStrength.score >= 2 ? passwordStrength.color : '' }}></div>
+                          <div className="str-bar" style={{ background: passwordStrength.score >= 3 ? passwordStrength.color : '' }}></div>
+                        </div>
+                        <span className="str-text" style={{ color: passwordStrength.color }}>{passwordStrength.text || 'Obrigatória'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="modal-actions iam-modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setModalUsuario(false)}>Cancelar Emissão</button>
-                <button type="submit" className="btn btn-primary" style={{ backgroundColor: modalHeaderInfo.color, borderColor: modalHeaderInfo.color, boxShadow: `0 4px 15px color-mix(in srgb, ${modalHeaderInfo.color} 40%, transparent)` }}>
-                  <Save size={18} /> Consolidar Identidade
+              <div className="modal-actions-custom">
+                <button type="button" className="btn" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }} onClick={() => setModalUsuario(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn" style={{ backgroundColor: modalHeaderInfo.color, color: modalHeaderInfo.color === '#ef4444' ? 'white' : '#020617', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px color-mix(in srgb, ${modalHeaderInfo.color} 30%, transparent)` }}>
+                  <Save size={18} /> Salvar Usuário
                 </button>
               </div>
             </form>
