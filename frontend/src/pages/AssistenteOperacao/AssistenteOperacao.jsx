@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import {
   ClipboardCheck, AlertTriangle, CheckCircle2, Clock3, MessageSquare,
   ShieldCheck, Sparkles, Thermometer, Wrench, ShieldAlert, ThermometerSnowflake,
-  Cpu, Activity, ArrowRight, Zap, Target
+  Cpu, Activity, ArrowRight, Zap, Target, Lock
 } from 'lucide-react';
 import './AssistenteOperacao.css';
 
@@ -12,16 +12,20 @@ export default function AssistenteOperacao({
   chamados = [],
   userRole = 'LOJA',
   filialAtiva = 'Todas',
-  onNavigate // Nova prop (opcional) para criar atalhos na tela
+  onNavigate, // Recebe a função de navegação do App.jsx
+  showToast   // Recebe a função de notificações para avisos de segurança
 }) {
   
-  // 1. Processamento de Dados em Tempo Real
+  // Função auxiliar de Segurança RBAC
+  const hasPermission = (allowedRoles) => allowedRoles.includes(userRole);
+
+  // 1. Processamento de Dados Matemático
   const { equipamentosEmRisco, alertasCriticos, chamadosPendentes, healthScore } = useMemo(() => {
     const equipRisco = equipamentosDaFilial.filter((eq) => eq.em_degelo || !eq.motor_ligado || !eq.ultima_temp || !eq.ultima_umidade).length;
     const criticos = notificacoesDaFilial.filter((n) => ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'].includes(n.tipo_alerta)).length;
     const pendentes = chamados.filter((c) => !['Concluído', 'Fechado'].includes(c.status)).length;
 
-    // Cálculo do Health Score da Operação
+    // Cálculo do Health Score (Índice Base = 100)
     let score = 100 - (criticos * 15) - (equipRisco * 5) - (pendentes * 3);
     if (score < 0) score = 0;
 
@@ -30,7 +34,7 @@ export default function AssistenteOperacao({
 
   const scoreColor = healthScore >= 90 ? '#10b981' : healthScore >= 70 ? '#f59e0b' : '#ef4444';
 
-  // 2. Diagnóstico Atual (Cards Superiores com Ações)
+  // 2. Diagnóstico Atual (Cards de Ação)
   const checklist = useMemo(() => {
     return [
       {
@@ -41,7 +45,8 @@ export default function AssistenteOperacao({
         tone: equipamentosEmRisco > 0 ? 'warning' : 'success',
         color: equipamentosEmRisco > 0 ? '#f59e0b' : '#10b981',
         actionLabel: 'Ver Mapa Térmico',
-        actionTarget: 'motores'
+        actionTarget: 'motores',
+        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
       },
       {
         title: 'Radar de Ocorrências',
@@ -51,7 +56,8 @@ export default function AssistenteOperacao({
         tone: alertasCriticos > 0 ? 'danger' : 'success',
         color: alertasCriticos > 0 ? '#ef4444' : '#10b981',
         actionLabel: 'Abrir Painel NOC',
-        actionTarget: 'dashboard'
+        actionTarget: 'dashboard',
+        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
       },
       {
         title: 'Ordens de Serviço (OS)',
@@ -61,12 +67,13 @@ export default function AssistenteOperacao({
         tone: chamadosPendentes > 0 ? 'warning' : 'success',
         color: chamadosPendentes > 0 ? '#f59e0b' : '#10b981',
         actionLabel: 'Acessar Kanban',
-        actionTarget: 'kanban'
+        actionTarget: 'kanban',
+        roles: ['ADMIN', 'MANUTENCAO', 'DEV'] // Loja comum não acessa kanban
       }
     ];
   }, [equipamentosEmRisco, alertasCriticos, chamadosPendentes]);
 
-  // 3. Motor de Recomendação Dinâmica Tática (I.A. Copilot)
+  // 3. Motor de Recomendação Dinâmica (I.A. Copilot)
   const aiRecommendation = useMemo(() => {
     if (alertasCriticos > 0) {
       return {
@@ -76,37 +83,41 @@ export default function AssistenteOperacao({
         color: '#ef4444',
         border: 'rgba(239, 68, 68, 0.5)',
         btnLabel: 'RESOLVER ANOMALIAS AGORA',
-        btnTarget: 'dashboard'
+        btnTarget: 'dashboard',
+        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
       };
     } else if (equipamentosEmRisco > 0) {
       return {
         title: "Acompanhamento de Ciclos (Preventiva)",
-        text: `O sistema não regista falhas, mas ${equipamentosEmRisco} ativos encontram-se em ciclo de degelo ou com os motores parados. Mantenha vigilância até que retornem ao *setpoint* térmico.`,
+        text: `O sistema não regista falhas, mas ${equipamentosEmRisco} ativos encontram-se em ciclo de degelo ou com os motores parados. Mantenha vigilância até que retornem ao setpoint térmico.`,
         icon: ThermometerSnowflake,
         color: '#f59e0b',
         border: 'rgba(245, 158, 11, 0.5)',
         btnLabel: 'ACOMPANHAR SENSORES IOT',
-        btnTarget: 'motores'
+        btnTarget: 'motores',
+        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
       };
     } else if (chamadosPendentes > 0) {
       return {
         title: "Otimização de Backlog Técnico",
-        text: `A operação frigorífica está 100% estabilizada. Utilize a janela de oportunidade deste turno para auxiliar a equipa técnica a encerrar as ${chamadosPendentes} ordens de serviço pendentes.`,
+        text: `A operação frigorífica está 100% estabilizada. Utilize a janela de oportunidade deste turno para auxiliar a equipe técnica a encerrar as ${chamadosPendentes} ordens de serviço pendentes.`,
         icon: Wrench,
         color: '#38bdf8',
         border: 'rgba(56, 189, 248, 0.5)',
         btnLabel: 'GERENCIAR ORDENS (ITSM)',
-        btnTarget: 'kanban'
+        btnTarget: 'kanban',
+        roles: ['ADMIN', 'MANUTENCAO', 'DEV']
       };
     } else {
       return {
-        title: "Operação Operando em Excelência",
+        title: "Operação Trabalhando em Excelência",
         text: "Todos os indicadores estão perfeitamente calibrados e em conformidade com as diretrizes da engenharia. Inicie o checklist diário de rotina e as rondas físicas.",
         icon: CheckCircle2,
         color: '#10b981',
         border: 'rgba(16, 185, 129, 0.5)',
         btnLabel: 'INICIAR PLANO DO DIA',
-        btnTarget: 'plano_dia'
+        btnTarget: 'plano_dia',
+        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
       };
     }
   }, [alertasCriticos, equipamentosEmRisco, chamadosPendentes]);
@@ -118,8 +129,8 @@ export default function AssistenteOperacao({
       icon: Target
     },
     {
-      title: 'Registo Oficial de Ocorrências',
-      text: 'Utilize o Chat Operacional da plataforma para registar anomalias elétricas ou de hardware. O histórico auditável protege a operação de loja.',
+      title: 'Registro Oficial de Ocorrências',
+      text: 'Utilize o Chat Operacional da plataforma para registrar anomalias elétricas ou de hardware. O histórico auditável protege a operação de loja.',
       icon: MessageSquare
     },
     {
@@ -129,18 +140,20 @@ export default function AssistenteOperacao({
     }
   ];
 
-  // Handler para atalhos (Se onNavigate não existir via prop, cria um fallback visual)
-  const handleNav = (targetId) => {
+  // Disparador de Rota Tática Segura
+  const handleNav = (targetId, requiredRoles) => {
+    if (!hasPermission(requiredRoles)) {
+      if (showToast) showToast('Acesso negado pelas diretrizes de segurança (RBAC).', 'error');
+      return;
+    }
     if (onNavigate) {
       onNavigate(targetId);
-    } else {
-      // Tenta simular o clique caso onNavigate não seja passado diretamente (Opcional, depende de como a sua App lida)
-      console.log('Navegar para:', targetId);
     }
   };
 
   return (
     <div className="assistente-operacao anim-fade-in">
+      
       <section className="hero-assistente">
         <div>
           <div className="hero-badge-assistente">
@@ -148,7 +161,7 @@ export default function AssistenteOperacao({
           </div>
           <h3>Copiloto de Decisão Tática</h3>
           <p>
-            Análise computacional em tempo real baseada na rede de telemetria da unidade. Siga as recomendações de ação direta para garantir a conformidade.
+            Análise computacional em tempo real baseada na rede de telemetria da unidade. Siga as recomendações de ação direta geradas pela I.A. para garantir a conformidade física.
           </p>
         </div>
         <div className="hero-summary">
@@ -162,7 +175,9 @@ export default function AssistenteOperacao({
 
       <section className="checklist-grid">
         {checklist.map((item) => {
+          const isAllowed = hasPermission(item.roles);
           const Icon = item.icon;
+          
           return (
             <article key={item.title} className={`check-item-card ${item.tone}`}>
               <div className="check-item-head">
@@ -175,11 +190,12 @@ export default function AssistenteOperacao({
               <p>{item.description}</p>
               
               <button 
-                className="btn-assist-action" 
-                onClick={() => handleNav(item.actionTarget)}
-                title={`Ir para ${item.actionLabel}`}
+                className={`btn-assist-action ${!isAllowed ? 'locked' : ''}`} 
+                onClick={() => handleNav(item.actionTarget, item.roles)}
+                disabled={!isAllowed}
               >
-                {item.actionLabel} <ArrowRight size={14} />
+                {isAllowed ? item.actionLabel : 'Acesso Restrito'}
+                {isAllowed ? <ArrowRight size={14} /> : <Lock size={14} />}
               </button>
             </article>
           );
@@ -189,29 +205,31 @@ export default function AssistenteOperacao({
       <section className="content-assistente-grid">
         
         {/* Recomendação Dinâmica Tática da I.A. */}
-        <article className="section-card-assistente" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+        <article className="section-card-assistente" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
           <div className="next-step-card" style={{ borderColor: aiRecommendation.border }}>
             <div className="ai-header">
               <div className="ai-icon-wrapper" style={{ background: `color-mix(in srgb, ${aiRecommendation.color} 20%, transparent)` }}>
                 <aiRecommendation.icon size={28} color={aiRecommendation.color} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Comando Recomendado (I.A.)</span>
-                <strong style={{ color: aiRecommendation.color, fontSize: '1.25rem', display: 'block' }}>{aiRecommendation.title}</strong>
+                <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Comando Recomendado (I.A.)</span>
+                <strong style={{ color: aiRecommendation.color, fontSize: '1.4rem', display: 'block', marginTop: '2px' }}>{aiRecommendation.title}</strong>
               </div>
             </div>
             
-            <div className="ai-content">
+            <div className="ai-content" style={{ marginTop: '1rem' }}>
               <p>{aiRecommendation.text}</p>
             </div>
 
             <div className="ai-action-footer">
               <button 
-                className="btn-ai-execute" 
-                onClick={() => handleNav(aiRecommendation.btnTarget)}
-                style={{ background: aiRecommendation.color, color: (aiRecommendation.color === '#10b981' || aiRecommendation.color === '#f59e0b' || aiRecommendation.color === '#38bdf8') ? '#020617' : 'white' }}
+                className={`btn-ai-execute ${!hasPermission(aiRecommendation.roles) ? 'locked' : ''}`} 
+                onClick={() => handleNav(aiRecommendation.btnTarget, aiRecommendation.roles)}
+                disabled={!hasPermission(aiRecommendation.roles)}
+                style={{ background: hasPermission(aiRecommendation.roles) ? aiRecommendation.color : 'rgba(0,0,0,0.4)', color: (aiRecommendation.color === '#10b981' || aiRecommendation.color === '#f59e0b' || aiRecommendation.color === '#38bdf8') && hasPermission(aiRecommendation.roles) ? '#020617' : 'white' }}
               >
-                <Zap size={18} fill="currentColor" /> {aiRecommendation.btnLabel}
+                {hasPermission(aiRecommendation.roles) ? <Zap size={18} fill="currentColor" /> : <Lock size={18} />}
+                {hasPermission(aiRecommendation.roles) ? aiRecommendation.btnLabel : 'DIRETIVA REJEITADA (SEM ACESSO)'}
               </button>
             </div>
 

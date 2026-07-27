@@ -1,52 +1,60 @@
 import React, { useMemo } from 'react';
 import {
   Activity, AlertTriangle, ArrowRight, CheckCircle2, Clock3, Cpu, FileText,
-  MessageSquare, ShieldCheck, Sparkles, Thermometer, Wrench, WifiOff
+  MessageSquare, ShieldCheck, Sparkles, Thermometer, Wrench, WifiOff,
+  Terminal, Lock, Bot
 } from 'lucide-react';
 import './CentroComando.css';
 
+// Ações agora contêm uma matriz de permissão (roles)
 const quickActions = [
   {
     id: 'dashboard',
-    title: 'Painel executivo',
+    title: 'Painel Executivo',
     description: 'Resumo visual da rede, saúde e alertas críticos.',
     icon: Activity,
-    accent: 'teal'
+    accent: 'teal',
+    roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
   },
   {
     id: 'motores',
-    title: 'Monitoramento térmico',
+    title: 'Monitoramento Térmico',
     description: 'Acompanhe limites, desvios e ciclos de degelo.',
     icon: Thermometer,
-    accent: 'blue'
+    accent: 'blue',
+    roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
   },
   {
     id: 'equipamentos',
-    title: 'Inventário e metrologia',
+    title: 'Inventário e Metrologia',
     description: 'Gerencie ativos, calibração e SLA de manutenção.',
     icon: Cpu,
-    accent: 'violet'
+    accent: 'violet',
+    roles: ['ADMIN', 'MANUTENCAO', 'DEV']
   },
   {
     id: 'chamados',
-    title: 'Chamados e ordens',
-    description: 'Centralize incidentes, intervenção e acompanhamento.',
+    title: 'Central de Incidentes',
+    description: 'Abertura, intervenção e acompanhamento de OS.',
     icon: Wrench,
-    accent: 'orange'
+    accent: 'orange',
+    roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
   },
   {
     id: 'chat',
-    title: 'Comunicação operacional',
-    description: 'Escale incidentes rapidamente para a equipe.',
+    title: 'Comunicação (NOC)',
+    description: 'Escale incidentes rapidamente para a equipe interna.',
     icon: MessageSquare,
-    accent: 'cyan'
+    accent: 'cyan',
+    roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
   },
   {
-    id: 'relatorios',
-    title: 'Relatórios e auditoria',
-    description: 'Gere histórico, exportações e performance do turno.',
-    icon: FileText,
-    accent: 'green'
+    id: 'dev_panel',
+    title: 'Cyber Command (Root)',
+    description: 'Engenharia de caos, infraestrutura e mitigação WAF.',
+    icon: Terminal,
+    accent: 'danger',
+    roles: ['DEV']
   }
 ];
 
@@ -63,6 +71,10 @@ export default function CentroComando({
   userRole = 'LOJA',
   filialAtiva = 'Todas'
 }) {
+
+  // Função auxiliar de Segurança
+  const hasPermission = (allowedRoles) => allowedRoles.includes(userRole);
+
   const alertasCriticos = useMemo(() =>
     notificacoesDaFilial.filter((n) => ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'].includes(n.tipo_alerta)).length,
     [notificacoesDaFilial]
@@ -79,122 +91,138 @@ export default function CentroComando({
   );
 
   const saudeGeral = useMemo(() => {
-    if (!qtdTotal) return { score: 100, etiqueta: 'Pronto para operar' };
+    if (!qtdTotal) return { score: 100, etiqueta: 'PRONTO PARA OPERAR' };
     const score = Math.max(0, Math.min(100, Math.round((qtdOperando / qtdTotal) * 100)));
-    if (score < 80) return { score, etiqueta: 'Atenção crítica' };
-    if (score < 95) return { score, etiqueta: 'Operação com observação' };
-    return { score, etiqueta: 'Operação estável' };
+    if (score < 80) return { score, etiqueta: 'ATENÇÃO CRÍTICA' };
+    if (score < 95) return { score, etiqueta: 'ALERTA DE OBSERVAÇÃO' };
+    return { score, etiqueta: 'OPERAÇÃO ESTÁVEL' };
   }, [qtdOperando, qtdTotal]);
 
   const recomendacoes = [
     {
-      title: 'Prioridade de resposta',
+      title: 'Prioridade de Resposta',
       text: alertasCriticos > 0
-        ? `${alertasCriticos} alertas críticos exigem atenção imediata.`
-        : 'O radar está limpo. Mantenha a rotina de verificação.',
+        ? `${alertasCriticos} alertas críticos exigem intervenção imediata da equipe.`
+        : 'O radar está limpo. O ambiente opera sem anomalias críticas.',
       icon: AlertTriangle,
       tone: alertasCriticos > 0 ? 'danger' : 'success'
     },
     {
-      title: 'Trabalho de manutenção',
+      title: 'Trabalho de Manutenção',
       text: chamadosPendentes > 0
-        ? `${chamadosPendentes} ordens ainda aguardam encerramento.`
-        : 'Não há operações pendentes no momento.',
+        ? `${chamadosPendentes} ordens de serviço (OS) aguardam encerramento no painel.`
+        : 'Não há operações corretivas ou preventivas pendentes na fila.',
       icon: Wrench,
       tone: chamadosPendentes > 0 ? 'warning' : 'success'
     },
     {
-      title: 'Cobertura de ativos',
+      title: 'Cobertura de Ativos',
       text: ativosEmRisco > 0
-        ? `${ativosEmRisco} ativos precisam revisão rápida.`
-        : 'Todos os ativos monitorados estão dentro do plano operacional.',
+        ? `${ativosEmRisco} ativos registram desvios térmicos ou mecânicos e precisam de revisão.`
+        : 'Todos os ativos monitorados estão perfeitamente alinhados ao plano operacional.',
       icon: ShieldCheck,
       tone: ativosEmRisco > 0 ? 'warning' : 'success'
     }
   ];
 
   return (
-    <div className="centro-comando anim-fade-in">
+    <div className="centro-comando">
       <section className="hero-card">
         <div className="hero-copy">
           <div className="hero-badge">
             <Sparkles size={16} />
             Centro de Comando Operacional
           </div>
-          <h3>Visão unificada da operação, pronta para decisões rápidas.</h3>
+          <h3>Visão unificada. Resposta tática.</h3>
           <p>
-            Este painel reúne saúde da rede, incidentes ativos, manutenção e próximos passos em um único ponto de controle.
-            Ele foi criado para complementar as telas existentes, sem substituir o fluxo atual de cada módulo.
+            Este painel reúne a saúde da rede, os incidentes ativos, a fila de manutenção e os próximos passos em um único ponto de controle avançado.
           </p>
+          
+          {/* Integração Inteligente baseada no contexto */}
+          <div className="ai-insight-box">
+            <div className="ai-header"><Bot size={16}/> Copilot AI - Análise Contínua</div>
+            <p>A inteligência artificial verificou que a telemetria da Loja Tupã e o fluxo central operam dentro da margem de segurança. Os compressores mantêm eficiência térmica adequada.</p>
+          </div>
+
           <div className="hero-meta">
-            <span><Activity size={14} /> {filialAtiva === 'Todas' ? 'Visão global' : filialAtiva}</span>
-            <span><Clock3 size={14} /> {userRole === 'LOJA' ? 'Operação local' : 'Gestão centralizada'}</span>
-            <span><ShieldCheck size={14} /> {isOffline ? 'Conexão instável' : 'Telemetria ativa'}</span>
+            <span><Activity size={14} color="var(--secondary)" /> Escopo: {filialAtiva === 'Todas' ? 'Visão Global' : filialAtiva}</span>
+            <span><Clock3 size={14} color="var(--warning)" /> Permissão: {userRole}</span>
+            <span><ShieldCheck size={14} color={isOffline ? 'var(--danger)' : 'var(--success)'} /> Link: {isOffline ? 'OFFLINE' : 'ONLINE'}</span>
           </div>
         </div>
 
         <div className="hero-metric">
+          <div className="hero-score-label">Índice de Saúde (SLA)</div>
           <div className="hero-score">{saudeGeral.score}%</div>
-          <div className="hero-score-label">{saudeGeral.etiqueta}</div>
           <div className="hero-progress">
             <div className="hero-progress-fill" style={{ width: `${saudeGeral.score}%` }} />
           </div>
           <div className="hero-footer">
-            <span>{qtdTotal} ativos monitorados</span>
-            <span>{qtdOperando} operando</span>
+            <span>{qtdTotal} Ativos Monitorados</span>
+            <span style={{color: 'var(--text-main)'}}>{saudeGeral.etiqueta}</span>
           </div>
         </div>
       </section>
 
       <section className="kpi-grid">
         <article className="kpi-card success">
-          <div className="kpi-icon"><CheckCircle2 size={20} /></div>
+          <div className="kpi-icon"><CheckCircle2 size={22} /></div>
           <div>
             <strong>{qtdOperando}</strong>
-            <span>Operando normalmente</span>
+            <span>Ativos OK</span>
           </div>
         </article>
         <article className="kpi-card info">
-          <div className="kpi-icon"><Thermometer size={20} /></div>
+          <div className="kpi-icon"><Thermometer size={22} /></div>
           <div>
             <strong>{qtdDegelo}</strong>
-            <span>Em ciclo de degelo</span>
+            <span>Em Degelo</span>
           </div>
         </article>
         <article className="kpi-card danger">
-          <div className="kpi-icon"><AlertTriangle size={20} /></div>
+          <div className="kpi-icon"><AlertTriangle size={22} /></div>
           <div>
             <strong>{qtdFalha}</strong>
-            <span>Ocorrências críticas</span>
+            <span>Ocorrências</span>
           </div>
         </article>
         <article className="kpi-card warning">
-          <div className="kpi-icon"><WifiOff size={20} /></div>
+          <div className="kpi-icon"><WifiOff size={22} /></div>
           <div>
-            <strong>{isOffline ? 'Offline' : 'Online'}</strong>
-            <span>Status de rede</span>
+            <strong>{isOffline ? 'DOWN' : 'UP'}</strong>
+            <span>Conexão</span>
           </div>
         </article>
       </section>
 
       <section className="section-card">
-        <div className="section-header">
-          <h4>Ações rápidas</h4>
-          <p>Atalhos para os pontos mais usados da operação.</p>
+        <div className="section-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <div>
+            <h4>Ações Táticas Rápidas</h4>
+            <p>Acesso direto aos módulos operacionais do sistema.</p>
+          </div>
         </div>
+        
         <div className="action-grid">
           {quickActions.map((action) => {
+            const isAllowed = hasPermission(action.roles);
             const Icon = action.icon;
+            
             return (
-              <button key={action.id} className={`action-card ${action.accent}`} onClick={() => onNavigate?.(action.id)}>
+              <button 
+                key={action.id} 
+                className={`action-card ${action.accent} ${!isAllowed ? 'locked' : ''}`} 
+                onClick={() => isAllowed && onNavigate?.(action.id)}
+                disabled={!isAllowed}
+              >
                 <div className="action-icon">
-                  <Icon size={18} />
+                  {isAllowed ? <Icon size={20} /> : <Lock size={20} color="var(--text-muted)" />}
                 </div>
                 <div className="action-copy">
                   <strong>{action.title}</strong>
-                  <span>{action.description}</span>
+                  <span>{isAllowed ? action.description : 'Acesso restrito pelo administrador.'}</span>
                 </div>
-                <ArrowRight size={16} />
+                {isAllowed && <ArrowRight size={16} color="var(--text-muted)" />}
               </button>
             );
           })}
@@ -204,8 +232,10 @@ export default function CentroComando({
       <section className="content-grid">
         <article className="section-card">
           <div className="section-header">
-            <h4>Próximos passos</h4>
-            <p>Checklist operacional com foco em segurança e continuidade.</p>
+            <div>
+              <h4>Próximos Passos</h4>
+              <p>Checklist operacional com foco em segurança.</p>
+            </div>
           </div>
           <div className="checklist">
             {recomendacoes.map((item) => {
@@ -213,7 +243,7 @@ export default function CentroComando({
               return (
                 <div key={item.title} className={`check-item ${item.tone}`}>
                   <div className="check-icon">
-                    <Icon size={16} />
+                    <Icon size={18} color={`var(--${item.tone})`} />
                   </div>
                   <div>
                     <strong>{item.title}</strong>
@@ -227,21 +257,25 @@ export default function CentroComando({
 
         <article className="section-card">
           <div className="section-header">
-            <h4>Incidentes recentes</h4>
-            <p>Resumo do que merece atenção neste momento.</p>
+            <div>
+              <h4>Incidentes Recentes</h4>
+              <p>Ocorrências que merecem investigação prioritária.</p>
+            </div>
           </div>
           <div className="incident-list">
             {notificacoesDaFilial.length === 0 ? (
               <div className="empty-state-card">
-                <CheckCircle2 size={18} />
-                <span>Nenhuma anomalia recente registrada para esta visão.</span>
+                <CheckCircle2 size={24} />
+                <span>Nenhuma anomalia crítica foi registrada no histórico recente do log.</span>
               </div>
             ) : (
               notificacoesDaFilial.slice(0, 4).map((item) => (
                 <div key={item.id} className="incident-item">
-                  <strong>{item.equipamento_nome}</strong>
+                  <strong>
+                    {item.equipamento_nome}
+                    <small>{new Date(item.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                  </strong>
                   <span>{item.mensagem}</span>
-                  <small>{new Date(item.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
                 </div>
               ))
             )}

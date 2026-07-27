@@ -1,63 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
-
 /* =========================================
-   1. DESIGN TOKENS E FUNDO "BREATHING MESH"
-   ========================================= */
-:root {
-  --primary: #059669;
-  --secondary: #38bdf8;
-  --bg-color: #f8fafc;
-  --card-bg: #ffffff;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --danger: #ef4444;
-  --danger-light: #fee2e2;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --info: #38bdf8;
-  --border: #e2e8f0;
-}
-
-.dark-theme {
-  --bg-color: #020617;
-  --card-bg: rgba(15, 23, 42, 0.65);
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
-  --danger-light: rgba(239, 68, 68, 0.1);
-}
-
-body {
-  margin: 0;
-  font-family: 'Montserrat', sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-}
-
-/* =========================================
-   2. LAYOUT PRINCIPAL CYBER-NOC
+   1. LAYOUT PRINCIPAL E BACKGROUNDS
    ========================================= */
 .app-container {
   display: flex;
   height: 100dvh;
   overflow: hidden;
   background-color: var(--bg-color);
-  background-image:
-    radial-gradient(circle at 15% 50%, rgba(5, 150, 105, 0.08) 0%, transparent 40%),
+  background-image: radial-gradient(circle at 15% 50%, rgba(5, 150, 105, 0.08) 0%, transparent 40%),
     radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.08) 0%, transparent 40%);
   background-size: 150% 150%;
   animation: ambientBreathing 20s ease-in-out infinite alternate;
+  will-change: background-position;
   position: relative;
-}
-
-@keyframes ambientBreathing {
-  0% {
-    background-position: 0% 0%;
-  }
-
-  100% {
-    background-position: 100% 100%;
-  }
 }
 
 .app-container.dark-theme::before {
@@ -69,18 +23,6 @@ body {
   z-index: 0;
   pointer-events: none;
   animation: crtFlicker 0.15s infinite;
-}
-
-@keyframes crtFlicker {
-
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-
-  50% {
-    opacity: 0.42;
-  }
 }
 
 .main-content {
@@ -101,7 +43,7 @@ body {
 }
 
 /* =========================================
-   3. CABEÇALHO FLUTUANTE (HEADER)
+   2. HEADER (CABEÇALHO FLUTUANTE)
    ========================================= */
 .header {
   background: rgba(255, 255, 255, 0.65);
@@ -119,7 +61,7 @@ body {
   position: sticky;
   top: 1.5rem;
   z-index: 40;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 0 20px rgba(255, 255, 255, 0.4) inset;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .dark-theme .header {
@@ -154,11 +96,15 @@ body {
   transform: translateY(-2px);
 }
 
+.btn-icon:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .dark-theme .btn-icon:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Módulo de Telemetria */
 .telemetry-badge-simple {
   display: flex;
   align-items: center;
@@ -202,9 +148,9 @@ body {
 }
 
 .status-good .bar.active {
-  background: #38bdf8;
+  background: var(--secondary);
   opacity: 1;
-  box-shadow: 0 0 6px #38bdf8;
+  box-shadow: 0 0 6px var(--secondary);
 }
 
 .status-slow .bar.active {
@@ -238,7 +184,7 @@ body {
 }
 
 /* =========================================
-   4. SIDEBAR (MENU LATERAL)
+   3. SIDEBAR (MENU LATERAL)
    ========================================= */
 .sidebar {
   background: linear-gradient(180deg, var(--primary) 0%, #064e3b 100%);
@@ -256,79 +202,12 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.sidebar-header {
-  padding: 1.5rem;
-  color: white;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 1.6rem;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -1px;
-}
-
-.sidebar-header h3 {
-  margin: 0;
-  font-size: 1.6rem;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -1px;
-}
-
 .sidebar.collapsed {
   width: 88px;
 }
 
 .sidebar.collapsed .hide-on-collapse {
   display: none !important;
-}
-
-.sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 1rem 0;
-  margin: 0 0.6rem;
-}
-
-.sidebar.collapsed .nav-item-text,
-.sidebar.collapsed .badge {
-  display: none;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 0;
-  gap: 0.5rem;
-  overflow-y: auto;
-  flex: 1;
-  /* Suporte para Firefox */
-  scrollbar-width: thin; 
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent; 
-}
-
-/* Chrome, Edge e Safari */
-.sidebar-nav::-webkit-scrollbar {
-  width: 4px; /* Largura bem fina e discreta */
-}
-
-.sidebar-nav::-webkit-scrollbar-track {
-  background: transparent; /* Fundo invisível */
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2); /* Cor subtil e translúcida */
-  border-radius: 10px; /* Bordas arredondadas */
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4); /* Fica ligeiramente mais visível ao passar o rato */
 }
 
 .nav-item {
@@ -349,6 +228,11 @@ body {
   position: relative;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: -2px;
 }
 
 .nav-item svg {
@@ -377,7 +261,7 @@ body {
 .nav-item:hover svg {
   transform: scale(1.2);
   opacity: 1;
-  color: #38bdf8;
+  color: var(--secondary);
 }
 
 .nav-item.active {
@@ -388,7 +272,7 @@ body {
 
 .nav-item.active svg {
   opacity: 1;
-  color: #38bdf8;
+  color: var(--secondary);
   filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));
 }
 
@@ -400,14 +284,11 @@ body {
   bottom: 0;
   width: 4px;
   border-radius: 4px;
-  box-shadow: 0 0 15px 2px #38bdf8;
-  background: #38bdf8;
+  box-shadow: 0 0 15px 2px var(--secondary);
+  background: var(--secondary);
   z-index: 3;
 }
 
-/* =========================================
-   ESTILOS DO MENU ACORDEÃO (SIDEBAR)
-   ========================================= */
 .nav-group-label {
   padding: 0 1.5rem;
   font-size: 0.7rem;
@@ -436,7 +317,6 @@ body {
   transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
-/* É esta classe que faz a magia de esconder as telas! */
 .nav-group-items.collapsed {
   max-height: 0;
   opacity: 0;
@@ -451,51 +331,273 @@ body {
   margin-bottom: 0.5rem;
 }
 
-/* Quando o menu inteiro for minimizado (apenas ícones), forçamos os ícones a aparecerem para não quebrar a UI */
 .sidebar.collapsed .nav-group-items {
   max-height: none !important;
   opacity: 1 !important;
   pointer-events: auto !important;
 }
 
-.badge {
-  background: var(--danger);
-  color: white;
-  padding: 0.2rem 0.6rem;
-  border-radius: 99px;
-  font-size: 0.75rem;
-  font-weight: 900;
-  margin-left: auto;
-  z-index: 2;
-  flex-shrink: 0;
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 1rem 0;
+  margin: 0 0.6rem;
+}
+
+.sidebar.collapsed .nav-item-text,
+.sidebar.collapsed .badge {
+  display: none;
 }
 
 /* =========================================
-   5. MODAIS & CAIXAS DE DIÁLOGO
+   4. COMPONENTES UI GERAIS (CARDS, BTN)
+   ========================================= */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.4rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  outline: none;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: 0.5s;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.btn:hover::after {
+  left: 150%;
+  transition: 0.6s ease-in-out;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(5, 150, 105, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 8px 25px rgba(5, 150, 105, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+.btn-outline:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-color: var(--text-muted);
+}
+
+.dark-theme .btn-outline:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* =========================================
+   5. FORMULÁRIOS & TABELAS
+   ========================================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.2rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background-color: rgba(0, 0, 0, 0.02);
+  color: var(--text-main);
+  font-family: 'Montserrat', monospace;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  background-color: var(--card-bg);
+  border-color: transparent;
+  box-shadow: 0 2px 0 var(--primary), 0 0 15px rgba(5, 150, 105, 0.1);
+  transform: translateY(-1px);
+}
+
+input:disabled,
+select:disabled {
+  background-color: rgba(0, 0, 0, 0.05);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+option {
+  background-color: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.dark-theme option {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+select:focus option {
+  background-color: var(--bg-color);
+}
+
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.table th {
+  padding: 1rem 1.2rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 1rem 1.2rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+  font-weight: 500;
+}
+
+.table tbody tr:hover td {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark-theme .table tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* =========================================
+   6. MODAIS, TOASTS E COMMAND PALETTE
    ========================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.7);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
+  background-color: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(10px);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  z-index: 9999;
   padding: 1rem;
-  animation: fadeIn 0.3s;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .modal-content {
   background: var(--card-bg);
+  backdrop-filter: blur(24px);
+  border-radius: 16px;
+  padding: 2rem;
   width: 100%;
-  border-radius: 20px;
-  padding: 2.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border: 1px solid var(--border);
   max-height: 90vh;
   overflow-y: auto;
-  position: relative;
+  animation: hudUnfold 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center center;
 }
 
 .modal-content.prompt-box {
@@ -503,9 +605,42 @@ body {
   text-align: center;
 }
 
-/* =========================================
-   5.1 TOASTS (NANO NOTIFICATIONS)
-   ========================================= */
+@keyframes hudUnfold {
+  0% {
+    transform: scaleY(0.01) scaleX(0.8);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scaleY(1.05) scaleX(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scaleY(1) scaleX(1);
+    opacity: 1;
+  }
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: var(--text-main);
+  font-size: 1.4rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.5px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
 .toast-container {
   position: fixed;
   bottom: 16px;
@@ -521,7 +656,6 @@ body {
   pointer-events: auto;
   background: var(--card-bg);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   padding: 6px 10px;
   border-radius: 4px;
@@ -533,7 +667,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  animation: slideInDiscreet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInDiscreet 0.3s forwards;
   position: relative;
   overflow: hidden;
 }
@@ -592,33 +726,6 @@ body {
   color: #fff;
 }
 
-@keyframes slideInDiscreet {
-  from {
-    transform: translateX(20px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideUpDiscreet {
-  from {
-    transform: translateY(15px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* =========================================
-   6. COMMAND PALETTE (CTRL+K)
-   ========================================= */
 .command-palette-overlay {
   position: fixed;
   inset: 0;
@@ -704,10 +811,12 @@ body {
   font-weight: 500;
 }
 
-.cmd-item:hover {
+.cmd-item:hover,
+.cmd-item:focus-visible {
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
   transform: translateX(4px);
+  outline: none;
 }
 
 /* =========================================
@@ -781,65 +890,13 @@ body {
 
 .crash-box {
   background: rgba(15, 23, 42, 0.95);
-  border: 1px solid #334155;
-  padding: 4rem;
-  border-radius: 24px;
-  text-align: center;
-  max-width: 600px;
   border-top: 4px solid var(--danger);
+  max-width: 600px;
 }
 
 /* =========================================
-   8. RESPONSIVIDADE TOTAL (MOBILE & TABLET)
+   8. RESPONSIVIDADE TOTAL
    ========================================= */
-.desktop-only {
-  display: block;
-}
-
-.mobile-close {
-  display: none;
-}
-
-.anim-fade-in {
-  animation: fadeIn 0.3s ease;
-}
-
-.anim-slide-up {
-  animation: slideUpFade 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUpFade {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 @media (max-width: 768px) {
   .desktop-only {
     display: none !important;
@@ -922,7 +979,6 @@ body {
   .toast {
     padding: 5px 8px;
     font-size: 0.65rem;
-    animation: slideUpDiscreet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   .command-palette-overlay {
@@ -971,36 +1027,4 @@ body {
     width: 100%;
     justify-content: center;
   }
-}
-
-/* =========================================
-   9. GLOBAL ANNOUNCEMENT BANNER
-   ========================================= */
-.global-announcement-banner {
-  background: var(--warning);
-  color: #000;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  z-index: 1000;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
-}
-
-.global-announcement-banner button {
-  background: rgba(0, 0, 0, 0.1);
-  border: none;
-  color: #000;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  padding: 4px;
-  transition: background 0.2s;
-}
-
-.global-announcement-banner button:hover {
-  background: rgba(0, 0, 0, 0.2);
 }

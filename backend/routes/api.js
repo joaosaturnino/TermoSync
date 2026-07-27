@@ -12,7 +12,6 @@ const { exec } = require('child_process');
 const multer = require('multer');
 const upload = multer({ dest: 'tmp/' });
 
-// IMPORTAÇÃO DO NODEMAILER PARA ENVIO DE E-MAILS REAIS
 const nodemailer = require('nodemailer'); 
 
 module.exports = (app, io) => {
@@ -20,13 +19,12 @@ module.exports = (app, io) => {
   async function emitirOperacaoAtualizada(payload = {}) { try { io.emit('operacao_atualizada', payload); } catch (e) { } }
 
   // ============================================================================
-  // MOTOR DE WEBSOCKETS - INTERCETAÇÃO E GRAVAÇÃO DO CHAT (CORRIGIDO)
+  // MOTOR DE WEBSOCKETS - INTERCETAÇÃO E GRAVAÇÃO DO CHAT
   // ============================================================================
   if (io && !io._chatListenerConfigured) {
     io.on('connection', (socket) => {
       socket.on('enviar_mensagem_chat', async (msg) => {
         try {
-          // 1. Grava no Banco de Dados respeitando as colunas exatas da sua tabela
           const query = `
             INSERT INTO chat_mensagens 
             (remetente_id, remetente_nome, destino_id, texto, data_hora) 
@@ -39,7 +37,6 @@ module.exports = (app, io) => {
             msg.texto
           ]);
 
-          // 2. Monta o pacote de dados para enviar ao Frontend
           const mensagemSalva = {
             id: result.insertId,
             remetenteId: msg.remetenteId,
@@ -47,10 +44,9 @@ module.exports = (app, io) => {
             destinoId: msg.destinoId || 'todos',
             texto: msg.texto,
             data: new Date().toISOString(), 
-            tipo: 'received' // Quem recebe via socket é sempre 'received'
+            tipo: 'received' 
           };
 
-          // 3. Retransmite a mensagem
           socket.broadcast.emit('nova_mensagem_chat', mensagemSalva);
         } catch (error) {
           console.error('❌ [ERRO CHAT] Falha ao persistir mensagem no MySQL:', error);
@@ -61,33 +57,23 @@ module.exports = (app, io) => {
   }
 
   // ============================================================================
-  // ROTAS DE FATURAMENTO (BILLING / SAAS) - INTEGRAÇÃO EM TEMPO REAL
+  // ROTAS DE FATURAMENTO (BILLING / SAAS)
   // ============================================================================
-  
   app.get('/api/financeiro/faturas/atuais', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
-    
     try {
-        const [todasFaturas] = await pool.query(
-            `SELECT filial, status, data_vencimento 
-             FROM faturas_saas 
-             ORDER BY data_vencimento ASC`
-        );
-
+        const [todasFaturas] = await pool.query(`SELECT filial, status, data_vencimento FROM faturas_saas ORDER BY data_vencimento ASC`);
         const faturasFormatadas = {};
         const hoje = new Date();
 
         todasFaturas.forEach(fatura => {
             const dataVenc = new Date(fatura.data_vencimento);
             dataVenc.setHours(23, 59, 59, 999); 
-            
             const isVencida = dataVenc < hoje && fatura.status !== 'PAGO';
             const diffTime = hoje - dataVenc;
             const diffDays = isVencida ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
-            if (!faturasFormatadas[fatura.filial]) {
-                faturasFormatadas[fatura.filial] = { foiPaga: true, atrasoDias: 0 };
-            }
+            if (!faturasFormatadas[fatura.filial]) faturasFormatadas[fatura.filial] = { foiPaga: true, atrasoDias: 0 };
 
             if (fatura.status !== 'PAGO') {
                 faturasFormatadas[fatura.filial].foiPaga = false;
@@ -96,24 +82,14 @@ module.exports = (app, io) => {
                 }
             }
         });
-
         res.json(faturasFormatadas);
-    } catch (error) {
-        console.error("Erro ao buscar faturas:", error);
-        res.status(500).json({ error: "Erro interno no servidor" });
-    }
+    } catch (error) { res.status(500).json({ error: "Erro interno no servidor" }); }
   });
 
   app.post('/api/financeiro/faturas/:filial/pagar', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
-
-    const { filial } = req.params;
-    const { billingSetup, plano } = req.body; 
-
-    const dataAtual = new Date();
-    const mesAtual = dataAtual.getMonth() + 1;
-    const anoAtual = dataAtual.getFullYear();
-    
+    const { filial } = req.params; const { billingSetup, plano } = req.body; 
+    const dataAtual = new Date(); const mesAtual = dataAtual.getMonth() + 1; const anoAtual = dataAtual.getFullYear();
     const filialPlano = plano || 'PRO';
     const isEnterprise = filialPlano === 'ENTERPRISE';
     const valorBase = isEnterprise ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
@@ -121,73 +97,49 @@ module.exports = (app, io) => {
 
     try {
         await pool.query(
-            `INSERT INTO faturas_saas 
-             (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'PAGO', NOW())
-             ON DUPLICATE KEY UPDATE 
-             status = 'PAGO', data_pagamento = NOW()`,
+            `INSERT INTO faturas_saas (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status, data_pagamento) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'PAGO', NOW()) ON DUPLICATE KEY UPDATE status = 'PAGO', data_pagamento = NOW()`,
             [filial, filialPlano, valorBase, valorBase, dataVencimento, mesAtual, anoAtual]
         );
-
         if (io) io.emit('pagamento_confirmado', { filial });
-        await registrarAuditoria('BILLING_PAYMENT', 'Root/Dev', `Pagamento liquidado: ${filial} (${filialPlano} - R$${valorBase})`, 'success');
-
+        await registrarAuditoria('BILLING_PAYMENT', 'Root/Dev', `Pagamento liquidado: ${filial} (${filialPlano})`, 'success');
         res.json({ success: true, message: `Pagamento de ${filial} confirmado.` });
-    } catch (error) {
-        console.error("Erro ao pagar fatura:", error);
-        res.status(500).json({ error: "Erro interno no servidor" });
-    }
+    } catch (error) { res.status(500).json({ error: "Erro interno no servidor" }); }
   });
 
   app.post('/api/financeiro/cobranca-lote', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
-
     const { billingSetup, planos } = req.body; 
-
     try {
-        const dataAtual = new Date();
-        const mesAtual = dataAtual.getMonth() + 1;
-        const anoAtual = dataAtual.getFullYear();
+        const dataAtual = new Date(); const mesAtual = dataAtual.getMonth() + 1; const anoAtual = dataAtual.getFullYear();
         const diaVencimento = billingSetup?.diaVencimento || 10;
-        
         const [filiaisRows] = await pool.query('SELECT DISTINCT nome FROM loja WHERE status = "Ativa"');
         const filiais = filiaisRows.map(f => f.nome);
         
         for (const filial of filiais) {
             const plano = planos?.[filial] || 'PRO';
             if (plano === 'FREE') continue; 
-
-            const isEnterprise = plano === 'ENTERPRISE';
-            const valorBase = isEnterprise ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
+            const valorBase = plano === 'ENTERPRISE' ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
 
             await pool.query(
-                `INSERT IGNORE INTO faturas_saas 
-                 (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status) 
+                `INSERT IGNORE INTO faturas_saas (filial, plano, valor_base, total, data_vencimento, ciclo_mes, ciclo_ano, status) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDENTE')`,
                 [filial, plano, valorBase, valorBase, `${anoAtual}-${mesAtual}-${diaVencimento}`, mesAtual, anoAtual]
             );
         }
-
         await registrarAuditoria('BILLING_CRON', 'Root/Dev', `Faturamento gerado para o ciclo ${mesAtual}/${anoAtual}.`, 'info');
         res.json({ success: true, message: "Lote processado!" });
-    } catch (error) {
-        console.error("Erro ao gerar lote:", error);
-        res.status(500).json({ error: "Erro interno no servidor" });
-    }
+    } catch (error) { res.status(500).json({ error: "Erro interno no servidor" }); }
   });
 
   app.post('/api/financeiro/faturas/:filial/forcar-atraso', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
     try {
-        const { filial } = req.params;
-        const { billingSetup, plano } = req.body;
+        const { filial } = req.params; const { billingSetup, plano } = req.body;
         const filialPlano = plano || 'PRO';
         const valorBase = (filialPlano === 'ENTERPRISE') ? (billingSetup?.ent || 899.90) : (billingSetup?.pro || 299.90);
-        
-        const dataAtraso = new Date();
-        dataAtraso.setMonth(dataAtraso.getMonth() - 1); 
-        const mesAtraso = dataAtraso.getMonth() + 1;
-        const anoAtraso = dataAtraso.getFullYear();
+        const dataAtraso = new Date(); dataAtraso.setMonth(dataAtraso.getMonth() - 1); 
+        const mesAtraso = dataAtraso.getMonth() + 1; const anoAtraso = dataAtraso.getFullYear();
         const vencAtraso = `${anoAtraso}-${mesAtraso.toString().padStart(2, '0')}-10`;
 
         await pool.query(
@@ -202,96 +154,54 @@ module.exports = (app, io) => {
 
   app.post('/api/financeiro/faturas/:filial/notificar', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
-    
-    const { filial } = req.params;
-    const { total, vencimento, plano, status } = req.body;
+    const { filial } = req.params; const { total, vencimento, plano, status } = req.body;
 
     try {
-        const [dadosLoja] = await pool.query(
-            `SELECT e.email 
-             FROM loja l 
-             LEFT JOIN empresas e ON l.empresa = e.nome 
-             WHERE l.nome = ? LIMIT 1`, 
-             [filial]
-        );
-
+        const [dadosLoja] = await pool.query(`SELECT e.email FROM loja l LEFT JOIN empresas e ON l.empresa = e.nome WHERE l.nome = ? LIMIT 1`, [filial]);
         let emailDestino = null;
 
         if (dadosLoja.length > 0 && dadosLoja[0].email) {
             emailDestino = dadosLoja[0].email;
         } else {
             const [dadosEmpresa] = await pool.query('SELECT email FROM empresas WHERE nome = ? LIMIT 1', [filial]);
-            if (dadosEmpresa.length > 0 && dadosEmpresa[0].email) {
-                emailDestino = dadosEmpresa[0].email;
-            }
+            if (dadosEmpresa.length > 0 && dadosEmpresa[0].email) emailDestino = dadosEmpresa[0].email;
         }
 
-        if (!emailDestino || emailDestino.trim() === '') {
-            return res.status(400).json({ error: 'A organização não tem um e-mail cadastrado na base de dados.' });
-        }
+        if (!emailDestino || emailDestino.trim() === '') return res.status(400).json({ error: 'A organização não tem um e-mail cadastrado.' });
 
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false, 
-            auth: {
-                user: 'thermosync126@gmail.com', 
-                pass: 'uhpm iasu atae tnbt' 
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
-
+        const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 587, secure: false, auth: { user: 'thermosync126@gmail.com', pass: 'uhpm iasu atae tnbt' }, tls: { rejectUnauthorized: false } });
         const mailOptions = {
-            from: '"TermoSync FinOps" <thermosync126@gmail.com>', 
-            to: emailDestino,
+            from: '"TermoSync FinOps" <thermosync126@gmail.com>', to: emailDestino,
             subject: `Fatura Disponível - Licenciamento TermoSync SaaS (${filial})`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h2 style="color: #10b981; margin: 0;">TermoSync Enterprise</h2>
-                        <p style="color: #64748b; font-size: 12px; margin: 5px 0;">NOC & FinOps Portal</p>
                     </div>
-                    
                     <p>Olá, equipa da <strong>${filial}</strong>,</p>
-                    <p>Informamos que a fatura referente ao licenciamento do plano <strong>${plano}</strong> já está disponível para consulta e regularização.</p>
-                    
+                    <p>A fatura do plano <strong>${plano}</strong> está disponível.</p>
                     <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #eab308;">
-                        <p style="margin: 5px 0;"><strong>Status da Fatura:</strong> <span style="color: #ef4444; font-weight: bold;">${status}</span></p>
-                        <p style="margin: 5px 0;"><strong>Valor Total:</strong> R$ ${Number(total).toFixed(2)}</p>
-                        <p style="margin: 5px 0;"><strong>Data de Vencimento:</strong> ${vencimento}</p>
+                        <p><strong>Status:</strong> <span style="color: #ef4444; font-weight: bold;">${status}</span></p>
+                        <p><strong>Valor Total:</strong> R$ ${Number(total).toFixed(2)}</p>
+                        <p><strong>Vencimento:</strong> ${vencimento}</p>
                     </div>
-                    
-                    <p>Para manter os seus serviços de telemetria IoT ativos e evitar o bloqueio dos nós Edge, por favor efetue o pagamento.</p>
-                    <p>A Nota Fiscal Eletrónica (NFS-e) e o boleto bancário foram gerados e encontram-se anexados no seu painel.</p>
-                    <br/>
-                    <hr style="border: none; border-top: 1px solid #ddd;" />
-                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Este é um e-mail automático gerado pelo módulo FinOps da plataforma TermoSync.</p>
                 </div>
             `
         };
-
         await transporter.sendMail(mailOptions); 
-
-        await registrarAuditoria('BILLING_NOTIFY', 'Root/Dev', `E-mail SMTP disparado para: ${filial} (${emailDestino})`, 'warning');
+        await registrarAuditoria('BILLING_NOTIFY', 'Root/Dev', `E-mail enviado para: ${filial} (${emailDestino})`, 'warning');
         res.json({ success: true, message: `E-mail enviado para ${emailDestino}` });
-    } catch (error) {
-        console.error("Erro no SMTP:", error);
-        res.status(500).json({ error: "Falha na conexão SMTP ou envio de e-mail." });
-    }
+    } catch (error) { res.status(500).json({ error: "Falha na conexão SMTP." }); }
   });
 
   // ============================================================================
-  // ROTA EXCLUSIVA DO PAINEL DEV: EXPORTAÇÃO DE DADOS (DUMP)
+  // ROTAS GERAIS E AUTENTICAÇÃO
   // ============================================================================
   app.get('/api/health', async (req, res) => {
     try {
       await pool.execute('SELECT 1');
       res.json({ ok: true, timestamp: new Date().toISOString(), uptime: Number(process.uptime().toFixed(1)) });
-    } catch (error) {
-      res.status(503).json({ ok: false, error: 'Banco indisponível.' });
-    }
+    } catch (error) { res.status(503).json({ ok: false, error: 'Banco indisponível.' }); }
   });
 
   app.post('/api/system/exportar-tabela', verificarToken, async (req, res) => {
@@ -299,32 +209,19 @@ module.exports = (app, io) => {
     try {
       let { tabela } = req.body;
       if (tabela === 'leituras_telemetria') tabela = 'leituras';
-
-      const tabelasPermitidas = [
-        'equipamentos', 'leituras', 'usuarios',
-        'notificacoes', 'audit_logs', 'sessoes_ativas',
-        'empresas', 'chamados', 'hardware_iot', 'faturas_saas', 'chat_mensagens'
-      ];
-
-      if (!tabelasPermitidas.includes(tabela)) {
-        return res.status(400).json({ error: 'Tentativa de acesso a tabela não autorizada.' });
-      }
-
+      const tabelasPermitidas = ['equipamentos', 'leituras', 'usuarios', 'notificacoes', 'audit_logs', 'sessoes_ativas', 'empresas', 'chamados', 'hardware_iot', 'faturas_saas', 'chat_mensagens'];
+      if (!tabelasPermitidas.includes(tabela)) return res.status(400).json({ error: 'Tabela não autorizada.' });
       const [linhas] = await pool.query(`SELECT * FROM ${tabela}`);
       res.json({ sucesso: true, dados: linhas });
-    } catch (erro) {
-      console.error(`[ERRO MYSQL] Falha na extração:`, erro);
-      res.status(500).json({ error: 'Falha interna do servidor ao gerar o dump.' });
-    }
+    } catch (erro) { res.status(500).json({ error: 'Falha interna.' }); }
   });
 
-  /* --- ROTAS BÁSICAS MANTIDAS --- */
   app.get('/api/empresas', verificarToken, async (req, res) => { if (req.userRole !== 'DEV') return res.status(403).send(); try { const [r] = await pool.execute('SELECT * FROM empresas ORDER BY nome ASC'); res.json(r); } catch (e) { res.status(500).send(); } });
   app.post('/api/empresas', verificarToken, async (req, res) => { if (req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('INSERT INTO empresas (nome, cnpj, contato, email, status) VALUES (?, ?, ?, ?, ?)', [req.body.nome, req.body.cnpj || null, req.body.contato || null, req.body.email || null, req.body.status || 'Ativa']); res.status(201).send(); } catch (e) { res.status(500).send(); } });
   app.put('/api/empresas/:id', verificarToken, async (req, res) => { if (req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('UPDATE empresas SET nome=?, cnpj=?, contato=?, email=?, status=? WHERE id=?', [req.body.nome, req.body.cnpj, req.body.contato, req.body.email, req.body.status, req.params.id]); res.status(200).send(); } catch (e) { res.status(500).send(); } });
 
   app.post('/api/impersonate', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Permissão negada. Apenas Root.' });
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Apenas Root.' });
     let empresaDestino = 'Cliente Alpha (Padrão)';
     const [lojas] = await pool.execute('SELECT empresa FROM loja WHERE nome = ? LIMIT 1', [req.body.filialDestino]);
     if (lojas.length > 0 && lojas[0].empresa) { empresaDestino = lojas[0].empresa; }
@@ -340,10 +237,9 @@ module.exports = (app, io) => {
     const ip = req.ip || req.socket?.remoteAddress || 'Desconhecido';
 
     if (users.length === 0) {
-      registrarAuditoria('LOGIN_FAILED', 'Desconhecido', `Tentativa com usuário: ${usuario} (${ip})`, 'danger');
+      registrarAuditoria('LOGIN_FAILED', 'Desconhecido', `Tentativa: ${usuario} (${ip})`, 'danger');
       return res.status(401).json({ error: 'Usuário não encontrado' });
     }
-
     const senhaValida = await bcrypt.compare(senha, users[0].senha);
     if (!senhaValida) {
       registrarAuditoria('LOGIN_FAILED', usuario, `Senha Incorreta (${ip})`, 'danger');
@@ -356,85 +252,197 @@ module.exports = (app, io) => {
     res.json({ token, id: users[0].id, role: users[0].role, filial: users[0].filial, nome_gerente: users[0].nome_gerente, nome_coordenador: users[0].nome_coordenador, nome_tecnico: users[0].nome_tecnico });
   });
 
-  app.put('/api/usuarios/reset-senha', async (req, res) => { try { const { usuario, novaSenha } = req.body; if (!usuario || !novaSenha) { return res.status(400).json({ error: 'Dados incompletos.' }); } const [users] = await pool.execute('SELECT id FROM usuarios WHERE usuario = ?', [usuario]); if (users.length === 0) { return res.status(404).json({ error: 'Usuário não encontrado no sistema.' }); } await pool.execute('UPDATE usuarios SET senha = ? WHERE usuario = ?', [await bcrypt.hash(novaSenha, 10), usuario]); res.status(200).json({ message: 'Credenciais atualizadas com sucesso.' }); } catch (error) { res.status(500).json({ error: 'Erro interno ao redefinir a senha.' }); } });
+  app.put('/api/usuarios/reset-senha', async (req, res) => { try { const { usuario, novaSenha } = req.body; if (!usuario || !novaSenha) return res.status(400).json({ error: 'Dados incompletos.' }); const [users] = await pool.execute('SELECT id FROM usuarios WHERE usuario = ?', [usuario]); if (users.length === 0) return res.status(404).json({ error: 'Usuário não encontrado.' }); await pool.execute('UPDATE usuarios SET senha = ? WHERE usuario = ?', [await bcrypt.hash(novaSenha, 10), usuario]); res.status(200).json({ message: 'Credenciais atualizadas.' }); } catch (error) { res.status(500).json({ error: 'Erro interno.' }); } });
   app.get('/api/usuarios', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); let q = 'SELECT id, usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa FROM usuarios WHERE 1=1'; let p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } const [r] = await pool.execute(q + ' ORDER BY role ASC', p); res.json(r); });
   app.post('/api/usuarios', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso restrito.' }); try { const { usuario, senha, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa } = req.body; await pool.execute('INSERT INTO usuarios (usuario, senha, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [usuario, await bcrypt.hash(senha, 10), role, filial || null, nome_gerente || null, nome_coordenador || null, nome_tecnico || null, (req.userRole === 'DEV' && empresa) ? empresa : req.userEmpresa]); res.status(201).send(); } catch (error) { res.status(500).json({ error: 'Erro ao criar usuário.' }); } });
-  app.put('/api/usuarios/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso restrito.' }); try { const { usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa, senha } = req.body; const empresaTarget = (req.userRole === 'DEV' && empresa) ? empresa : req.userEmpresa; if (senha) { await pool.execute('UPDATE usuarios SET usuario=?, senha=?, role=?, filial=?, nome_gerente=?, nome_coordenador=?, nome_tecnico=?, empresa=? WHERE id=?', [usuario, await bcrypt.hash(senha, 10), role, filial || null, nome_gerente || null, nome_coordenador || null, nome_tecnico || null, empresaTarget, req.params.id]); } else { await pool.execute('UPDATE usuarios SET usuario=?, role=?, filial=?, nome_gerente=?, nome_coordenador=?, nome_tecnico=?, empresa=? WHERE id=?', [usuario, role, filial || null, nome_gerente || null, nome_coordenador || null, nome_tecnico || null, empresaTarget, req.params.id]); } res.status(200).send(); } catch (error) { res.status(500).json({ error: 'Erro ao editar usuário.' }); } });
-  app.delete('/api/usuarios/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso restrito.' }); try { await pool.execute('DELETE FROM usuarios WHERE id=?', [req.params.id]); res.status(200).send(); } catch (error) { res.status(500).json({ error: 'Erro ao excluir usuário.' }); } });
+  app.put('/api/usuarios/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso restrito.' }); try { const { usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa, senha } = req.body; const empresaTarget = (req.userRole === 'DEV' && empresa) ? empresa : req.userEmpresa; if (senha) { await pool.execute('UPDATE usuarios SET usuario=?, senha=?, role=?, filial=?, nome_gerente=?, nome_coordenador=?, nome_tecnico=?, empresa=? WHERE id=?', [usuario, await bcrypt.hash(senha, 10), role, filial || null, nome_gerente || null, nome_coordenador || null, nome_tecnico || null, empresaTarget, req.params.id]); } else { await pool.execute('UPDATE usuarios SET usuario=?, role=?, filial=?, nome_gerente=?, nome_coordenador=?, nome_tecnico=?, empresa=? WHERE id=?', [usuario, role, filial || null, nome_gerente || null, nome_coordenador || null, nome_tecnico || null, empresaTarget, req.params.id]); } res.status(200).send(); } catch (error) { res.status(500).json({ error: 'Erro ao editar.' }); } });
+  app.delete('/api/usuarios/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso restrito.' }); try { await pool.execute('DELETE FROM usuarios WHERE id=?', [req.params.id]); res.status(200).send(); } catch (error) { res.status(500).json({ error: 'Erro ao excluir.' }); } });
+  
   app.get('/api/lojas', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { let q = `SELECT * FROM loja WHERE 1=1`; let p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } const [lojas] = await pool.execute(q + ' ORDER BY nome ASC', p); const [usuarios] = await pool.execute('SELECT filial, nome_gerente, nome_coordenador FROM usuarios'); res.json(lojas.map(l => { const uGerente = usuarios.find(user => user.filial === l.nome && user.nome_gerente); const uCoord = usuarios.find(user => user.filial === l.nome && user.nome_coordenador); return { ...l, nome_gerente: uGerente ? uGerente.nome_gerente : null, nome_coordenador: uCoord ? uCoord.nome_coordenador : null }; })); } catch (e) { res.status(500).json({ error: e.message }); } });
   app.post('/api/lojas', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('INSERT INTO loja (nome, endereco, telefone, empresa, status) VALUES (?, ?, ?, ?, ?)', [req.body.nome, req.body.endereco, req.body.telefone, req.userRole === 'DEV' && req.body.empresa ? req.body.empresa : req.userEmpresa, req.userRole === 'DEV' && req.body.status ? req.body.status : 'Ativa']); res.status(201).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/lojas/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { if (req.userRole === 'DEV') { await pool.execute('UPDATE loja SET nome=?, endereco=?, telefone=?, empresa=?, status=? WHERE id=?', [req.body.nome, req.body.endereco, req.body.telefone, req.body.empresa || req.userEmpresa, req.body.status || 'Ativa', req.params.id]); } else { await pool.execute('UPDATE loja SET nome=?, endereco=?, telefone=? WHERE id=? AND empresa=?', [req.body.nome, req.body.endereco, req.body.telefone, req.params.id, req.userEmpresa]); } res.status(200).send(); } catch (error) { res.status(500).send(); } });
+
   app.get('/api/equipamentos', verificarToken, async (req, res) => { let q = `SELECT e.*, (SELECT temperatura FROM leituras WHERE equipamento_id = e.id ORDER BY data_hora DESC LIMIT 1) AS ultima_temp, (SELECT umidade FROM leituras WHERE equipamento_id = e.id ORDER BY data_hora DESC LIMIT 1) AS ultima_umidade FROM equipamentos e WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } } const [r] = await pool.execute(q, p); res.json(r); });
   app.post('/api/equipamentos', verificarToken, async (req, res) => { try { const { nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao } = req.body; await pool.execute('INSERT INTO equipamentos (nome, tipo, temp_min, temp_max, umidade_min, umidade_max, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao, empresa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [nome, tipo, temp_min, temp_max, umidade_min || null, umidade_max || null, intervalo_degelo, duracao_degelo, setor, filial, data_calibracao || null, req.userEmpresa]); res.status(201).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/equipamentos/:id/edit', verificarToken, async (req, res) => { try { await pool.execute('UPDATE equipamentos SET nome=?, tipo=?, temp_min=?, temp_max=?, umidade_min=?, umidade_max=?, intervalo_degelo=?, duracao_degelo=?, setor=?, filial=?, data_calibracao=? WHERE id=? AND empresa=?', [req.body.nome, req.body.tipo, req.body.temp_min, req.body.temp_max, req.body.umidade_min || null, req.body.umidade_max || null, req.body.intervalo_degelo, req.body.duracao_degelo, req.body.setor, req.body.filial, req.body.data_calibracao || null, req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.delete('/api/equipamentos/:id', verificarToken, async (req, res) => { try { await pool.execute('DELETE FROM equipamentos WHERE id=? AND empresa=?', [req.params.id, req.userEmpresa]); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-  // GET: Buscar Chamados (Agora tolerante a dados de teste sem empresa/filial)
+
+  // ============================================================================
+  // CORREÇÃO CRÍTICA DO CHECK-AND-ALERT DO SIMULADOR (AUTO-RESOLVE FIX)
+  // ============================================================================
+  app.post('/api/leituras', async (req, res) => {
+    try {
+      let isMaintenance = false;
+      try {
+        const [sys] = await pool.execute('SELECT valor FROM configuracoes WHERE chave = "maintenanceMode"');
+        if (sys.length > 0 && sys[0].valor === '1') isMaintenance = true;
+      } catch (err) {}
+      
+      if (isMaintenance) return res.status(503).json({ error: 'Sistema em Manutenção.' });
+
+      const {
+        equipamento_id, temperatura, umidade, alerta_forcado, consumo_kwh,
+        motor_ligado, em_degelo, mac_address, ip_local, sinal_wifi, uptime, firmware_version
+      } = req.body;
+
+      const t = parseFloat(temperatura); const u = parseFloat(umidade || 50.0); const c_kwh = parseFloat(consumo_kwh || 0.0);
+
+      try {
+        await pool.execute(`
+        INSERT INTO hardware_iot (equipamento_id, mac_address, ip_local, sinal_wifi, uptime, firmware_version, ultima_comunicacao)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE ip_local=VALUES(ip_local), sinal_wifi=VALUES(sinal_wifi), uptime=VALUES(uptime), ultima_comunicacao=NOW()
+      `, [ equipamento_id, mac_address || 'A4:CF:12:XX:XX:XX', ip_local || '192.168.1.100', sinal_wifi ? parseInt(sinal_wifi) : -65, uptime || '0h', firmware_version || 'v1.0.0' ]);
+      } catch (e) {}
+
+      const [r] = await pool.execute('INSERT INTO leituras (equipamento_id, temperatura, umidade, consumo_kwh) VALUES (?, ?, ?, ?)', [equipamento_id, t, u, c_kwh]);
+      const [eq] = await pool.execute('SELECT temp_max, temp_min, umidade_min, umidade_max, nome, em_degelo, motor_ligado, setor, filial FROM equipamentos WHERE id = ?', [equipamento_id]);
+
+      if (eq.length > 0) {
+        const isMotorLigado = (motor_ligado == 1 || motor_ligado === true);
+        const isEmDegelo = (em_degelo == 1 || em_degelo === true);
+        await pool.execute('UPDATE equipamentos SET motor_ligado=?, em_degelo=? WHERE id=?', [isMotorLigado, isEmDegelo, equipamento_id]);
+
+        const tMax = parseFloat(eq[0].temp_max); const tMin = parseFloat(eq[0].temp_min);
+        const uMax = parseFloat(eq[0].umidade_max || 0); const uMin = parseFloat(eq[0].umidade_min || 0);
+
+        let novosAlertas = [];
+        let resolvidoAutomatico = false;
+
+        // CORREÇÃO: Função de Verificação e Auto-Cura Dinâmica
+        const checkAndAlert = async (condicaoAnomala, tipoAlerta, mensagem, isSilencioso = false, autoResolve = false) => {
+          if (condicaoAnomala) {
+            const [existe] = await pool.execute('SELECT id FROM notificacoes WHERE equipamento_id=? AND (resolvido=0 OR resolvido IS NULL) AND tipo_alerta=?', [equipamento_id, tipoAlerta]);
+            if (existe.length === 0) {
+              const [inserido] = await pool.execute('INSERT INTO notificacoes (equipamento_id, mensagem, tipo_alerta, resolvido) VALUES (?, ?, ?, 0)', [equipamento_id, mensagem, tipoAlerta]);
+              novosAlertas.push({ id: inserido.insertId, equipamento_id, mensagem, tipo_alerta: tipoAlerta, data_hora: new Date().toISOString(), resolvido: 0, equipamento_nome: eq[0].nome, setor: eq[0].setor, filial: eq[0].filial, silencioso: isSilencioso });
+            }
+          } else if (autoResolve) {
+            // Se não for uma anomalia (ou parou de ser), manda curar imediatamente
+            const [upd] = await pool.execute('UPDATE notificacoes SET resolvido=1, nota_resolucao="Normalizado automaticamente." WHERE equipamento_id=? AND (resolvido=0 OR resolvido IS NULL) AND tipo_alerta=?', [equipamento_id, tipoAlerta]);
+            if (upd.affectedRows > 0) {
+                resolvidoAutomatico = true;
+                io.emit('alerta_removido', { equipamento_id, tipo_alerta: tipoAlerta });
+            }
+          }
+        };
+
+        // MATRIZ DE CONDIÇÕES DE FALHAS vs AUTO-CURA
+        const condRede = (alerta_forcado === 'REDE');
+        await checkAndAlert(condRede, 'REDE', `FALHA IoT/REDE: Sensor offline em "${eq[0].nome}".`, false, !condRede);
+
+        const condPorta = (alerta_forcado === 'PORTA_ABERTA');
+        await checkAndAlert(condPorta, 'PORTA', `PORTA ABERTA: O equipamento "${eq[0].nome}" está com a porta violada!`, false, !condPorta);
+
+        const condMecanica = (!isMotorLigado && !isEmDegelo && alerta_forcado !== 'REDE');
+        await checkAndAlert(condMecanica, 'MECANICA', `MOTOR PARADO: O compressor de "${eq[0].nome}" desligou subitamente!`, false, !condMecanica);
+
+        const condTemp = ((t > tMax || t < tMin) && !isEmDegelo);
+        await checkAndAlert(condTemp, 'TEMPERATURA', `ALERTA TÉRMICO: "${eq[0].nome}" fora da faixa configurada (${t}°C).`, false, !condTemp);
+
+        if (uMax > 0 || uMin > 0) {
+          const condUmi = ((u > uMax || u < uMin) && !isEmDegelo);
+          await checkAndAlert(condUmi, 'UMIDADE', `ALERTA HIGROMÉTRICO: Umidade de "${eq[0].nome}" fora dos limites permitidos (${u}%).`, false, !condUmi);
+        }
+
+        const condDegelo = isEmDegelo;
+        await checkAndAlert(condDegelo, 'DEGELO', `INFO: "${eq[0].nome}" entrou em ciclo de Degelo programado.`, true, !condDegelo);
+
+        // Notifica o frontend global se houver mudanças estruturais
+        if (novosAlertas.length > 0 || resolvidoAutomatico) { io.emit('atualizacao_dados'); }
+
+        if (novosAlertas.length > 0) {
+          novosAlertas.forEach(alertaObj => {
+            if (!alertaObj.silencioso) { enviarAlertaWhatsApp(`🚨 ALERTA NOC em *${eq[0].nome}*. Motivo: ${alertaObj.mensagem}`, eq[0].filial); }
+            io.emit('novo_alerta', alertaObj);
+          });
+        }
+        io.emit('nova_leitura', { id: r.insertId, equipamento_id, temperatura: t, umidade: u, consumo_kwh: c_kwh, motor_ligado: isMotorLigado, em_degelo: isEmDegelo, data_hora: new Date(), nome: eq[0].nome, setor: eq[0].setor, filial: eq[0].filial });
+      }
+      res.status(201).send();
+    } catch (error) { 
+      res.status(500).send(); 
+    }
+  });
+
+  // ==========================================
+  // ROTAS DE NOTIFICAÇÕES, CHAMADOS, RELATÓRIOS
+  // ==========================================
+  app.get('/api/notificacoes', verificarToken, async (req, res) => { 
+    try {
+      let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE (n.resolvido = 0 OR n.resolvido IS NULL OR n.resolvido = FALSE)`; 
+      const p = []; 
+      if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } 
+      if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } 
+      const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC', p); 
+      res.json(r); 
+    } catch (e) { res.status(500).send(); }
+  });
+
+  app.get('/api/notificacoes/historico', verificarToken, async (req, res) => { 
+    try {
+      let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE n.resolvido = 1`; 
+      const p = []; 
+      if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } 
+      if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } 
+      const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC LIMIT 150', p); 
+      res.json(r); 
+    } catch (e) { res.status(500).send(); }
+  });
+
+  app.put('/api/notificacoes/:id/resolver', verificarToken, async (req, res) => { 
+    try { 
+      await pool.execute('UPDATE notificacoes SET resolvido=1, nota_resolucao=? WHERE id=?', [req.body.nota_resolucao || 'Resolvido pelo operador.', req.params.id]); 
+      io.emit('alerta_removido_id', { id: req.params.id });
+      io.emit('atualizacao_dados'); res.status(200).send(); 
+    } catch (error) { res.status(500).send(); } 
+  });
+
+  app.put('/api/notificacoes/resolver-todas', verificarToken, async (req, res) => { 
+    try { 
+      let q = 'UPDATE notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id SET n.resolvido=1, n.nota_resolucao="Limpeza em Lote" WHERE (n.resolvido=0 OR n.resolvido IS NULL)'; 
+      let p = []; 
+      if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); 
+      if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } } 
+      await pool.execute(q, p); 
+      io.emit('alertas_limpos');
+      io.emit('atualizacao_dados'); res.status(200).send(); 
+    } catch (error) { res.status(500).send(); } 
+  });
+
   app.get('/api/chamados', verificarToken, async (req, res) => { 
     let q = `
       SELECT c.*, e.nome as equipamento_nome, e.filial as equipamento_filial, u.usuario as aberto_por 
-      FROM chamados c 
-      LEFT JOIN equipamentos e ON c.equipamento_id = e.id 
-      LEFT JOIN usuarios u ON c.usuario_id = u.id 
-      WHERE 1=1
+      FROM chamados c LEFT JOIN equipamentos e ON c.equipamento_id = e.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1
     `; 
     const p = []; 
-    
     if (req.userRole !== 'DEV') { 
-      // Permite que OS antigas de teste (sem empresa definida) apareçam
-      q += ' AND (c.empresa = ? OR c.empresa IS NULL OR c.empresa = "")'; 
-      p.push(req.userEmpresa); 
-      
-      if (req.userRole === 'LOJA') { 
-        // Permite OS sem filial ou que pertençam à filial do equipamento associado
-        q += ` AND (c.filial = ? OR c.filial IS NULL OR c.filial = "" OR e.filial = ?)`; 
-        p.push(req.userFilial, req.userFilial); 
-      } 
+      q += ' AND (c.empresa = ? OR c.empresa IS NULL OR c.empresa = "")'; p.push(req.userEmpresa); 
+      if (req.userRole === 'LOJA') { q += ` AND (c.filial = ? OR c.filial IS NULL OR c.filial = "" OR e.filial = ?)`; p.push(req.userFilial, req.userFilial); } 
     } 
-    
-    const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); 
-    res.json(r); 
+    const [r] = await pool.execute(q + ' ORDER BY c.data_abertura DESC', p); res.json(r); 
   });
-  // POST: Abrir OS (Agora herda automaticamente a filial da Loja se o equipamento falhar)
+
   app.post('/api/chamados', verificarToken, async (req, res) => { 
     try { 
       const { equipamento_id, descricao, solicitante_nome, tecnico_responsavel, urgencia } = req.body; 
-      let filialStr = req.userFilial; // Garante que recebe a filial de quem está logado
-      
-      try { 
-        const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); 
-        if (eq.length > 0 && eq[0].filial) filialStr = eq[0].filial; 
-      } catch (e) { } 
-      
-      await pool.execute(
-        `INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, urgencia, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberto')`, 
-        [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa, urgencia || 'Pendente']
-      ); 
-      
-      io.emit('atualizacao_dados'); 
-      res.status(201).send(); 
+      let filialStr = req.userFilial; 
+      try { const [eq] = await pool.execute('SELECT filial FROM equipamentos WHERE id=?', [equipamento_id]); if (eq.length > 0 && eq[0].filial) filialStr = eq[0].filial; } catch (e) { } 
+      await pool.execute(`INSERT INTO chamados (equipamento_id, usuario_id, filial, descricao, solicitante_nome, tecnico_responsavel, empresa, urgencia, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberto')`, [equipamento_id || null, req.userId, filialStr, descricao, solicitante_nome || null, tecnico_responsavel || null, req.userEmpresa, urgencia || 'Pendente']); 
+      io.emit('atualizacao_dados'); res.status(201).send(); 
     } catch (error) { res.status(500).send(); } 
   });
+
   app.put('/api/chamados/:id/status', verificarToken, async (req, res) => {
     try {
-      const { status } = req.body;
-      if (!status) return res.status(400).json({ error: 'Status ausente.' });
-      let query = 'UPDATE chamados SET status = ?';
-      let params = [status];
-      if (status === 'Concluído') {
-        query += ', data_conclusao = CURRENT_TIMESTAMP';
-      } else {
-        query += ', data_conclusao = NULL';
-      }
-      query += ' WHERE id = ?';
-      params.push(req.params.id);
-      await pool.execute(query, params);
-      io.emit('atualizacao_dados');
-      res.status(200).json({ success: true, message: `Status alterado para ${status}` });
-    } catch (error) {
-      console.error(`\n❌ [ERRO KANBAN] Falha no banco de dados:`, error.message);
-      res.status(500).json({ error: 'Falha no banco de dados ao mover o card.' });
-    }
+      const { status } = req.body; if (!status) return res.status(400).json({ error: 'Status ausente.' });
+      let query = 'UPDATE chamados SET status = ?'; let params = [status];
+      if (status === 'Concluído') query += ', data_conclusao = CURRENT_TIMESTAMP'; else query += ', data_conclusao = NULL';
+      query += ' WHERE id = ?'; params.push(req.params.id);
+      await pool.execute(query, params); io.emit('atualizacao_dados'); res.status(200).json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Falha no banco.' }); }
   });
+
   app.delete('/api/chamados/:id', verificarToken, async (req, res) => { if (req.userRole !== 'ADMIN' && req.userRole !== 'DEV') return res.status(403).send(); try { await pool.execute('DELETE FROM chamados WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/chamados/:id', verificarToken, async (req, res) => { try { const [atual] = await pool.execute('SELECT * FROM chamados WHERE id=?', [req.params.id]); if (atual.length === 0) return res.status(404).send(); const chamado = atual[0]; const novoStatus = req.body.status !== undefined ? req.body.status : chamado.status; let query = 'UPDATE chamados SET status=?, nota_resolucao=?, arquivado=?, urgencia=?, tecnico_responsavel=?'; if (novoStatus === 'Concluído' && chamado.status !== 'Concluído') query += ', data_conclusao=CURRENT_TIMESTAMP'; query += ' WHERE id=?'; await pool.execute(query, [novoStatus, req.body.nota_resolucao !== undefined ? req.body.nota_resolucao : chamado.nota_resolucao, req.body.arquivado !== undefined ? (req.body.arquivado ? 1 : 0) : chamado.arquivado, req.body.urgencia !== undefined ? req.body.urgencia : chamado.urgencia, req.body.tecnico_responsavel !== undefined ? req.body.tecnico_responsavel : chamado.tecnico_responsavel, req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.put('/api/chamados/:id/arquivar', verificarToken, async (req, res) => { try { await pool.execute('UPDATE chamados SET arquivado=1, data_conclusao=CURRENT_TIMESTAMP WHERE id=?', [req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
@@ -442,174 +450,94 @@ module.exports = (app, io) => {
 
   app.get('/api/suporte/artigos', verificarToken, async (req, res) => {
     try {
-      const isDev = req.userRole === 'DEV';
-      const publico = isDev ? [] : ['USUARIO', 'AMBOS'];
-      let query = 'SELECT * FROM suporte_artigos WHERE ativo = TRUE';
-      const params = [];
-      if (!isDev) {
-        query += ' AND publico IN (?, ?)';
-        params.push(publico[0], publico[1]);
-      }
+      const isDev = req.userRole === 'DEV'; const publico = isDev ? [] : ['USUARIO', 'AMBOS'];
+      let query = 'SELECT * FROM suporte_artigos WHERE ativo = TRUE'; const params = [];
+      if (!isDev) { query += ' AND publico IN (?, ?)'; params.push(publico[0], publico[1]); }
       const [rows] = await pool.execute(query + ' ORDER BY destaque DESC, updated_at DESC, titulo ASC', params);
       res.json(rows);
-    } catch (error) {
-      res.status(500).json({ error: 'Falha ao listar artigos.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Falha.' }); }
   });
 
   app.get('/api/suporte/chamados', verificarToken, async (req, res) => {
     try {
-      let query = 'SELECT * FROM suporte_chamados WHERE 1=1';
-      const params = [];
-      if (req.userRole !== 'DEV') {
-        query += ' AND (empresa = ? OR empresa IS NULL OR empresa = "")';
-        params.push(req.userEmpresa);
-        if (req.userRole === 'LOJA') {
-          query += ' AND (filial = ? OR filial IS NULL OR filial = "")';
-          params.push(req.userFilial);
-        }
-      }
+      let query = 'SELECT * FROM suporte_chamados WHERE 1=1'; const params = [];
+      if (req.userRole !== 'DEV') { query += ' AND (empresa = ? OR empresa IS NULL OR empresa = "")'; params.push(req.userEmpresa); if (req.userRole === 'LOJA') { query += ' AND (filial = ? OR filial IS NULL OR filial = "")'; params.push(req.userFilial); } }
       const [rows] = await pool.execute(query + ' ORDER BY criado_em DESC', params);
       res.json(rows);
-    } catch (error) {
-      res.status(500).json({ error: 'Falha ao listar chamados de suporte.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Falha.' }); }
   });
 
   app.post('/api/suporte/chamados', verificarToken, async (req, res) => {
     try {
       const { titulo, descricao, categoria, prioridade, solicitante, email } = req.body;
-      if (!titulo || !descricao || !solicitante) return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
-      const [result] = await pool.execute(
-        'INSERT INTO suporte_chamados (titulo, descricao, categoria, prioridade, origem, solicitante, email, empresa, filial) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [titulo, descricao, categoria || 'Geral', prioridade || 'Média', req.userRole === 'DEV' ? 'DEV' : 'USUARIO', solicitante, email || null, req.userEmpresa || null, req.userFilial || null]
-      );
-      await registrarHistoricoSuporte({
-        chamadoId: result.insertId,
-        evento: 'ABERTURA',
-        autor: solicitante,
-        papel: req.userRole,
-        statusAnterior: null,
-        statusNovo: 'Aberto',
-        mensagem: descricao
-      });
-      io.emit('atualizacao_dados');
-      res.status(201).json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: 'Falha ao abrir chamado de suporte.' });
-    }
+      if (!titulo || !descricao || !solicitante) return res.status(400).json({ error: 'Campos obrigatórios.' });
+      const [result] = await pool.execute('INSERT INTO suporte_chamados (titulo, descricao, categoria, prioridade, origem, solicitante, email, empresa, filial) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [titulo, descricao, categoria || 'Geral', prioridade || 'Média', req.userRole === 'DEV' ? 'DEV' : 'USUARIO', solicitante, email || null, req.userEmpresa || null, req.userFilial || null]);
+      await registrarHistoricoSuporte({ chamadoId: result.insertId, evento: 'ABERTURA', autor: solicitante, papel: req.userRole, statusAnterior: null, statusNovo: 'Aberto', mensagem: descricao });
+      io.emit('atualizacao_dados'); res.status(201).json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Falha.' }); }
   });
 
   app.put('/api/suporte/chamados/:id', verificarToken, async (req, res) => {
     try {
       const { status, resposta, responsavel } = req.body;
       const [atual] = await pool.execute('SELECT * FROM suporte_chamados WHERE id = ?', [req.params.id]);
-      if (atual.length === 0) return res.status(404).json({ error: 'Chamado não encontrado.' });
-
-      const chamadoAtual = atual[0];
-      const novoStatus = status || chamadoAtual.status;
-
-      await pool.execute(
-        'UPDATE suporte_chamados SET status = ?, resposta = ?, responsavel = ? WHERE id = ?',
-        [novoStatus, resposta !== undefined ? resposta : chamadoAtual.resposta, responsavel !== undefined ? responsavel : chamadoAtual.responsavel, req.params.id]
-      );
+      if (atual.length === 0) return res.status(404).json({ error: 'Não encontrado.' });
+      const chamadoAtual = atual[0]; const novoStatus = status || chamadoAtual.status;
+      await pool.execute('UPDATE suporte_chamados SET status = ?, resposta = ?, responsavel = ? WHERE id = ?', [novoStatus, resposta !== undefined ? resposta : chamadoAtual.resposta, responsavel !== undefined ? responsavel : chamadoAtual.responsavel, req.params.id]);
       if ((resposta !== undefined && resposta !== chamadoAtual.resposta) || novoStatus !== chamadoAtual.status) {
-        await registrarHistoricoSuporte({
-          chamadoId: req.params.id,
-          evento: resposta !== undefined ? 'RESPOSTA' : 'ATUALIZACAO_STATUS',
-          autor: responsavel || req.userRole || 'Sistema',
-          papel: req.userRole,
-          statusAnterior: chamadoAtual.status,
-          statusNovo: novoStatus,
-          mensagem: resposta !== undefined ? resposta : `Status alterado para ${novoStatus}`
-        });
+        await registrarHistoricoSuporte({ chamadoId: req.params.id, evento: resposta !== undefined ? 'RESPOSTA' : 'ATUALIZACAO_STATUS', autor: responsavel || req.userRole || 'Sistema', papel: req.userRole, statusAnterior: chamadoAtual.status, statusNovo: novoStatus, mensagem: resposta !== undefined ? resposta : `Status alterado para ${novoStatus}` });
       }
-      io.emit('atualizacao_dados');
-      res.status(200).json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: 'Falha ao atualizar chamado de suporte.' });
-    }
+      io.emit('atualizacao_dados'); res.status(200).json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Falha.' }); }
   });
 
   app.get('/api/suporte/chamados/:id/historico', verificarToken, async (req, res) => {
     try {
       const [ticket] = await pool.execute('SELECT id, empresa, filial, solicitante FROM suporte_chamados WHERE id = ?', [req.params.id]);
-      if (ticket.length === 0) return res.status(404).json({ error: 'Chamado não encontrado.' });
-
-      if (req.userRole !== 'DEV') {
-        const permitidoEmpresa = ticket[0].empresa === req.userEmpresa || !ticket[0].empresa;
-        const permitidoFilial = req.userRole !== 'LOJA' || ticket[0].filial === req.userFilial || !ticket[0].filial;
-        if (!permitidoEmpresa || !permitidoFilial) {
-          return res.status(403).json({ error: 'Acesso negado.' });
-        }
-      }
-
-      const [historico] = await pool.execute(
-        'SELECT * FROM suporte_chamado_historico WHERE chamado_id = ? ORDER BY criado_em ASC, id ASC',
-        [req.params.id]
-      );
+      if (ticket.length === 0) return res.status(404).json({ error: 'Não encontrado.' });
+      if (req.userRole !== 'DEV') { const permitidoEmpresa = ticket[0].empresa === req.userEmpresa || !ticket[0].empresa; const permitidoFilial = req.userRole !== 'LOJA' || ticket[0].filial === req.userFilial || !ticket[0].filial; if (!permitidoEmpresa || !permitidoFilial) return res.status(403).json({ error: 'Acesso negado.' }); }
+      const [historico] = await pool.execute('SELECT * FROM suporte_chamado_historico WHERE chamado_id = ? ORDER BY criado_em ASC, id ASC', [req.params.id]);
       res.json(historico);
-    } catch (error) {
-      res.status(500).json({ error: 'Falha ao listar histórico do chamado.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Falha.' }); }
   });
 
-  app.get('/api/notificacoes', verificarToken, async (req, res) => { let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE n.resolvido = FALSE`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC', p); res.json(r); });
-  app.get('/api/notificacoes/historico', verificarToken, async (req, res) => { let q = `SELECT n.*, e.nome AS equipamento_nome, e.setor, e.filial FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id WHERE n.resolvido = TRUE`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ` AND e.filial = ?`; p.push(req.userFilial); } const [r] = await pool.execute(q + ' ORDER BY n.data_hora DESC LIMIT 150', p); res.json(r); });
-  app.put('/api/notificacoes/:id/resolver', verificarToken, async (req, res) => { try { await pool.execute('UPDATE notificacoes SET resolvido=TRUE, nota_resolucao=? WHERE id=?', [req.body.nota_resolucao || 'Resolvido pelo operador.', req.params.id]); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
-  app.put('/api/notificacoes/resolver-todas', verificarToken, async (req, res) => { try { let q = 'UPDATE notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id SET n.resolvido=TRUE, n.nota_resolucao="Limpeza em Lote" WHERE n.resolvido=FALSE'; let p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } } await pool.execute(q, p); io.emit('atualizacao_dados'); res.status(200).send(); } catch (error) { res.status(500).send(); } });
   app.get('/api/relatorios', verificarToken, async (req, res) => { let q = `SELECT l.id, l.temperatura, l.umidade, l.consumo_kwh, l.data_hora, e.nome, e.setor, e.filial FROM leituras l JOIN equipamentos e ON l.equipamento_id = e.id WHERE 1=1`; const p = []; if (req.userRole !== 'DEV') { q += ' AND e.empresa = ?'; p.push(req.userEmpresa); } if (req.userRole === 'LOJA') { q += ' AND e.filial = ?'; p.push(req.userFilial); } if (req.query.data_inicio && req.query.data_fim) { q += ' AND l.data_hora BETWEEN ? AND ?'; p.push(new Date(req.query.data_inicio), new Date(req.query.data_fim)); } else { q += ' AND l.data_hora >= DATE_SUB(NOW(), INTERVAL 6 HOUR)'; } const [r] = await pool.execute(q + ' ORDER BY l.data_hora ASC LIMIT 3000', p); res.json(r); });
-  
+
   app.get('/api/operacao/resumo', verificarToken, async (req, res) => {
     try {
       const filialFiltro = req.query.filial || req.userFilial || 'Todas';
       const empresaFiltro = req.userEmpresa || 'Cliente Alpha (Padrão)';
-      const filtros = ['e.empresa = ?'];
-      const params = [empresaFiltro];
+      const filtros = ['e.empresa = ?']; const params = [empresaFiltro];
 
-      if (req.userRole === 'LOJA') {
-        filtros.push('e.filial = ?');
-        params.push(req.userFilial);
-      } else if (filialFiltro && filialFiltro !== 'Todas') {
-        filtros.push('e.filial = ?');
-        params.push(filialFiltro);
-      }
+      if (req.userRole === 'LOJA') { filtros.push('e.filial = ?'); params.push(req.userFilial); } 
+      else if (filialFiltro && filialFiltro !== 'Todas') { filtros.push('e.filial = ?'); params.push(filialFiltro); }
 
       const whereClause = filtros.join(' AND ');
-
-      let equipamentosRows = [];
-      let alertasRows = [];
-      let chamadosRows = [];
+      let equipamentosRows = []; let alertasRows = []; let chamadosRows = [];
 
       try {
         [equipamentosRows] = await pool.execute(`
         SELECT e.id, e.nome, e.filial, e.motor_ligado, e.em_degelo,
           (SELECT temperatura FROM leituras WHERE equipamento_id = e.id ORDER BY data_hora DESC LIMIT 1) AS ultima_temp,
           (SELECT umidade FROM leituras WHERE equipamento_id = e.id ORDER BY data_hora DESC LIMIT 1) AS ultima_umidade
-        FROM equipamentos e
-        WHERE ${whereClause}
+        FROM equipamentos e WHERE ${whereClause}
       `, params);
       } catch (e) { }
 
       try {
         [alertasRows] = await pool.execute(`
         SELECT n.id, n.mensagem, n.data_hora, e.nome AS equipamento_nome, e.filial
-        FROM notificacoes n
-        JOIN equipamentos e ON n.equipamento_id = e.id
-        WHERE ${whereClause} AND n.resolvido = FALSE
-        ORDER BY n.data_hora DESC
-        LIMIT 8
+        FROM notificacoes n JOIN equipamentos e ON n.equipamento_id = e.id
+        WHERE ${whereClause} AND (n.resolvido = 0 OR n.resolvido IS NULL) ORDER BY n.data_hora DESC LIMIT 8
       `, params);
       } catch (e) { }
 
       try {
         [chamadosRows] = await pool.execute(`
         SELECT c.id, c.status, c.urgencia, e.nome AS equipamento_nome
-        FROM chamados c
-        LEFT JOIN equipamentos e ON c.equipamento_id = e.id
+        FROM chamados c LEFT JOIN equipamentos e ON c.equipamento_id = e.id
         WHERE ${whereClause} AND c.status <> 'Concluído' AND c.status <> 'Fechado'
-        ORDER BY c.data_abertura DESC
-        LIMIT 8
+        ORDER BY c.data_abertura DESC LIMIT 8
       `, params);
       } catch (e) { }
 
@@ -618,46 +546,14 @@ module.exports = (app, io) => {
       const chamadosAbertos = chamadosRows.length;
       const equipamentosFalha = equipamentosRows.filter((eq) => !eq.motor_ligado && !eq.em_degelo).length;
       const equipamentosDegelo = equipamentosRows.filter((eq) => eq.em_degelo).length;
-      const temperaturaMedia = totalEquipamentos
-        ? (equipamentosRows.reduce((acc, item) => acc + (Number(item.ultima_temp) || 0), 0) / totalEquipamentos).toFixed(1)
-        : 0;
-      const umidadeMedia = totalEquipamentos
-        ? (equipamentosRows.reduce((acc, item) => acc + (Number(item.ultima_umidade) || 0), 0) / totalEquipamentos).toFixed(1)
-        : 0;
+      const temperaturaMedia = totalEquipamentos ? (equipamentosRows.reduce((acc, item) => acc + (Number(item.ultima_temp) || 0), 0) / totalEquipamentos).toFixed(1) : 0;
+      const umidadeMedia = totalEquipamentos ? (equipamentosRows.reduce((acc, item) => acc + (Number(item.ultima_umidade) || 0), 0) / totalEquipamentos).toFixed(1) : 0;
 
-      res.json({
-        total_equipamentos: totalEquipamentos,
-        alertas_ativos: alertasAtivos,
-        chamados_abertos: chamadosAbertos,
-        equipamentos_em_falha: equipamentosFalha,
-        equipamentos_em_degelo: equipamentosDegelo,
-        temperatura_media: Number(temperaturaMedia),
-        umidade_media: Number(umidadeMedia),
-        ultimos_alertas: alertasRows,
-        ultimos_chamados: chamadosRows,
-        filial: filialFiltro,
-        atualizada_em: new Date().toISOString()
-      });
+      res.json({ total_equipamentos: totalEquipamentos, alertas_ativos: alertasAtivos, chamados_abertos: chamadosAbertos, equipamentos_em_falha: equipamentosFalha, equipamentos_em_degelo: equipamentosDegelo, temperatura_media: Number(temperaturaMedia), umidade_media: Number(umidadeMedia), ultimos_alertas: alertasRows, ultimos_chamados: chamadosRows, filial: filialFiltro, atualizada_em: new Date().toISOString() });
     } catch (e) {
-      res.json({
-        total_equipamentos: 0,
-        alertas_ativos: 0,
-        chamados_abertos: 0,
-        equipamentos_em_falha: 0,
-        equipamentos_em_degelo: 0,
-        temperatura_media: 0,
-        umidade_media: 0,
-        ultimos_alertas: [],
-        ultimos_chamados: [],
-        filial: req.query.filial || req.userFilial || 'Todas',
-        atualizada_em: new Date().toISOString()
-      });
+      res.json({ total_equipamentos: 0, alertas_ativos: 0, chamados_abertos: 0, equipamentos_em_falha: 0, equipamentos_em_degelo: 0, temperatura_media: 0, umidade_media: 0, ultimos_alertas: [], ultimos_chamados: [], filial: req.query.filial || req.userFilial || 'Todas', atualizada_em: new Date().toISOString() });
     }
   });
-
-  // ============================================================================
-  // ROTAS DE CHECKLIST / TAREFAS DE OPERAÇÃO (CRUD COMPLETO)
-  // ============================================================================
 
   app.get('/api/operacao/tarefas', verificarToken, async (req, res) => {
     try {
@@ -668,129 +564,66 @@ module.exports = (app, io) => {
       let sql = 'SELECT * FROM operacao_tarefas WHERE tipo = ?';
       const params = [tipo];
 
-      if (req.userRole !== 'DEV') {
-          sql += ' AND empresa = ?';
-          params.push(empresa);
-      }
-
-      if (filial && filial !== 'Todas') {
-          sql += ' AND (filial = ? OR filial = "Matriz" OR filial = "Todas" OR filial IS NULL)';
-          params.push(filial);
-      }
-
+      if (req.userRole !== 'DEV') { sql += ' AND empresa = ?'; params.push(empresa); }
+      if (filial && filial !== 'Todas') { sql += ' AND (filial = ? OR filial = "Matriz" OR filial = "Todas" OR filial IS NULL)'; params.push(filial); }
       sql += ' ORDER BY created_at ASC';
 
       const [rows] = await pool.execute(sql, params);
       res.json(rows);
-    } catch (error) {
-      console.error('[ERRO] GET /operacao/tarefas:', error);
-      res.status(500).json({ error: 'Erro ao buscar tarefas.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Erro ao buscar tarefas.' }); }
   });
 
   app.post('/api/operacao/tarefas', verificarToken, async (req, res) => {
     try {
       if (req.userRole === 'LOJA') return res.status(403).json({ error: 'Acesso negado.' });
-
       const { tipo, chave, titulo, descricao, concluida, filial } = req.body;
       const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
 
-      if (!chave || !titulo) {
-          return res.status(400).json({ error: 'Chave e título são obrigatórios.' });
-      }
+      if (!chave || !titulo) return res.status(400).json({ error: 'Chave e título são obrigatórios.' });
 
-      const sql = `
-          INSERT INTO operacao_tarefas 
-          (tipo, chave, titulo, descricao, concluida, filial, empresa) 
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-      `;
-      const params = [
-          tipo || 'checklist_turno', 
-          chave, 
-          titulo, 
-          descricao || null, 
-          concluida ? 1 : 0, 
-          filial || 'Matriz',
-          empresa
-      ];
-
+      const sql = `INSERT INTO operacao_tarefas (tipo, chave, titulo, descricao, concluida, filial, empresa) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+      const params = [ tipo || 'checklist_turno', chave, titulo, descricao || null, concluida ? 1 : 0, filial || 'Matriz', empresa ];
       const [result] = await pool.execute(sql, params);
       await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
-
       res.status(201).json({ success: true, id: result.insertId });
-    } catch (error) {
-      console.error('[ERRO] POST /operacao/tarefas:', error);
-      res.status(500).json({ error: 'Erro ao criar tarefa.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Erro ao criar tarefa.' }); }
   });
 
   app.put('/api/operacao/tarefas/:id', verificarToken, async (req, res) => {
     try {
-      const { id } = req.params;
-      const { concluida } = req.body;
-      const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
+      const { id } = req.params; const { concluida } = req.body; const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
 
       let horario = null;
       if (concluida) {
           const dataAtual = new Date();
-          horario = dataAtual.toLocaleTimeString('pt-BR', { 
-              timeZone: 'America/Sao_Paulo', 
-              hour: '2-digit', 
-              minute: '2-digit' 
-          });
+          horario = dataAtual.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
       }
 
       let sql = 'UPDATE operacao_tarefas SET concluida = ?, horario = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
       const params = [concluida ? 1 : 0, horario, id];
 
-      if (req.userRole !== 'DEV') {
-          sql += ' AND empresa = ?';
-          params.push(empresa);
-      }
-
+      if (req.userRole !== 'DEV') { sql += ' AND empresa = ?'; params.push(empresa); }
       const [result] = await pool.execute(sql, params);
-
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ error: 'Tarefa não encontrada ou sem permissão.' });
-      }
-
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Tarefa não encontrada ou sem permissão.' });
       await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
-
       res.status(200).json({ success: true, concluida, horario });
-    } catch (error) {
-      console.error('[ERRO] PUT /operacao/tarefas:', error);
-      res.status(500).json({ error: 'Erro ao atualizar tarefa.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Erro ao atualizar.' }); }
   });
 
   app.delete('/api/operacao/tarefas/:id', verificarToken, async (req, res) => {
     try {
       if (req.userRole === 'LOJA') return res.status(403).json({ error: 'Acesso negado.' });
-
-      const { id } = req.params;
-      const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
+      const { id } = req.params; const empresa = req.userEmpresa || 'Cliente Alpha (Padrão)';
 
       let sql = 'DELETE FROM operacao_tarefas WHERE id = ?';
       const params = [id];
-
-      if (req.userRole !== 'DEV') {
-          sql += ' AND empresa = ?';
-          params.push(empresa);
-      }
+      if (req.userRole !== 'DEV') { sql += ' AND empresa = ?'; params.push(empresa); }
 
       const [result] = await pool.execute(sql, params);
-
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ error: 'Tarefa não encontrada ou sem permissão.' });
-      }
-
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Não encontrada.' });
       await emitirOperacaoAtualizada({ tipo: 'tarefas', empresa, usuario: req.userId });
-
       res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('[ERRO] DELETE /operacao/tarefas:', error);
-      res.status(500).json({ error: 'Erro ao excluir tarefa.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Erro ao excluir.' }); }
   });
 
   app.get('/api/auxiliares/filiais', verificarToken, async (req, res) => { try { let q1 = 'SELECT DISTINCT nome AS filial FROM loja WHERE 1=1'; let q2 = 'SELECT DISTINCT filial FROM equipamentos WHERE filial IS NOT NULL'; let p = []; if (req.userRole !== 'DEV') { q1 += ' AND empresa = ?'; q2 += ' AND empresa = ?'; p.push(req.userEmpresa); } const [r1] = await pool.execute(q1, req.userRole !== 'DEV' ? [req.userEmpresa] : []); const [r2] = await pool.execute(q2, req.userRole !== 'DEV' ? [req.userEmpresa] : []); res.json(Array.from(new Set([...r1.map(x => x.filial), ...r2.map(x => x.filial)])).sort()); } catch (e) { res.status(500).send(); } });
@@ -799,16 +632,11 @@ module.exports = (app, io) => {
     try { 
       let q = 'SELECT id, usuario, role, filial, nome_gerente, nome_coordenador, nome_tecnico, empresa FROM usuarios WHERE id != ?'; 
       let p = [req.userId]; 
-      
-      if (req.userRole !== 'DEV') { 
-        q += ' AND (empresa = ? OR role = "DEV")'; 
-        p.push(req.userEmpresa); 
-      } 
+      if (req.userRole !== 'DEV') { q += ' AND (empresa = ? OR role = "DEV")'; p.push(req.userEmpresa); } 
       
       const [rows] = await pool.execute(q, p); 
       res.json(rows.map(u => { 
-        let nome = u.usuario; 
-        let cargo = 'Usuário'; 
+        let nome = u.usuario; let cargo = 'Usuário'; 
         if (u.role === 'DEV') { nome = 'NOC (Desenvolvedor)'; cargo = 'Suporte Master'; } 
         else if (u.role === 'ADMIN') { nome = 'Administração'; cargo = 'Suporte Corporativo'; } 
         else if (u.role === 'MANUTENCAO') { nome = u.nome_tecnico || u.usuario; cargo = 'Técnico Manutenção'; } 
@@ -821,39 +649,6 @@ module.exports = (app, io) => {
       })); 
     } catch (error) { res.status(500).json({ error: error.message }); } 
   });
-  
-  // ============================================================================
-  // RECUPERAÇÃO DO HISTÓRICO DE CHAT COM MAPEAMENTO EXATO DE COLUNAS
-  // ============================================================================
-  app.get('/api/chat/historico', verificarToken, async (req, res) => { 
-    try { 
-      // Busca mapeando para os nomes de propriedades que o Frontend (React) espera
-      const [r] = await pool.execute(`
-        SELECT 
-          id, 
-          remetente_id AS remetenteId, 
-          remetente_nome AS remetenteNome, 
-          destino_id AS destinoId, 
-          texto, 
-          data_hora AS data 
-        FROM chat_mensagens 
-        ORDER BY data_hora ASC 
-        LIMIT 150
-      `); 
-
-      // Processa a direção da mensagem (Enviada vs Recebida) de forma segura
-      const historicoMapeado = r.map(msg => ({
-        ...msg,
-        tipo: String(msg.remetenteId) === String(req.userId) ? 'sent' : 'received'
-      }));
-
-      res.json(historicoMapeado); 
-    } catch (e) { 
-      console.error("Erro no chat histórico:", e);
-      res.status(500).send(); 
-    } 
-  });
-  // ============================================================================
 
   app.get('/api/tecnicos', verificarToken, async (req, res) => { try { let q = 'SELECT id, usuario, nome_tecnico, empresa FROM usuarios WHERE role = "MANUTENCAO" AND nome_tecnico IS NOT NULL'; const p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } q += ' ORDER BY nome_tecnico ASC'; const [r] = await pool.execute(q, p); res.json(r); } catch (e) { res.status(500).send(); } });
   app.get('/api/auxiliares/equipamentos-abertura', verificarToken, async (req, res) => { try { let q = 'SELECT id, nome, setor, filial, empresa FROM equipamentos WHERE 1=1'; const p = []; if (req.userRole !== 'DEV') { q += ' AND empresa = ?'; p.push(req.userEmpresa); } q += ' ORDER BY filial ASC, setor ASC, nome ASC'; const [r] = await pool.execute(q, p); res.json(r); } catch (e) { res.status(500).send(); } });
@@ -880,105 +675,27 @@ module.exports = (app, io) => {
     } catch (e) { res.status(500).send(); }
   });
 
-  app.post('/api/leituras', async (req, res) => {
-    try {
-      const [sys] = await pool.execute('SELECT valor FROM configuracoes WHERE chave = "maintenanceMode"');
-      if (sys.length > 0 && sys[0].valor === '1') {
-        return res.status(503).json({ error: 'Sistema em Manutenção. Operações offline.' });
-      }
-
-      const {
-        equipamento_id, temperatura, umidade, alerta_forcado, consumo_kwh,
-        motor_ligado, em_degelo,
-        mac_address, ip_local, sinal_wifi, uptime, firmware_version
-      } = req.body;
-
-      const t = parseFloat(temperatura); const u = parseFloat(umidade || 50.0); const c_kwh = parseFloat(consumo_kwh || 0.0);
-
-      try {
-        await pool.execute(`
-        INSERT INTO hardware_iot (equipamento_id, mac_address, ip_local, sinal_wifi, uptime, firmware_version, ultima_comunicacao)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE 
-        ip_local = VALUES(ip_local), sinal_wifi = VALUES(sinal_wifi), uptime = VALUES(uptime), ultima_comunicacao = NOW()
-      `, [
-          equipamento_id,
-          mac_address || 'A4:CF:12:XX:XX:XX',
-          ip_local || '192.168.1.100',
-          sinal_wifi ? parseInt(sinal_wifi) : -65,
-          uptime || '0h',
-          firmware_version || 'v1.0.0'
-        ]);
-      } catch (e) {
-        console.log('Aviso (Hardware IoT):', e.message);
-      }
-
-      const [r] = await pool.execute('INSERT INTO leituras (equipamento_id, temperatura, umidade, consumo_kwh) VALUES (?, ?, ?, ?)', [equipamento_id, t, u, c_kwh]);
-      const [eq] = await pool.execute('SELECT temp_max, temp_min, umidade_min, umidade_max, nome, em_degelo, motor_ligado, setor, filial FROM equipamentos WHERE id = ?', [equipamento_id]);
-
-      if (eq.length > 0) {
-        const isMotorLigado = (motor_ligado == 1 || motor_ligado === true);
-        const isEmDegelo = (em_degelo == 1 || em_degelo === true);
-        await pool.execute('UPDATE equipamentos SET motor_ligado=?, em_degelo=? WHERE id=?', [isMotorLigado, isEmDegelo, equipamento_id]);
-
-        const tMax = parseFloat(eq[0].temp_max);
-        const tMin = parseFloat(eq[0].temp_min);
-        const uMax = parseFloat(eq[0].umidade_max || 0);
-        const uMin = parseFloat(eq[0].umidade_min || 0);
-
-        let novosAlertas = [];
-        let resolvidoAutomatico = false;
-
-        const checkAndAlert = async (condicaoAnomala, tipoAlerta, mensagem, isSilencioso = false) => {
-          if (condicaoAnomala) {
-            const [existe] = await pool.execute('SELECT id FROM notificacoes WHERE equipamento_id=? AND resolvido=FALSE AND tipo_alerta=?', [equipamento_id, tipoAlerta]);
-            if (existe.length === 0) {
-              const [inserido] = await pool.execute('INSERT INTO notificacoes (equipamento_id, mensagem, tipo_alerta) VALUES (?, ?, ?)', [equipamento_id, mensagem, tipoAlerta]);
-              novosAlertas.push({ id: inserido.insertId, equipamento_id, mensagem, tipo_alerta: tipoAlerta, data_hora: new Date().toISOString(), resolvido: 0, equipamento_nome: eq[0].nome, setor: eq[0].setor, filial: eq[0].filial, silencioso: isSilencioso });
-            }
-          } else {
-            const [upd] = await pool.execute('UPDATE notificacoes SET resolvido=TRUE, nota_resolucao="Normalizado automaticamente." WHERE equipamento_id=? AND resolvido=FALSE AND tipo_alerta=?', [equipamento_id, tipoAlerta]);
-            if (upd.affectedRows > 0) resolvidoAutomatico = true;
-          }
-        };
-
-        await checkAndAlert(alerta_forcado === 'REDE', 'REDE', `FALHA IoT/REDE: Sensor offline em "${eq[0].nome}".`);
-        await checkAndAlert(alerta_forcado === 'PORTA_ABERTA', 'PORTA', `PORTA ABERTA: O equipamento "${eq[0].nome}" está com a porta violada!`);
-        await checkAndAlert(!isMotorLigado && !isEmDegelo && alerta_forcado !== 'REDE', 'MECANICA', `MOTOR PARADO: O compressor de "${eq[0].nome}" desligou subitamente!`);
-        await checkAndAlert((t > tMax || t < tMin) && !isEmDegelo, 'TEMPERATURA', `ALERTA TÉRMICO: "${eq[0].nome}" fora da faixa configurada (${t}°C).`);
-
-        if (uMax > 0 || uMin > 0) {
-          await checkAndAlert((u > uMax || u < uMin) && !isEmDegelo, 'UMIDADE', `ALERTA HIGROMÉTRICO: Umidade de "${eq[0].nome}" fora dos limites permitidos (${u}%).`);
-        }
-
-        await checkAndAlert(isEmDegelo, 'DEGELO', `INFO: "${eq[0].nome}" entrou em ciclo de Degelo programado.`, true);
-
-        if (novosAlertas.length > 0 || resolvidoAutomatico) { io.emit('atualizacao_dados'); }
-
-        if (novosAlertas.length > 0) {
-          novosAlertas.forEach(alertaObj => {
-            if (!alertaObj.silencioso) { enviarAlertaWhatsApp(`🚨 ALERTA NOC em *${eq[0].nome}*. Motivo: ${alertaObj.mensagem}`, eq[0].filial); }
-            io.emit('novo_alerta', alertaObj);
-          });
-        }
-
-        io.emit('nova_leitura', { id: r.insertId, equipamento_id, temperatura: t, umidade: u, consumo_kwh: c_kwh, motor_ligado: isMotorLigado, em_degelo: isEmDegelo, data_hora: new Date(), nome: eq[0].nome, setor: eq[0].setor, filial: eq[0].filial });
-      }
-      res.status(201).send();
-    } catch (error) { res.status(500).send(); }
+  // ==========================================
+  // ROTAS DO SOC (SECURITY OPERATIONS CENTER)
+  // ==========================================
+  app.get('/api/soc/sessoes', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).send();
+    try { const [sessoes] = await pool.execute('SELECT id, usuario_nome as usuario, role, ip_address as ip, localizacao as location, data_login as loginTime FROM sessoes_ativas WHERE revogado = FALSE ORDER BY data_login DESC'); res.json(sessoes); } catch (e) { res.status(500).send(); }
   });
 
-  app.get('/api/system/health', verificarToken, async (req, res) => {
+  app.post('/api/soc/revogar/:id', verificarToken, async (req, res) => {
     if (req.userRole !== 'DEV') return res.status(403).send();
-    try {
-      const [rows] = await pool.execute('SELECT COUNT(*) as total FROM leituras');
-      res.json({
-        db: 'ONLINE',
-        sockets: io.engine.clientsCount,
-        total_records: rows[0].total,
-        uptime: process.uptime()
-      });
-    } catch (e) { res.status(500).send(); }
+    try { const [sessao] = await pool.execute('SELECT usuario_nome FROM sessoes_ativas WHERE id = ?', [req.params.id]); await pool.execute('UPDATE sessoes_ativas SET revogado = TRUE WHERE id = ?', [req.params.id]); const alvo = sessao.length > 0 ? sessao[0].usuario_nome : 'ID ' + req.params.id; registrarAuditoria('TOKEN_REVOKED', 'root_dev', alvo, 'danger'); res.json({ success: true }); } catch (e) { res.status(500).send(); }
+  });
+
+  app.get('/api/soc/auditoria', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).send();
+    try { const [logs] = await pool.execute('SELECT data_hora, acao as action, ator as actor, alvo as target, severidade as severity FROM audit_logs ORDER BY data_hora DESC LIMIT 100'); res.json(logs); } catch (e) { res.status(500).send(); }
+  });
+
+  app.post('/api/system/reports/log', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).send();
+    try { const { tipo, formato, solicitante } = req.body; await pool.execute('INSERT INTO sys_relatorios_log (tipo_relatorio, formato, solicitante) VALUES (?, ?, ?)', [tipo, formato, solicitante]); res.status(201).send(); } catch (e) { res.status(500).send(); }
   });
 
   app.post('/api/system/purge', verificarToken, async (req, res) => {
@@ -991,98 +708,21 @@ module.exports = (app, io) => {
     } catch (e) { res.status(500).send(); }
   });
 
-  // ==========================================
-  // ROTAS DO SOC (SECURITY OPERATIONS CENTER)
-  // ==========================================
-  app.get('/api/soc/sessoes', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') return res.status(403).send();
-    try {
-      const [sessoes] = await pool.execute('SELECT id, usuario_nome as usuario, role, ip_address as ip, localizacao as location, data_login as loginTime FROM sessoes_ativas WHERE revogado = FALSE ORDER BY data_login DESC');
-      res.json(sessoes);
-    } catch (e) { res.status(500).send(); }
-  });
-
-  app.post('/api/soc/revogar/:id', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') return res.status(403).send();
-    try {
-      const [sessao] = await pool.execute('SELECT usuario_nome FROM sessoes_ativas WHERE id = ?', [req.params.id]);
-      await pool.execute('UPDATE sessoes_ativas SET revogado = TRUE WHERE id = ?', [req.params.id]);
-
-      const alvo = sessao.length > 0 ? sessao[0].usuario_nome : 'ID ' + req.params.id;
-      registrarAuditoria('TOKEN_REVOKED', 'root_dev', alvo, 'danger');
-
-      res.json({ success: true });
-    } catch (e) { res.status(500).send(); }
-  });
-
-  app.get('/api/soc/auditoria', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') return res.status(403).send();
-    try {
-      const [logs] = await pool.execute('SELECT data_hora, acao as action, ator as actor, alvo as target, severidade as severity FROM audit_logs ORDER BY data_hora DESC LIMIT 100');
-      res.json(logs);
-    } catch (e) { res.status(500).send(); }
-  });
-
-  app.post('/api/system/reports/log', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') return res.status(403).send();
-    try {
-      const { tipo, formato, solicitante } = req.body;
-      await pool.execute(
-        'INSERT INTO sys_relatorios_log (tipo_relatorio, formato, solicitante) VALUES (?, ?, ?)',
-        [tipo, formato, solicitante]
-      );
-      res.status(201).send();
-    } catch (e) { res.status(500).send(); }
-  });
-
   app.post('/api/system/deploy-update', verificarToken, upload.single('updatePackage'), (req, res) => {
-
-    if (req.userRole !== 'DEV') {
-      if (req.file) fs.unlinkSync(req.file.path); 
-      return res.status(403).json({ error: 'Acesso negado. Permissão exclusiva de SysAdmin (DEV).' });
-    }
-
+    if (req.userRole !== 'DEV') { if (req.file) fs.unlinkSync(req.file.path); return res.status(403).json({ error: 'Acesso negado. Permissão exclusiva de SysAdmin (DEV).' }); }
     try {
-      const file = req.file;
-      if (!file) return res.status(400).json({ error: 'Nenhum pacote (.zip) foi enviado.' });
-
+      const file = req.file; if (!file) return res.status(400).json({ error: 'Nenhum pacote (.zip) foi enviado.' });
       const pastaPublicaInterface = path.join(__dirname, '../public_html');
-
-      const zip = new AdmZip(file.path);
-      zip.extractAllTo(pastaPublicaInterface, true);
-      fs.unlinkSync(file.path);
-
+      const zip = new AdmZip(file.path); zip.extractAllTo(pastaPublicaInterface, true); fs.unlinkSync(file.path);
       registrarAuditoria('DEPLOY_SISTEMA', 'Root/Dev', `Nova versão injetada via Painel NOC`, 'warning');
       res.json({ success: true, message: 'Ficheiros extraídos e atualizados com sucesso.' });
-
-      setTimeout(() => {
-        console.log('⚠️ ALERTA: A reiniciar o sistema via atualização do Painel Dev...');
-        exec('pm2 restart all', (error) => {
-          if (error) console.error(`Erro ao tentar reiniciar o PM2: ${error}`);
-        });
-      }, 1000);
-
-    } catch (error) {
-      console.error('❌ Erro crítico no Deploy:', error);
-      if (req.file) fs.unlinkSync(req.file.path); 
-      res.status(500).json({ error: 'Falha ao processar o pacote de atualização.' });
-    }
+      setTimeout(() => { exec('pm2 restart all', (error) => { if (error) console.error(`Erro ao tentar reiniciar o PM2: ${error}`); }); }, 1000);
+    } catch (error) { if (req.file) fs.unlinkSync(req.file.path); res.status(500).json({ error: 'Falha ao processar o pacote de atualização.' }); }
   });
 
   app.post('/api/system/query-raw', verificarToken, async (req, res) => {
-    if (req.userRole !== 'DEV') {
-      return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios de SysAdmin (DEV) necessários.' });
-    }
-
-    const { sql } = req.body;
-    if (!sql) return res.status(400).json({ success: false, error: 'Instrução SQL ausente.' });
-
-    try {
-      const [rows] = await pool.execute(sql);
-      await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query executada: ${sql.substring(0, 100)}...`, 'danger');
-      res.json({ success: true, data: rows });
-    } catch (error) {
-      res.json({ success: false, error: error.message });
-    };
+    if (req.userRole !== 'DEV') return res.status(403).json({ success: false, error: 'Acesso negado. Privilégios de SysAdmin (DEV) necessários.' });
+    const { sql } = req.body; if (!sql) return res.status(400).json({ success: false, error: 'Instrução SQL ausente.' });
+    try { const [rows] = await pool.execute(sql); await registrarAuditoria('RAW_SQL_EXEC', 'Root/Dev', `Query executada: ${sql.substring(0, 100)}...`, 'danger'); res.json({ success: true, data: rows }); } catch (error) { res.json({ success: false, error: error.message }); };
   });
 };

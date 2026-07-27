@@ -25,7 +25,7 @@ const SupportQueueCard = memo(({ ticket, selected, onClick }) => {
           <span className={`support-flow-status ${statusClass(ticket.status)}`}>{ticket.status || 'Aberto'}</span>
           <h3>{ticket.titulo}</h3>
         </div>
-        <span className={`support-flow-priority priority-${String(ticket.prioridade || 'Média').toLowerCase().replace('í', 'i').replace('é', 'e')}`}>
+        <span className={`support-flow-priority priority-${String(ticket.prioridade || 'Média').toLowerCase().replace(' ', 'i').replace(' ', 'e')}`}>
           {ticket.prioridade || 'Média'}
         </span>
       </div>
@@ -53,8 +53,6 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
   const [resposta, setResposta] = useState('');
   const [statusAtual, setStatusAtual] = useState('Em análise');
   const [isSaving, setIsSaving] = useState(false);
-  
-  // NOVO: Estado para a geração de IA
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const carregarTickets = useCallback(async () => {
@@ -135,19 +133,21 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
     finally { setIsSaving(false); }
   };
 
-  // --- NOVA LÓGICA: COPILOT AI PARA RESPOSTA ---
+  // CORREÇÃO: Resposta Inteligente com o Contexto Dinâmico
   const gerarRespostaComIA = () => {
     if(!selecionado) return;
     setIsGeneratingAI(true);
-    showToast('Analisando o incidente com IA...', 'info');
+    showToast('Analisando telemetria com IA...', 'info');
     
     setTimeout(() => {
-      const respostaIA = `Olá, ${selecionado.solicitante}.\n\nA nossa equipa do NOC analisou o incidente reportado ("${selecionado.titulo}"). Verificámos os logs de telemetria do seu equipamento e aplicámos um patch de correção remoto.\n\nO sistema já se encontra normalizado. Se a falha persistir, por favor, responda a este ticket.\n\nAtentamente,\nEquipe de Engenharia TermoSync.`;
+      // Incorporando o contexto real do ticket na IA simulada
+      const respostaIA = `Olá, ${selecionado.solicitante}.\n\nA nossa equipa do NOC analisou o incidente reportado em relação à categoria "${selecionado.categoria}". Através da telemetria da loja [${selecionado.filial || 'Base'}], identificamos a falha relatada em "${selecionado.titulo}" e aplicamos um patch de correção remoto.\n\nO ambiente deverá ser normalizado dentro dos próximos 5 minutos. Se a falha persistir, por favor, responda a este ticket.\n\nAtentamente,\nEquipe de Engenharia ThermoSync.`;
+      
       setResposta(respostaIA);
       setStatusAtual('Respondido');
       setIsGeneratingAI(false);
-      showToast('Resposta rascunhada pelo Copilot.', 'success');
-    }, 2000);
+      showToast('Resposta tática rascunhada pelo Copilot.', 'success');
+    }, 2500);
   };
 
   const selectedPriority = selecionado?.prioridade || 'Média';
@@ -164,7 +164,6 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
             <button className="btn btn-outline" type="button" onClick={() => onNavigate?.('dev_panel')}><Sparkles size={16} /> Ver painel do DEV</button>
           </div>
         </div>
-
         <div className="support-flow-stats">
           <div className="support-flow-stat"><strong>{ticketsVisiveis.length}</strong><span>Tickets filtrados</span></div>
           <div className="support-flow-stat"><strong>{resumo.abertas + resumo.analise}</strong><span>Em atendimento</span></div>
@@ -193,7 +192,6 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
             <div><span className="panel-icon"><LifeBuoy size={18} /></span><h2>Fila operacional</h2></div>
             <span className="panel-badge">{ticketsVisiveis.length} tickets</span>
           </div>
-
           <div className="support-flow-list">
             {ticketsVisiveis.length === 0 ? (
               <div className="support-flow-empty"><ShieldCheck size={42} /><h3>Sem tickets nesta fila</h3><p>Afrouxe os filtros ou aguarde o próximo ticket do sistema chegar.</p></div>
@@ -211,15 +209,13 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
                   <span className={`support-flow-status ${statusClass(selecionado.status)}`}>{selecionado.status || 'Aberto'}</span>
                   <h3 style={{ color: 'white' }}>{selecionado.titulo}</h3>
                 </div>
-                <span className={`support-flow-priority priority-${String(selectedPriority).toLowerCase().replace('í', 'i').replace('é', 'e')}`}>{selectedPriority}</span>
+                <span className={`support-flow-priority priority-${String(selectedPriority).toLowerCase().replace(' ', 'i').replace(' ', 'e')}`}>{selectedPriority}</span>
               </div>
-
               <div className="support-flow-detail-meta">
                 <span><User size={14} /> {selecionado.solicitante || 'Usuário'}</span>
                 <span><Clock3 size={14} /> {formatDate(selecionado.criado_em)}</span>
                 <span><ShieldCheck size={14} /> {selecionado.categoria || 'Geral'}</span>
               </div>
-
               <p className="support-flow-detail-text" style={{ padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', borderLeft: '3px solid var(--border)' }}>
                 {selecionado.descricao}
               </p>
@@ -228,13 +224,12 @@ export default function SuporteTriagem({ api, socket, userRole, nomeLogado, show
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                    <label style={{ margin: 0 }}>Redigir Resposta Técnica</label>
                    
-                   {/* BOTÃO MÁGICO COPILOT AI */}
+                   {/* BOTÃO MÁGICO COPILOT AI COM CONTEXTO */}
                    <button onClick={gerarRespostaComIA} disabled={isGeneratingAI} style={{ background: 'linear-gradient(90deg, #a855f7, #3b82f6)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: '0.3s' }}>
                      {isGeneratingAI ? <Loader2 size={14} className="spin" /> : <Bot size={14} />}
                      {isGeneratingAI ? 'Gerando...' : 'Copilot AI'}
                    </button>
                 </div>
-
                 <textarea rows={8} value={resposta} onChange={(e) => setResposta(e.target.value)} placeholder="Digite a resposta interna ou a orientação ao usuário..." style={{ background: 'rgba(0,0,0,0.4)', color: 'white' }} />
                 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '10px' }}>

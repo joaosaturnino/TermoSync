@@ -9,18 +9,22 @@ import './styles/global.css';
 import './App.css';
 
 import { 
-  Activity, Thermometer, Droplets, Leaf, History, Wrench, Archive, 
-  Store, Sliders, Users, LogOut, Menu, X, Volume2, VolumeX, Maximize, 
-  Minimize, Moon, Sun, MapPin, UserCheck, CheckCircle, AlertTriangle, 
-  AlertOctagon, Edit, Save, MessageSquare, Globe2, WifiOff, Terminal, 
-  Server, Lock, Unlock, Search, Keyboard, Loader2, ShieldAlert, DollarSign, Building2,
-  Bell, Wifi, Snowflake, Power, DoorOpen, ActivitySquare, ClipboardCheck, ThermometerSnowflake,
-  Map, Columns, Target, Cpu, Info, Settings2, ShieldCheck, PieChart, FileSpreadsheet,
-  ChevronDown, ChevronRight, Rocket, Database, Network, Sparkles, ClipboardList, BarChart3, CalendarDays, LifeBuoy, Zap
+  Activity, Thermometer, Droplets, Leaf, History, Wrench, Archive,
+  Store, Sliders, Users, AlertTriangle, AlertOctagon, Edit, Save, 
+  MessageSquare, Terminal, Server, Lock, Unlock, Loader2, ShieldAlert, 
+  DollarSign, Building2, Wifi, Snowflake, Power, DoorOpen, ActivitySquare, 
+  ClipboardCheck, ThermometerSnowflake, Map, Columns, Target, Cpu, Info, 
+  Settings2, ShieldCheck, PieChart, Rocket, Database, Network, Sparkles, 
+  ClipboardList, BarChart3, CalendarDays, LifeBuoy, Zap, X
 } from 'lucide-react';
 
+// Importação dos Componentes de UI Modulares
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import CommandPalette from './components/CommandPalette';
+
+// Importação dos Módulos do Sistema
 import CentroInteligenciaBI from './pages/CentroInteligenciaBI/CentroInteligenciaBI';
-import TermoSyncLogo from './components/TermoSyncLogo';
 import DevBootScreen from './components/DevBootScreen';
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -36,7 +40,6 @@ import ParametrosGlobais from './pages/ParametrosGlobais/ParametrosGlobais';
 import Chat from './pages/Chat/Chat'; 
 import PainelDesenvolvedor from './pages/PainelDesenvolvedor/PainelDesenvolvedor';
 import GestaoEmpresas from './pages/GestaoEmpresas/GestaoEmpresas';
-
 import MapaCalor from './pages/MapaCalor/MapaCalor';
 import Kanban from './pages/Kanban/Kanban';
 import Metrologia from './pages/Metrologia/Metrologia';
@@ -55,9 +58,10 @@ import Suporte from './pages/Suporte/Suporte';
 import GestaoEnergetica from './pages/GestaoEnergetica/GestaoEnergetica';
 
 import { useSystemCore } from './hooks/useSystemCore';
+import { useSecurity } from './hooks/useSecurity';
 import { getApiUrl, getSocketUrl } from './config/api.js';
 
-const getAlertConfig = (tipo_alerta) => {
+export const getAlertConfig = (tipo_alerta) => {
   const configs = {
     'REDE': { icon: Wifi, color: 'var(--warning)', action: 'Analisar Rede', critical: true },
     'DEGELO': { icon: Snowflake, color: 'var(--secondary)', action: 'Finalizar Degelo', critical: false },
@@ -71,9 +75,6 @@ const getAlertConfig = (tipo_alerta) => {
   return configs[tipo_alerta] || { icon: AlertTriangle, color: 'var(--danger)', action: 'Investigar', critical: true };
 };
 
-// ============================================================================
-// 1. TELA DE BOOT AVANÇADA (CYBER CRT TERMINAL & AUDIO FEEDBACK)
-// ============================================================================
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
   static getDerivedStateFromError(error) { return { hasError: true }; }
@@ -100,304 +101,43 @@ export default function App() {
   const [token, setToken] = useState(sessionStorage.getItem('token') || '');
   const [userId, setUserId] = useState(sessionStorage.getItem('userId') || ''); 
   const [socketInstance, setSocketInstance] = useState(null); 
-  
   const [userRole, setUserRole] = useState(sessionStorage.getItem('userRole') || 'LOJA');
   const [userFilial, setUserFilial] = useState(sessionStorage.getItem('userFilial') || 'Todas');
   const [nomeLogado, setNomeLogado] = useState(sessionStorage.getItem('nomeLogado') || '');
   const [papelLogado, setPapelLogado] = useState(sessionStorage.getItem('papelLogado') || '');
   const [loginAtivo, setLoginAtivo] = useState(sessionStorage.getItem('loginAtivo') || '');
-  
   const [isDevAuthenticated, setIsDevAuthenticated] = useState(sessionStorage.getItem('devAuth') === 'true');
   const [abaAtiva, setAbaAtiva] = useState(sessionStorage.getItem('abaAtiva') || 'dashboard');
-  
   const [isDevBooting, setIsDevBooting] = useState(false);
   const [devBootData, setDevBootData] = useState(null);
-  
   const [bannerFechado, setBannerFechado] = useState(true);
-
-  const [gruposExpandidos, setGruposExpandidos] = useState({
-    'Desenvolvedor': true,
-    'Operações': true,
-    'Serviços': true,
-    'Auditoria': true,
-    'Sistema': true,
-  });
-
-  useEffect(() => {
-    if (userRole === 'DEV') {
-      setGruposExpandidos({
-        'Desenvolvedor': true,
-        'Operações': false,
-        'Serviços': false,
-        'Auditoria': false,
-        'Sistema': false,
-      });
-    } else {
-      setGruposExpandidos({
-        'Desenvolvedor': true,
-        'Operações': true,
-        'Serviços': true,
-        'Auditoria': true,
-        'Sistema': true
-      });
-    }
-  }, [userRole]);
-
-  const toggleGrupo = (grupo) => {
-    setGruposExpandidos(prev => ({ ...prev, [grupo]: !prev[grupo] }));
-  };
   
-  useEffect(() => { if (token) sessionStorage.setItem('abaAtiva', abaAtiva); }, [abaAtiva, token]);
-
-  const { sysConfig, isFeatureEnabled, isModuloOculto, updateSysConfig, getPlanoAtual } = useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAbaAtiva);
-
-  const isFeatureEnabledRef = useRef(isFeatureEnabled);
-  useEffect(() => { isFeatureEnabledRef.current = isFeatureEnabled; }, [isFeatureEnabled]);
+  const [gruposExpandidos, setGruposExpandidos] = useState({
+    'Desenvolvedor': true, 'Operações': true, 'Serviços': true, 'Auditoria': true, 'Sistema': true,
+  });
 
   const [menuAberto, setMenuAberto] = useState(false);
   const [menuRecolhido, setMenuRecolhido] = useState(false); 
   const [isLoginLoading, setIsLoginLoading] = useState(false); 
   const [loginErro, setLoginErro] = useState(''); 
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') !== 'light');
-  
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
-  
   const [somAtivoState, setSomAtivoState] = useState(false); 
-  const somAtivoRef = useRef(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [latencia, setLatencia] = useState(12);
+
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
-  const commandInputRef = useRef(null);
-  
   const [isLocked, setIsLocked] = useState(false);
   const [lockPassword, setLockPassword] = useState('');
   const [lockError, setLockError] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  const bannerTexto = sysConfig?.regras?.GLOBAL?.features?.globalBanner;
-
-  useEffect(() => {
-    if (bannerTexto) {
-      const bannerGuardado = localStorage.getItem('termosync_banner_oculto');
-      if (bannerGuardado !== bannerTexto) {
-        setBannerFechado(false);
-      }
-    }
-  }, [bannerTexto]);
-
-  const fecharBannerGlobal = () => {
-    setBannerFechado(true);
-    if (bannerTexto) {
-      localStorage.setItem('termosync_banner_oculto', bannerTexto);
-    }
-  };
-
-  const initialFilialAtiva = sessionStorage.getItem('papelLogado')?.includes('Impersonate') ? sessionStorage.getItem('userFilial') : ((userRole !== 'LOJA' && userRole !== 'MANUTENCAO') ? 'Todas' : userFilial);
-  const [filialAtiva, setFilialAtiva] = useState(initialFilialAtiva);
-  
-  const filialAtivaRef = useRef(filialAtiva);
-  useEffect(() => { filialAtivaRef.current = filialAtiva; }, [filialAtiva]);
-
-  const userRoleRef = useRef(userRole);
-  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const impersonateToken = urlParams.get('impersonateToken');
-    const impersonateLoja = urlParams.get('impersonateLoja');
-    
-    if (impersonateToken && impersonateLoja) {
-      sessionStorage.removeItem('cache_equipamentos');
-      sessionStorage.removeItem('cache_notificacoes');
-      sessionStorage.removeItem('cache_historico');
-
-      const role = 'ADMIN'; 
-      const identityName = `Suporte Remoto (${impersonateLoja})`;
-      const roleTitle = 'Acesso Master (Impersonate)';
-      const loginName = `suporte_${impersonateLoja.toLowerCase().replace(/\s+/g, '')}`;
-
-      setToken(impersonateToken); setUserId('9999'); setUserRole(role); 
-      setUserFilial(impersonateLoja); setFilialAtiva(impersonateLoja); 
-      setAbaAtiva('dashboard'); setMenuAberto(false);
-      
-      setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(false);
-      
-      sessionStorage.setItem('token', impersonateToken); sessionStorage.setItem('userId', '9999'); 
-      sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', impersonateLoja); 
-      sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); 
-      sessionStorage.setItem('loginAtivo', loginName); sessionStorage.setItem('devAuth', 'false');
-
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      setTimeout(() => {
-         const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Modo Impersonate Ativo:</b> Controle remoto de <strong>${impersonateLoja}</strong> estabelecido com sucesso.`, type: 'warning' }});
-         window.dispatchEvent(fakeEvent);
-      }, 1000);
-    }
-  }, []);
-
-  const fazerLogout = useCallback(() => { 
-    setToken(''); setUserId(''); sessionStorage.clear(); 
-    setUserRole('LOJA'); setUserFilial(''); setFilialAtiva('Todas'); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
-    setAbaAtiva('dashboard'); setMenuAberto(false); setNaoLidasPorContato({}); setContatoChatAtivo(null); setShowCommandPalette(false); setIsLocked(false);
-    setIsDevAuthenticated(false); 
-  }, []);
-
-  // RESTAURAÇÃO DAS FUNÇÕES DE LOGIN QUE FALTAVAM
-  const fazerLogin = async (usuarioInput, senhaInput) => {
-    if (isOffline) {
-      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'Sinal de rede perdido.', type: 'error' }});
-      window.dispatchEvent(fakeEvent);
-      return;
-    }
-    setLoginErro(''); 
-    setIsLoginLoading(true); 
-    
-    try {
-      const res = await axios.post(`${getApiUrl()}/login`, { usuario: usuarioInput, senha: senhaInput });
-      
-      if (sysConfig.maintenanceMode && res.data.role !== 'DEV') {
-        const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'SISTEMA EM MANUTENÇÃO. Acesso restrito.', type: 'warning' }});
-        window.dispatchEvent(fakeEvent);
-        setIsLoginLoading(false);
-        return;
-      }
-
-      const gNome = res.data.nome_gerente || ''; 
-      const cNome = res.data.nome_coordenador || '';
-      let identityName = usuarioInput; 
-      let roleTitle = 'Gestor de Loja';
-      
-      if (res.data.role === 'DEV') { 
-        identityName = 'Desenvolvedor do Sistema'; 
-        roleTitle = 'SysAdmin / Root'; 
-        setDevBootData({ token: res.data.token, id: res.data.id, role: res.data.role, filial: res.data.filial, identityName, roleTitle, loginName: usuarioInput });
-        setIsDevBooting(true); 
-        setIsLoginLoading(false); 
-        return;
-      }
-      else if (res.data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
-      else if (res.data.role === 'MANUTENCAO') { identityName = res.data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
-      else if (res.data.role === 'LOJA') { 
-        if (gNome) { identityName = gNome; roleTitle = 'Gerente da Loja'; } 
-        else if (cNome) { identityName = cNome; roleTitle = 'Coordenador da Loja'; } 
-        else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; } 
-      }
-      
-      setToken(res.data.token); 
-      setUserId(res.data.id); 
-      setUserRole(res.data.role); 
-      setUserFilial(res.data.filial); 
-      setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
-      setAbaAtiva('dashboard'); 
-      setMenuAberto(false);
-      
-      setNomeLogado(identityName); 
-      setPapelLogado(roleTitle); 
-      setLoginAtivo(usuarioInput);
-      
-      sessionStorage.setItem('token', res.data.token); 
-      sessionStorage.setItem('userId', res.data.id); 
-      sessionStorage.setItem('userRole', res.data.role); 
-      sessionStorage.setItem('userFilial', res.data.filial); 
-      sessionStorage.setItem('nomeLogado', identityName); 
-      sessionStorage.setItem('papelLogado', roleTitle); 
-      sessionStorage.setItem('loginAtivo', usuarioInput);
-      
-      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `Protocolo aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }});
-      window.dispatchEvent(fakeEvent);
-    } catch (error) { 
-      setLoginErro('Credenciais inválidas.'); 
-      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: 'Acesso Negado.', type: 'error' }});
-      window.dispatchEvent(fakeEvent);
-    } finally { 
-      setIsLoginLoading(false); 
-    }
-  };
-
-  const completeDevBoot = () => {
-    if (!devBootData) return;
-    const { token, id, role, filial, identityName, roleTitle, loginName } = devBootData;
-    
-    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); 
-    setFilialAtiva('Todas'); setAbaAtiva('dev_panel'); setMenuAberto(false);
-    setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName);
-    setIsDevAuthenticated(true); 
-    
-    sessionStorage.setItem('token', token); sessionStorage.setItem('userId', id); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', filial); sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', loginName);
-    sessionStorage.setItem('devAuth', 'true');
-    
-    const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `Protocolo ROOT aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }});
-    window.dispatchEvent(fakeEvent);
-    setIsDevBooting(false); setDevBootData(null);
-  };
-
-  useEffect(() => {
-    const handleKillSwitch = (e) => {
-      if (e.key === 'termosync_force_logout' && e.newValue) {
-        const lojaAlvo = e.newValue.split('_')[0]; 
-        if (userFilial === lojaAlvo && userRole !== 'DEV' && !papelLogado.includes('Impersonate')) {
-          fazerLogout();
-          setTimeout(() => {
-            const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Conexão Terminada:</b> A sua sessão foi revogada remotamente pelo Administrador de Rede.`, type: 'error' }});
-            window.dispatchEvent(fakeEvent);
-          }, 500);
-        }
-      }
-    };
-    window.addEventListener('storage', handleKillSwitch);
-    return () => window.removeEventListener('storage', handleKillSwitch);
-  }, [userFilial, userRole, papelLogado, fazerLogout]);
-
-  useEffect(() => { if (sysConfig.maintenanceMode && userRole !== 'DEV' && token && !papelLogado.includes('Impersonate')) fazerLogout(); }, [sysConfig.maintenanceMode, userRole, token, fazerLogout, papelLogado]);
-
-  useEffect(() => { if (isFeatureEnabled('forceDarkMode')) setIsDarkMode(true); }, [sysConfig, isFeatureEnabled]);
-
-  const handleUnlock = async (e) => {
-    e.preventDefault();
-    setLockError('');
-    if (!lockPassword.trim()) return setLockError('A chave de segurança é obrigatória.');
-    if (isOffline) return setLockError('Conexão à base de dados perdida. Aguarde.');
-
-    setIsUnlocking(true);
-    try {
-      await axios.post(`${getApiUrl()}/login`, { usuario: loginAtivo, senha: lockPassword });
-      setIsLocked(false); setLockPassword('');
-    } catch (error) { setLockError('Acesso Negado. Credencial inválida.'); } 
-    finally { setIsUnlocking(false); }
-  };
-
-  useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer); }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowCommandPalette(prev => !prev); } };
-    window.addEventListener('keydown', handleKeyDown); return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => { if (showCommandPalette && commandInputRef.current) commandInputRef.current.focus(); }, [showCommandPalette]);
-
-  const toggleFullScreen = () => { 
-    if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => {
-      const fakeEvent = new CustomEvent('forceToast', { detail: { msg: "Modo TV bloqueado.", type: 'warning' }});
-      window.dispatchEvent(fakeEvent);
-    }); } 
-    else { document.exitFullscreen(); } 
-  };
-  
-  useEffect(() => { 
-    const handleFullscreenChange = () => setIsFullScreen(!!document.fullscreenElement); 
-    document.addEventListener('fullscreenchange', handleFullscreenChange); 
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange); 
-  }, []);
-
-  useEffect(() => { 
-    if (isDarkMode) { document.documentElement.classList.add('dark-theme'); document.body.classList.add('dark-theme'); localStorage.setItem('theme', 'dark'); } 
-    else { document.documentElement.classList.remove('dark-theme'); document.body.classList.remove('dark-theme'); localStorage.setItem('theme', 'light'); } 
-  }, [isDarkMode]);
-
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', onConfirm: null });
+  const [formEditEquip, setFormEditEquip] = useState({});
+  const [equipEditando, setEquipEditando] = useState(null);
   const [equipamentos, setEquipamentos] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
   const [historicoAlertas, setHistoricoAlertas] = useState([]);
@@ -408,28 +148,251 @@ export default function App() {
   const [tecnicosDb, setTecnicosDb] = useState([]); 
   const [contatosDb, setContatosDb] = useState([]); 
   const [historicoChat, setHistoricoChat] = useState([]);
-  
   const [contatoChatAtivo, setContatoChatAtivo] = useState(null);
-  const contatoChatAtivoRef = useRef(contatoChatAtivo);
-  useEffect(() => { contatoChatAtivoRef.current = contatoChatAtivo; }, [contatoChatAtivo]);
-
   const [naoLidasPorContato, setNaoLidasPorContato] = useState({});
-  const totalNaoLidas = Object.values(naoLidasPorContato).reduce((a, b) => a + b, 0);
-
   const [listaSetores, setListaSetores] = useState([]);
   const [listaTipos, setListaTipos] = useState([]);
-  
   const [termoPesquisa, setTermoPesquisa] = useState('');
-  
   const [toasts, setToasts] = useState([]);
-  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', onConfirm: null });
-  const [formEditEquip, setFormEditEquip] = useState({});
-  const [equipEditando, setEquipEditando] = useState(null);
 
+  const initialFilialAtiva = sessionStorage.getItem('papelLogado')?.includes('Impersonate') ? sessionStorage.getItem('userFilial') : ((userRole !== 'LOJA' && userRole !== 'MANUTENCAO') ? 'Todas' : userFilial);
+  const [filialAtiva, setFilialAtiva] = useState(initialFilialAtiva);
+
+  const somAtivoRef = useRef(false);
+  const commandInputRef = useRef(null);
+  const filialAtivaRef = useRef(filialAtiva);
+  const userRoleRef = useRef(userRole);
+  const contatoChatAtivoRef = useRef(contatoChatAtivo);
   const abaAtivaRef = useRef(abaAtiva);
+  const bufferLeiturasRef = useRef({});
+
+  useEffect(() => { filialAtivaRef.current = filialAtiva; }, [filialAtiva]);
+  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
+  useEffect(() => { contatoChatAtivoRef.current = contatoChatAtivo; }, [contatoChatAtivo]);
   useEffect(() => { abaAtivaRef.current = abaAtiva; }, [abaAtiva]);
 
-  const bufferLeiturasRef = useRef({});
+  const totalNaoLidas = Object.values(naoLidasPorContato).reduce((a, b) => a + (Number(b) || 0), 0);
+
+  const fazerLogout = useCallback(() => { 
+    setToken(''); setUserId(''); sessionStorage.clear(); 
+    setUserRole('LOJA'); setUserFilial(''); setFilialAtiva('Todas'); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
+    setAbaAtiva('dashboard'); setMenuAberto(false); setNaoLidasPorContato({}); setContatoChatAtivo(null); setShowCommandPalette(false); setIsLocked(false);
+    setIsDevAuthenticated(false);
+  }, []);
+
+  const { authState } = useSecurity(token, fazerLogout);
+
+  const { sysConfig, isFeatureEnabled, isModuloOculto, updateSysConfig, getPlanoAtual } = useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAbaAtiva);
+  const isFeatureEnabledRef = useRef(isFeatureEnabled);
+  useEffect(() => { isFeatureEnabledRef.current = isFeatureEnabled; }, [isFeatureEnabled]);
+
+  useEffect(() => {
+    if (userRole === 'DEV') {
+      setGruposExpandidos({ 'Desenvolvedor': true, 'Operações': false, 'Serviços': false, 'Auditoria': false, 'Sistema': false });
+    } else {
+      setGruposExpandidos({ 'Desenvolvedor': true, 'Operações': true, 'Serviços': true, 'Auditoria': true, 'Sistema': true });
+    }
+  }, [userRole]);
+
+  const toggleGrupo = (grupo) => setGruposExpandidos(prev => ({ ...prev, [grupo]: !prev[grupo] }));
+
+  useEffect(() => { if (token) sessionStorage.setItem('abaAtiva', abaAtiva); }, [abaAtiva, token]);
+
+  useEffect(() => {
+    if (!token || isLocked) return;
+    let idleTimeout;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(() => {
+        setIsLocked(true);
+        const fakeEvent = new CustomEvent('forceToast', {
+          detail: { msg: 'Terminal bloqueado por inatividade para sua segurança.', type: 'warning' }
+        });
+        window.dispatchEvent(fakeEvent);
+      }, 600000); 
+    };
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer));
+    resetIdleTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      clearTimeout(idleTimeout);
+    };
+  }, [token, isLocked]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => { 
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { 
+        e.preventDefault(); 
+        setShowCommandPalette(prev => !prev); 
+      }
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false);
+        setMostrarNotificacoes(false);
+        if (modalConfig.isOpen) setModalConfig(prev => ({...prev, isOpen: false}));
+        if (equipEditando) setEquipEditando(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown); 
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalConfig.isOpen, equipEditando]);
+
+  useEffect(() => { if (showCommandPalette && commandInputRef.current) commandInputRef.current.focus(); }, [showCommandPalette]);
+
+  const bannerTexto = sysConfig?.regras?.GLOBAL?.features?.globalBanner;
+  useEffect(() => {
+    if (bannerTexto) {
+      const bannerGuardado = localStorage.getItem('termosync_banner_oculto');
+      if (bannerGuardado !== bannerTexto) setBannerFechado(false);
+    }
+  }, [bannerTexto]);
+
+  const fecharBannerGlobal = () => {
+    setBannerFechado(true);
+    if (bannerTexto) localStorage.setItem('termosync_banner_oculto', bannerTexto);
+  };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const impersonateToken = urlParams.get('impersonateToken');
+    const impersonateLoja = urlParams.get('impersonateLoja');
+    
+    if (impersonateToken && impersonateLoja) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      sessionStorage.clear(); 
+      
+      const role = 'ADMIN'; 
+      const identityName = `Suporte Remoto (${impersonateLoja})`;
+      const roleTitle = 'Acesso Master (Impersonate)';
+      const loginName = `suporte_${impersonateLoja.toLowerCase().replace(/\s+/g, '')}`;
+      
+      setToken(impersonateToken); setUserId('9999'); setUserRole(role); 
+      setUserFilial(impersonateLoja); setFilialAtiva(impersonateLoja); 
+      setAbaAtiva('dashboard'); setMenuAberto(false);
+      setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(false);
+      
+      sessionStorage.setItem('token', impersonateToken); sessionStorage.setItem('userId', '9999'); 
+      sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', impersonateLoja); 
+      sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); 
+      sessionStorage.setItem('loginAtivo', loginName); sessionStorage.setItem('devAuth', 'false');
+      
+      setTimeout(() => {
+         const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Modo Impersonate Ativo:</b> Controle remoto de <strong>${impersonateLoja}</strong> estabelecido com sucesso.`, type: 'warning' }});
+         window.dispatchEvent(fakeEvent);
+      }, 1000);
+    }
+  }, []);
+
+  const fazerLogin = async (usuarioInput, senhaInput) => {
+    if (isOffline) {
+      window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: 'Sinal de rede perdido.', type: 'error' }}));
+      return;
+    }
+    setLoginErro(''); 
+    setIsLoginLoading(true);
+    
+    try {
+      const res = await axios.post(`${getApiUrl()}/login`, { usuario: usuarioInput, senha: senhaInput });
+      
+      if (sysConfig?.maintenanceMode && res.data.role !== 'DEV') {
+        window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: 'SISTEMA EM MANUTENÇÃO. Acesso restrito.', type: 'warning' }}));
+        setIsLoginLoading(false);
+        return;
+      }
+
+      const gNome = res.data.nome_gerente || ''; 
+      const cNome = res.data.nome_coordenador || '';
+      let identityName = usuarioInput; 
+      let roleTitle = 'Gestor de Loja';
+      
+      if (res.data.role === 'DEV') {
+         identityName = 'Desenvolvedor do Sistema';
+         roleTitle = 'SysAdmin / Root';
+         setDevBootData({ token: res.data.token, id: res.data.id, role: res.data.role, filial: res.data.filial, identityName, roleTitle, loginName: usuarioInput });
+         setIsDevBooting(true); 
+         setIsLoginLoading(false); 
+         return;
+      }
+      else if (res.data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
+      else if (res.data.role === 'MANUTENCAO') { identityName = res.data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
+      else if (res.data.role === 'LOJA') { 
+         if (gNome) { identityName = gNome; roleTitle = 'Gerente da Loja'; }
+         else if (cNome) { identityName = cNome; roleTitle = 'Coordenador da Loja'; }
+         else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; }
+       }
+      
+      setToken(res.data.token); setUserId(res.data.id); setUserRole(res.data.role); setUserFilial(res.data.filial); 
+      setFilialAtiva(res.data.role !== 'LOJA' ? 'Todas' : res.data.filial);
+      setAbaAtiva('dashboard'); setMenuAberto(false); setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(usuarioInput);
+      
+      sessionStorage.setItem('token', res.data.token); sessionStorage.setItem('userId', res.data.id); 
+      sessionStorage.setItem('userRole', res.data.role); sessionStorage.setItem('userFilial', res.data.filial); 
+      sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); 
+      sessionStorage.setItem('loginAtivo', usuarioInput);
+      
+      window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: `Protocolo aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }}));
+    } catch (error) { 
+      setLoginErro('Credenciais inválidas.'); 
+      window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: 'Acesso Negado.', type: 'error' }}));
+    } finally { setIsLoginLoading(false); }
+  };
+
+  const completeDevBoot = () => {
+    if (!devBootData) return;
+    const { token, id, role, filial, identityName, roleTitle, loginName } = devBootData;
+    
+    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); 
+    setFilialAtiva('Todas'); setAbaAtiva('dev_panel'); setMenuAberto(false);
+    setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(true);
+    
+    sessionStorage.setItem('token', token); sessionStorage.setItem('userId', id); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', filial); sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', loginName); sessionStorage.setItem('devAuth', 'true');
+    
+    window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: `Protocolo ROOT aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }}));
+    setIsDevBooting(false); setDevBootData(null);
+  };
+
+  useEffect(() => {
+    const handleKillSwitch = (e) => {
+      if (e.key === 'termosync_force_logout' && e.newValue) {
+        const lojaAlvo = e.newValue.split('_')[0]; 
+        if (userFilial === lojaAlvo && userRole !== 'DEV' && !papelLogado.includes('Impersonate')) {
+          fazerLogout();
+          setTimeout(() => window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: `<b>Conexão Terminada:</b> A sua sessão foi revogada remotamente.`, type: 'error' }})), 500);
+        }
+      }
+    };
+    window.addEventListener('storage', handleKillSwitch);
+    return () => window.removeEventListener('storage', handleKillSwitch);
+  }, [userFilial, userRole, papelLogado, fazerLogout]);
+
+  useEffect(() => { if (sysConfig?.maintenanceMode && userRole !== 'DEV' && token && !papelLogado.includes('Impersonate')) fazerLogout(); }, [sysConfig?.maintenanceMode, userRole, token, fazerLogout, papelLogado]);
+  useEffect(() => { if (isFeatureEnabled('forceDarkMode')) setIsDarkMode(true); }, [sysConfig, isFeatureEnabled]);
+
+  const handleUnlock = async (e) => {
+    e.preventDefault();
+    setLockError('');
+    if (!lockPassword.trim()) return setLockError('A chave de segurança é obrigatória.');
+    if (isOffline) return setLockError('Conexão à base de dados perdida. Aguarde.');
+    setIsUnlocking(true);
+    try {
+      await axios.post(`${getApiUrl()}/login`, { usuario: loginAtivo, senha: lockPassword });
+      setIsLocked(false); setLockPassword('');
+    } catch (error) { setLockError('Acesso Negado. Credencial inválida.'); } 
+    finally { setIsUnlocking(false); }
+  };
+
+  useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer); }, []);
+
+  const toggleFullScreen = () => { 
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => { window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: "Modo TV bloqueado.", type: 'warning' }})); }); } 
+    else { document.exitFullscreen(); } 
+  };
+  useEffect(() => { const handleFullscreenChange = () => setIsFullScreen(!!document.fullscreenElement); document.addEventListener('fullscreenchange', handleFullscreenChange); return () => document.removeEventListener('fullscreenchange', handleFullscreenChange); }, []);
+  
+  useEffect(() => { 
+    if (isDarkMode) { document.documentElement.classList.add('dark-theme'); document.body.classList.add('dark-theme'); localStorage.setItem('theme', 'dark'); } 
+    else { document.documentElement.classList.remove('dark-theme'); document.body.classList.remove('dark-theme'); localStorage.setItem('theme', 'light'); } 
+  }, [isDarkMode]);
 
   useEffect(() => {
     const iotFlushInterval = setInterval(() => {
@@ -458,7 +421,6 @@ export default function App() {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== id)); }, 4500);
   }, [userRole]);
-
   const showToastRef = useRef(showToast);
   useEffect(() => { showToastRef.current = showToast; }, [showToast]);
 
@@ -472,7 +434,6 @@ export default function App() {
     if (!somAtivoRef.current || !isFeatureEnabledRef.current('enableAudioAlerts')) return;
     try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gainNode = ctx.createGain(); osc.connect(gainNode); gainNode.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(600, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1); gainNode.gain.setValueAtTime(0.15, ctx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2); osc.start(); osc.stop(ctx.currentTime + 0.2); } catch (e) { }
   }, []);
-
   const tocarSomMensagemRef = useRef(tocarSomMensagem);
   useEffect(() => { tocarSomMensagemRef.current = tocarSomMensagem; }, [tocarSomMensagem]);
 
@@ -480,35 +441,20 @@ export default function App() {
     if (!somAtivoRef.current || !isFeatureEnabledRef.current('enableAudioAlerts')) return;
     try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gainNode = ctx.createGain(); osc.connect(gainNode); gainNode.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime); gainNode.gain.setValueAtTime(0.1, ctx.currentTime); osc.start(); osc.stop(ctx.currentTime + 0.5); } catch (e) { } 
   }, []);
-
   const tocarAlarmeRef = useRef(tocarAlarme);
   useEffect(() => { tocarAlarmeRef.current = tocarAlarme; }, [tocarAlarme]);
 
   const alternarSom = useCallback(() => { 
     if (!isFeatureEnabled('enableAudioAlerts')) return showToast('Alertas sonoros bloqueados pela Administração.', 'warning');
-    const novoEstado = !somAtivoState; 
-    setSomAtivoState(novoEstado); 
-    somAtivoRef.current = novoEstado; 
-    if (novoEstado) { 
-      try { 
-        const ctx = new (window.AudioContext || window.webkitAudioContext)(); 
-        if (ctx.state === 'suspended') ctx.resume(); 
-        
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        osc.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1000, ctx.currentTime);
-        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
-        
-        showToast('Alertas acústicos armados com sucesso.', 'success'); 
-      } catch (e) { } 
-    } else { 
-      showToast('Sistema acústico silenciado.', 'info'); 
-    } 
+    const novoEstado = !somAtivoState; setSomAtivoState(novoEstado); somAtivoRef.current = novoEstado; 
+    if (novoEstado) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator(); const gainNode = ctx.createGain(); osc.connect(gainNode); gainNode.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(1000, ctx.currentTime); gainNode.gain.setValueAtTime(0.05, ctx.currentTime); osc.start(); osc.stop(ctx.currentTime + 0.1);
+        showToast('Sirenes Armadas.', 'success');
+      } catch (e) { }
+    } else { showToast('Sistema silenciado.', 'info'); } 
   }, [somAtivoState, showToast, isFeatureEnabled]);
 
   const carregarChamados = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get('/chamados'); setChamados(Array.isArray(res.data) ? res.data : []); } catch (e) { } }, [token, isOffline, api]);
@@ -520,46 +466,31 @@ export default function App() {
   
   const carregarHistoricoChat = useCallback(async () => { 
     if (!token || isOffline || !isFeatureEnabledRef.current('enableChat')) return; 
-    try { 
-      const res = await api.get('/chat/historico'); 
-      const histFormatado = res.data.map(m => ({ ...m, data: new Date(m.data) })); 
-      setHistoricoChat(histFormatado); 
-    } catch (e) {} 
+    try { const res = await api.get('/chat/historico'); const histFormatado = res.data.map(m => ({ ...m, data: new Date(m.data) })); setHistoricoChat(histFormatado); } catch (e) {} 
   }, [api, token, isOffline]);
 
   const carregarDadosBase = useCallback(async () => {
     if (!token) return;
-    
-    const cE = sessionStorage.getItem('cache_equipamentos'); 
-    const cN = sessionStorage.getItem('cache_notificacoes'); 
+    const cE = sessionStorage.getItem('cache_equipamentos'); const cN = sessionStorage.getItem('cache_notificacoes'); 
     if (cE) setEquipamentos(prev => prev.length === 0 ? JSON.parse(cE) : prev);
     if (cN) setNotificacoes(prev => prev.length === 0 ? JSON.parse(cN) : prev);
-
     if (isOffline) { 
       const cH = sessionStorage.getItem('cache_historico'); 
       if (cH && abaAtivaRef.current === 'historico') setHistoricoAlertas(JSON.parse(cH)); 
       return; 
     }
-    
     try {
       const isHistorico = abaAtivaRef.current === 'historico';
-      const [resEquip, resNotif, resHist, resFiliais] = await Promise.all([ 
-         api.get('/equipamentos').catch(() => ({ data: [] })), 
-         api.get('/notificacoes').catch(() => ({ data: [] })), 
-         isHistorico ? api.get('/notificacoes/historico').catch(() => ({ data: null })) : Promise.resolve({ data: null }), 
-         api.get('/auxiliares/filiais').catch(() => ({ data: [] })) 
+      const [resEquip, resNotif, resHist, resFiliais] = await Promise.all([
+          api.get('/equipamentos').catch(() => ({ data: [] })),
+          api.get('/notificacoes').catch(() => ({ data: [] })),
+          isHistorico ? api.get('/notificacoes/historico').catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+          api.get('/auxiliares/filiais').catch(() => ({ data: [] }))
       ]);
-      setEquipamentos(Array.isArray(resEquip.data) ? resEquip.data : []); 
-      setFiliaisDb(Array.isArray(resFiliais.data) ? resFiliais.data : []); 
-      carregarParametrosGerais();
-      
+      setEquipamentos(Array.isArray(resEquip.data) ? resEquip.data : []); setFiliaisDb(Array.isArray(resFiliais.data) ? resFiliais.data : []); carregarParametrosGerais();
       if (isHistorico && resHist.data) setHistoricoAlertas(Array.isArray(resHist.data) ? resHist.data : []);
-      
-      const dadosNotificacoes = Array.isArray(resNotif.data) ? resNotif.data : [];
-      setNotificacoes(dadosNotificacoes); 
-      
-      sessionStorage.setItem('cache_equipamentos', JSON.stringify(resEquip.data)); 
-      sessionStorage.setItem('cache_notificacoes', JSON.stringify(dadosNotificacoes));
+      const dadosNotificacoes = Array.isArray(resNotif.data) ? resNotif.data : []; setNotificacoes(dadosNotificacoes);
+      sessionStorage.setItem('cache_equipamentos', JSON.stringify(resEquip.data)); sessionStorage.setItem('cache_notificacoes', JSON.stringify(dadosNotificacoes));
     } catch (error) {}
   }, [token, isOffline, api, carregarParametrosGerais]);
 
@@ -567,30 +498,18 @@ export default function App() {
   useEffect(() => { carregarDadosBaseRef.current = carregarDadosBase; }, [carregarDadosBase]); useEffect(() => { carregarChamadosRef.current = carregarChamados; }, [carregarChamados]);
 
   useEffect(() => {
-    if (!token || isOffline) return;
-    if (!isFeatureEnabledRef.current('telemetryStream')) return;
-    
+    if (!token || isOffline || !isFeatureEnabledRef.current('telemetryStream')) return;
     const socket = io(getSocketUrl(), { transports: ['websocket'], upgrade: false }); 
     setSocketInstance(socket);
-    
     if (userId && !papelLogado.includes('Impersonate')) socket.emit('registrar_usuario', userId);
     
-    socket.on('nova_leitura', (dadosNovaLeitura) => { 
-      bufferLeiturasRef.current[dadosNovaLeitura.equipamento_id] = dadosNovaLeitura; 
-    });
+    socket.on('nova_leitura', (dadosNovaLeitura) => { bufferLeiturasRef.current[dadosNovaLeitura.equipamento_id] = dadosNovaLeitura; });
     
     let timeoutAtualizacao;
-    socket.on('atualizacao_dados', () => { 
-      clearTimeout(timeoutAtualizacao);
-      timeoutAtualizacao = setTimeout(() => {
-        carregarDadosBaseRef.current(); 
-        carregarChamadosRef.current(); 
-      }, 2000); 
-    });
+    socket.on('atualizacao_dados', () => { clearTimeout(timeoutAtualizacao); timeoutAtualizacao = setTimeout(() => { carregarDadosBaseRef.current(); carregarChamadosRef.current(); }, 2000); });
 
     socket.on('novo_alerta', (alertaCompleto) => {
       if (filialAtivaRef.current === 'Todas' || filialAtivaRef.current === alertaCompleto.filial) {
-        
         if (userRoleRef.current !== 'DEV') {
           if (!alertaCompleto.silencioso) {
             const tiposCriticos = ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'];
@@ -600,51 +519,21 @@ export default function App() {
             }
           }
         }
-        
-        setNotificacoes(prev => {
-          if (prev.some(n => n.id === alertaCompleto.id)) return prev;
-          return [alertaCompleto, ...prev];
-        });
+        setNotificacoes(prev => { if (prev.some(n => n.id === alertaCompleto.id)) return prev; return [alertaCompleto, ...prev]; });
       }
     });
     
     socket.on('nova_mensagem_chat', (msg) => { 
       if (!isFeatureEnabledRef.current('enableChat')) return; 
-      setHistoricoChat(prev => { 
-        if (prev.some(m => String(m.id) === String(msg.id))) return prev; 
-        return [...prev, { ...msg, data: new Date(msg.data), tipo: 'received' }]; 
-      }); 
-      
-      if (userRoleRef.current !== 'DEV') {
-        tocarSomMensagemRef.current(); 
-        if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) { 
-          showToastRef.current(`${msg.remetenteNome}: ${msg.texto}`, 'info'); 
-        }
-      }
-      
-      if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) {
-        setNaoLidasPorContato(prev => ({ ...prev, [msg.remetenteId]: (prev[msg.remetenteId] || 0) + 1 })); 
-      }
+      setHistoricoChat(prev => { if (prev.some(m => String(m.id) === String(msg.id))) return prev; return [...prev, { ...msg, data: new Date(msg.data), tipo: 'received' }]; });
+      if (userRoleRef.current !== 'DEV') { tocarSomMensagemRef.current(); if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) { showToastRef.current(`${msg.remetenteNome}: ${msg.texto}`, 'info'); } }
+      if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) { setNaoLidasPorContato(prev => ({ ...prev, [msg.remetenteId]: (prev[msg.remetenteId] || 0) + 1 })); }
     });
     
-    const pingInterval = setInterval(() => { 
-      setLatencia(prev => { let novo = prev + (Math.floor(Math.random() * 9) - 4); return novo < 10 ? 10 : novo > 60 ? 60 : novo; }); 
-    }, 1500);
+    const pingInterval = setInterval(() => { setLatencia(prev => { let novo = prev + (Math.floor(Math.random() * 9) - 4); return novo < 10 ? 10 : novo > 60 ? 60 : novo; }); }, 1500);
     
-    return () => { 
-      clearTimeout(timeoutAtualizacao);
-      clearInterval(pingInterval); 
-      socket.disconnect(); 
-    };
+    return () => { clearTimeout(timeoutAtualizacao); clearInterval(pingInterval); socket.off('nova_leitura'); socket.off('atualizacao_dados'); socket.off('novo_alerta'); socket.off('nova_mensagem_chat'); socket.disconnect(); };
   }, [token, isOffline, userId, papelLogado]);
-
-  useEffect(() => { if (token) { carregarDadosBase(); carregarTecnicos(); carregarContatos(); carregarHistoricoChat(); } }, [token, carregarDadosBase, carregarTecnicos, carregarContatos, carregarHistoricoChat]);
-  useEffect(() => { const handleOnline = () => { setIsOffline(false); showToast('Sinal Restabelecido.', 'success'); carregarDadosBase(); carregarHistoricoChat(); }; const handleOffline = () => { setIsOffline(true); showToast('Sem Conexão ao Servidor.', 'warning'); }; window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline); return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }; }, [carregarDadosBase, carregarHistoricoChat, showToast]);
-  
-  useEffect(() => { if ((['usuarios', 'dev_panel', 'saas', 'billing', 'bi'].includes(abaAtiva)) && (userRole === 'ADMIN' || userRole === 'DEV')) carregarUsuarios(); }, [abaAtiva, carregarUsuarios, userRole]);
-  useEffect(() => { if (abaAtiva === 'lojas' && (userRole === 'ADMIN' || userRole === 'DEV')) carregarLojas(); }, [abaAtiva, carregarLojas, userRole]);
-  useEffect(() => { if (abaAtiva === 'chamados' || abaAtiva === 'historico_chamados') carregarChamados(); }, [abaAtiva, carregarChamados]); 
-  useEffect(() => { if (abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV')) carregarParametrosGerais(); }, [abaAtiva, carregarParametrosGerais, userRole]); 
 
   const listaFiliais = useMemo(() => { 
     if (papelLogado.includes('Impersonate') || userRole === 'LOJA') return [userFilial];
@@ -653,155 +542,101 @@ export default function App() {
     return ['Todas', ...combinadas].sort(); 
   }, [filiaisDb, lojasCadastradas, userRole, userFilial, papelLogado]);
 
-  useEffect(() => {
-    if (userRole === 'LOJA' && filialAtiva !== userFilial) {
-      setFilialAtiva(userFilial);
-    }
-  }, [userRole, userFilial, filialAtiva]);
+  useEffect(() => { if (userRole === 'LOJA' && filialAtiva !== userFilial) setFilialAtiva(userFilial); }, [userRole, userFilial, filialAtiva]);
 
   const equipamentosDaFilial = useMemo(() => filialAtiva === 'Todas' ? equipamentos : equipamentos.filter(eq => (eq.filial || 'Loja Principal') === filialAtiva), [equipamentos, filialAtiva]);
   const notificacoesDaFilial = useMemo(() => filialAtiva === 'Todas' ? notificacoes : notificacoes.filter(n => (n.filial || 'Loja Principal') === filialAtiva), [notificacoes, filialAtiva]);
-  const { qtdTotal, qtdDegelo, qtdFalha, qtdOperando } = useMemo(() => { const total = equipamentosDaFilial?.length || 0; const degelo = equipamentosDaFilial?.filter(e => e.em_degelo).length || 0; const falha = equipamentosDaFilial?.filter(e => !e.motor_ligado && !e.em_degelo).length || 0; return { qtdTotal: total, qtdDegelo: degelo, qtdFalha: falha, qtdOperando: total - degelo - falha }; }, [equipamentosDaFilial]);
+
+  const { qtdTotal, qtdDegelo, qtdFalha, qtdOperando } = useMemo(() => { 
+    const total = equipamentosDaFilial?.length || 0; 
+    const degelo = equipamentosDaFilial?.filter(e => e.em_degelo).length || 0; 
+    const falha = notificacoesDaFilial?.length || 0; 
+    const operando = Math.max(0, total - degelo - falha); 
+    return { qtdTotal: total, qtdDegelo: degelo, qtdFalha: falha, qtdOperando: operando }; 
+  }, [equipamentosDaFilial, notificacoesDaFilial]);
+
   const eqPesquisaLower = termoPesquisa.toLowerCase();
   const equipamentosFiltradosLista = useMemo(() => equipamentosDaFilial?.filter(eq => eq.nome?.toLowerCase().includes(eqPesquisaLower) || (eq.setor && eq.setor.toLowerCase().includes(eqPesquisaLower))), [equipamentosDaFilial, eqPesquisaLower]);
   const historicoFiltradoLista = useMemo(() => { let hist = filialAtiva === 'Todas' ? historicoAlertas : historicoAlertas?.filter(h => (h.filial || 'Loja Principal') === filialAtiva); return hist?.filter(h => h.equipamento_nome?.toLowerCase().includes(eqPesquisaLower) || (h.setor && h.setor.toLowerCase().includes(eqPesquisaLower))); }, [historicoAlertas, filialAtiva, eqPesquisaLower]);
-  
   const dadosDonutStatus = useMemo(() => [ { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' } ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
 
   const editarEquipamento = (eq) => { if (isOffline || isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada.', 'warning'); setEquipEditando(eq.id); setFormEditEquip({ nome: eq.nome, tipo: eq.tipo, temp_min: eq.temp_min, temp_max: eq.temp_max, umidade_min: eq.umidade_min || '', umidade_max: eq.umidade_max || '', intervalo_degelo: eq.intervalo_degelo, duracao_degelo: eq.duracao_degelo, setor: eq.setor, filial: eq.filial, data_calibracao: eq.data_calibracao ? new Date(eq.data_calibracao).toISOString().split('T')[0] : '' }); };
   const salvarEdicaoEquipamento = async (e) => { e.preventDefault(); if (isOffline) return; try { await api.put(`/equipamentos/${equipEditando}/edit`, formEditEquip); showToast('Atualizado com sucesso.', 'success'); setEquipEditando(null); carregarDadosBase(); } catch (e) { showToast('Erro de sincronização.', 'error'); } };
-  const pedirExclusao = (id, nome) => { if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning'); setModalConfig({ isOpen: true, title: 'Remover Máquina', message: `Remover "${nome}" permanentemente?`, isPrompt: false, onConfirm: async () => { try { await api.delete(`/equipamentos/${id}`); showToast('Ativo purgado do sistema.', 'success'); carregarDadosBase(); } catch (e) { showToast('Ação não autorizada.', 'error'); } }}); };
+  const pedirExclusao = (id, nome) => { if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning'); setModalConfig({ isOpen: true, title: 'Remover Máquina', message: `Remover "${nome}" permanentemente?`, isPrompt: false, onConfirm: async () => { try { await api.delete(`/equipamentos/${id}`); showToast('Ativo purgado do sistema.', 'success'); carregarDadosBase(); } catch (e) { showToast('Ação autorizada.', 'error'); } }}); };
   
   const pedirNotaResolucao = (id) => { 
     if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning'); 
-    setModalConfig({ 
-      isOpen: true, 
-      title: 'Registro de Manutenção', 
-      message: 'Descreva a intervenção técnica:', 
-      isPrompt: true, 
-      promptValue: '', 
-      onConfirm: async (nota) => { 
-        try { 
-          await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); 
-          showToast('Incidente arquivado.', 'success'); 
-          setNotificacoes(prev => prev.filter(n => n.id !== id));
-          carregarDadosBase(); 
-        } catch (e) { showToast('Erro no arquivo.', 'error'); } 
-      }
-    }); 
+    setModalConfig({ isOpen: true, title: 'Registro de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => { try { await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); showToast('Incidente arquivado.', 'success'); setNotificacoes(prev => prev.filter(n => n.id !== id)); carregarDadosBase(); } catch (e) { showToast('Erro no arquivo.', 'error'); } } }); 
   };
   
   const resolverTodasNotificacoes = () => { 
     if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning'); 
-    setModalConfig({ 
-      isOpen: true, 
-      title: 'Limpeza do Painel', 
-      message: 'Arquivar todos os alarmes pendentes do radar?', 
-      isPrompt: false, 
-      onConfirm: async () => { 
-        try { 
-          await api.put(`/notificacoes/resolver-todas`); 
-          showToast('Painel higienizado.', 'success'); 
-          setNotificacoes([]); 
-          carregarDadosBase(); 
-        } catch (e) { showToast('Erro de sistema.', 'error'); } 
-      }
-    }); 
-  };
-  
-  // Função Global de Exportação
-  const gerarExportacao = (tipo) => { 
-    if (!isFeatureEnabled('allowExports')) return showToast('A exportação de dados foi bloqueada pelas diretrizes do sistema.', 'error');
-    if (abaAtiva === 'historico') {
-      if (historicoFiltradoLista.length === 0) return showToast("Sem dados para exportar.", "warning");
-      if (tipo === 'pdf') { 
-        const doc = new jsPDF(); 
-        doc.setFontSize(18); 
-        doc.text("Auditoria de Ocorrências", 14, 20); 
-        doc.setFontSize(11); 
-        doc.text(`Emitido: ${new Date().toLocaleString()}`, 14, 28); 
-        let head = [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]]; 
-        let body = historicoFiltradoLista.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao]); 
-        autoTable(doc, { head, body, startY: 40, theme: 'grid' }); 
-        doc.save(`Auditoria_Ocorrencias_${new Date().getTime()}.pdf`); 
-      } else { 
-        let csv = "Data,Equipamento,Setor,Ocorrencia,Tecnico\n"; 
-        historicoFiltradoLista.forEach(row => { 
-          csv += `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n`; 
-        }); 
-        const link = document.createElement("a"); 
-        link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' })); 
-        link.download = `Auditoria_${new Date().getTime()}.csv`; 
-        link.click(); 
-      } 
-      showToast('Pacote de dados gerado.', 'success'); 
-    } else {
-      showToast('Funcionalidade de PDF não implementada no frontend (usando backend).', 'info');
-    }
-  };
-  
-  const gerarLoteOS = (listaChamados) => { 
-    if (!isFeatureEnabled('allowExports')) return showToast('A exportação de dados foi bloqueada pelas diretrizes do sistema.', 'error');
-    if (!listaChamados || listaChamados.length === 0) return showToast("Nenhuma OS pendente.", "warning"); const doc = new jsPDF(); listaChamados.forEach((c, index) => { if (index > 0) doc.addPage(); doc.setFontSize(18); doc.text(`Ordem de Serviço (OS) - ${c.status}`, 14, 20); doc.setFontSize(11); doc.text(`Máquina: ${c.equipamento_nome}`, 14, 32); doc.text(`Filial: ${c.filial}`, 14, 40); doc.text(`Abertura: ${new Date(c.data_abertura).toLocaleString()}`, 14, 72); doc.text(doc.splitTextToSize(c.descricao || 'Sem descrição.', 180), 14, 96); if (c.status === 'Concluído') { doc.text(doc.splitTextToSize(c.nota_resolucao || 'Sem nota.', 180), 14, 138); } }); doc.save(`Lote_OS_${new Date().getTime()}.pdf`); showToast('Lote Operacional Baixado.', 'success'); 
+    setModalConfig({ isOpen: true, title: 'Limpeza do Painel', message: 'Arquivar todos os alarmes pendentes do radar?', isPrompt: false, onConfirm: async () => { try { await api.put(`/notificacoes/resolver-todas`); showToast('Painel higienizado.', 'success'); setNotificacoes([]); carregarDadosBase(); } catch (e) { showToast('Erro de sistema.', 'error'); } } }); 
   };
 
-  // ? ROTAS DE NAVEGAÇÃO ATUALIZADAS AQUI
   const NAVIGATION = [
-    { id: 'dev_panel', label: 'Controle', icon: Terminal, roles: ['DEV'], type: 'Desenvolvedor' }, 
-    { id: 'soc', label: 'Auditoria', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true }, 
-    { id: 'atualizacoes', label: 'Atualizações (Deploy)', icon: Rocket, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
+    { id: 'dev_panel', label: 'Controle', icon: Terminal, roles: ['DEV'], type: 'Desenvolvedor', priority: 1 }, 
+    { id: 'bi', label: 'Centro de Inteligência (BI)', icon: PieChart, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true, priority: 2 },
+    { id: 'soc', label: 'Auditoria / SOC', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true }, 
+    { id: 'atualizacoes', label: 'Atualizações / Deploy', icon: Rocket, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
     { id: 'sql_terminal', label: 'Console SQL', icon: Database, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
     { id: 'websocket_stream', label: 'Live Firehose (WS)', icon: Network, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
     { id: 'simulador', label: 'Simulador', icon: Cpu, roles: ['DEV'], type: 'Desenvolvedor' },
-    { id: 'hardware', label: 'Hardware', icon: Server, roles: ['DEV'], type: 'Desenvolvedor' },
-    { id: 'system', label: 'Operações', icon: Settings2, roles: ['DEV'], type: 'Desenvolvedor' },
+    { id: 'hardware', label: 'Hardware IoT', icon: Server, roles: ['DEV'], type: 'Desenvolvedor' },
+    { id: 'system', label: 'Operações do Sistema', icon: Settings2, roles: ['DEV'], type: 'Desenvolvedor' },
     { id: 'empresas', label: 'Organizações', icon: Building2, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
     { id: 'saas', label: 'Licenças SaaS', icon: ShieldAlert, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true }, 
     { id: 'billing', label: 'Core Financeiro', icon: DollarSign, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true }, 
-    { id: 'bi', label: 'Centro de Inteligência (BI)', icon: PieChart, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-
-    { id: 'dashboard', label: 'Dashboard', icon: Activity, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: notificacoesDaFilial?.length, type: 'Operações' },
-    { id: 'assistente', label: 'Assistente de Operação', icon: Sparkles, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    
+    { id: 'dashboard', label: 'Dashboard Operacional', icon: Activity, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: notificacoesDaFilial?.length, type: 'Operações', priority: 1 },
+    { id: 'assistente', label: 'Assistente de Operação', icon: Sparkles, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações', priority: 2 },
     { id: 'resumo_loja', label: 'Resumo da Loja', icon: Building2, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'central_procedimentos', label: 'Procedimentos', icon: ClipboardCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    { id: 'central_procedimentos', label: 'Central de Procedimentos', icon: ClipboardCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'checklist_turno', label: 'Checklist de Turno', icon: ClipboardList, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'resumo_turno', label: 'Resumo de Turno', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'plano_dia', label: 'Plano do Dia', icon: CalendarDays, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'resumo_executivo', label: 'Resumo Executivo', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'suporte', label: 'Suporte ao Sistema', icon: LifeBuoy, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' },
-    { id: 'centro_comando', label: 'Centro de Comando', icon: Target, roles: ['DEV'], type: 'Desenvolvedor' },
     { id: 'mapa', label: 'Planta Digital', icon: Map, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operações' },
     { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     
-    { id: 'kanban', label: 'Gestão de Incidentes (ITSM)', icon: Columns, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'metrologia', label: 'Controle Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
+    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Serviços', priority: 1 },
+    { id: 'kanban', label: 'Gestão Ágil (Kanban)', icon: Columns, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços', priority: 2 },
+    { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas, type: 'Serviços', priority: 3 },
+    { id: 'metrologia', label: 'Controlo Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'equipamentos', label: 'Equipamentos', icon: Server, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'parametros', label: 'Parâmetros Globais', icon: Sliders, roles: ['ADMIN', 'DEV'], type: 'Serviços' },
-    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'historico_chamados', label: 'Histórico de Chamados', icon: Archive, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas, type: 'Serviços' },
     
-    { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria' },
-    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
-    { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
+    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true, priority: 1 },
+    { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', priority: 2 },
+    { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true, priority: 3 },
     
-    { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Sistema' },
-    { id: 'usuarios', label: 'Gestão de Usuários', icon: Users, roles: ['ADMIN', 'DEV'], type: 'Sistema' },
-    { id: 'sobre', label: 'Sobre a Plataforma', icon: Info, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' },
-  ];
+    { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Sistema', priority: 1 },
+    { id: 'usuarios', label: 'Identidades e Acessos', icon: Users, roles: ['ADMIN', 'DEV'], type: 'Sistema', priority: 2 },
+    { id: 'centro_comando', label: 'Centro de Comando', icon: Target, roles: ['DEV'], type: 'Sistema' },
+    { id: 'suporte', label: 'Suporte ao Sistema', icon: LifeBuoy, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' },
+    { id: 'sobre', label: 'Sobre a Plataforma', icon: Info, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' }
+  ].sort((a, b) => {
+    const priorityA = a.priority || 99;
+    const priorityB = b.priority || 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return a.label.localeCompare(b.label, 'pt-BR');
+  });
 
   const NAVIGATION_ATIVA = NAVIGATION.filter(nav => !isModuloOculto(nav.id) && nav.roles.includes(userRole) && (nav.id !== 'chat' || isFeatureEnabled('enableChat')) && (!nav.devAuthRequired || isDevAuthenticated));
 
-  const getPlanoVisual = () => {
-     const p = getPlanoAtual();
-     if(p === 'ENTERPRISE') return {nome: 'PRO+', cor: '#a855f7'};
-     if(p === 'PRO') return {nome: 'PRO', cor: '#38bdf8'};
-     return {nome: 'FREE', cor: '#94a3b8'};
-  };
-
   if (isDevBooting) {
     return <DevBootScreen onComplete={completeDevBoot} />;
+  }
+
+  if (authState.isVerifying && token) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: '#020617', color: '#38bdf8' }}>
+        <Loader2 size={48} className="spin" />
+        <h3 style={{ marginLeft: '15px', fontFamily: 'Montserrat' }}>Verificando Integridade Criptográfica...</h3>
+      </div>
+    );
   }
 
   if (!token) {
@@ -834,105 +669,39 @@ export default function App() {
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : ''}`}>
       <datalist id="filiais-db">{filiaisDb?.map(f => <option key={f} value={f} />)}</datalist><datalist id="setores-db">{listaSetores?.map(s => <option key={s.id} value={s.nome} />)}</datalist>
+      
+      <CommandPalette 
+        showCommandPalette={showCommandPalette}
+        setShowCommandPalette={setShowCommandPalette}
+        cmdSearch={cmdSearch}
+        setCmdSearch={setCmdSearch}
+        commandInputRef={commandInputRef}
+        NAVIGATION_ATIVA={NAVIGATION_ATIVA}
+        setAbaAtiva={setAbaAtiva}
+        setGruposExpandidos={setGruposExpandidos}
+      />
 
-      {showCommandPalette && (
-        <div className="command-palette-overlay" onClick={() => setShowCommandPalette(false)}>
-          <div className="command-palette-modal anim-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="cmd-input-row">
-              <Search size={22} color="var(--primary)" />
-              <input ref={commandInputRef} type="text" autoFocus placeholder="Pesquisar módulo ou comando de sistema..." value={cmdSearch} onChange={e => setCmdSearch(e.target.value)} />
-              <div className="cmd-hint"><Keyboard size={14}/> ESC para fechar</div>
-            </div>
-            <div className="cmd-results">
-              <div className="cmd-group">Navegação Rápida</div>
-              {NAVIGATION_ATIVA.filter(n => n.label.toLowerCase().includes(cmdSearch.toLowerCase())).map(nav => (
-                <button key={nav.id} className="cmd-item" onClick={() => { 
-                  setAbaAtiva(nav.id); 
-                  setGruposExpandidos(prev => ({ ...prev, [nav.type]: true }));
-                  setShowCommandPalette(false); 
-                }}>
-                  <nav.icon size={18} className="cmd-item-icon"/> <span>Acessar <strong>{nav.label}</strong></span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {menuAberto && window.innerWidth <= 768 && <div className="overlay" onClick={() => setMenuAberto(false)}></div>}
-
-      <aside className={`sidebar ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          <TermoSyncLogo size={32} color="var(--secondary)" className="hide-on-collapse" />
-          <h2 className="hide-on-collapse" style={{marginLeft: '10px'}}>ThermoSync</h2>
-          <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={20} /></button>
-        </div>
-
-        <div className="sidebar-user hide-on-collapse" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
-          <div className="user-avatar" style={{ width: '40px', height: '40px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--secondary)', fontWeight: 'bold' }}>
-            {nomeLogado ? nomeLogado.charAt(0) : 'U'}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <span style={{ color: 'white', fontWeight: '800', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{nomeLogado}</span>
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: '600' }}>{papelLogado}</span>
-          </div>
-          <div style={{ position: 'absolute', top: '10px', right: '15px', fontSize: '0.6rem', fontWeight: '900', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${getPlanoVisual().cor}`, color: getPlanoVisual().cor }}>
-             {getPlanoVisual().nome}
-          </div>
-        </div>
-
-        <div className="hide-on-collapse" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--secondary)', fontWeight: '800', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>{userRole !== 'LOJA' ? <><MapPin size={14}/> Rede de Lojas</> : <><UserCheck size={14}/> Acesso Local</>}</div>
-            
-            {papelLogado.includes('Impersonate') ? (
-              <div style={{ width: '100%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '8px 12px', borderRadius: '8px', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Lock size={14}/> {userFilial}
-              </div>
-            ) : userRole !== 'LOJA' ? (
-              <select value={filialAtiva} onChange={(e) => setFilialAtiva(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '8px', color: 'white', fontSize: '0.85rem', fontWeight: '700', outline: 'none' }}>
-                {listaFiliais?.map(f => <option key={f} value={f} style={{background: '#0f172a'}}>{f === 'Todas' ? 'Visão Global' : f}</option>)}
-              </select>
-            ) : (
-              <div style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '8px', color: 'white', fontSize: '0.85rem', fontWeight: '700' }}>{userFilial}</div>
-            )}
-        </div>
-
-        <nav className="sidebar-nav">
-          {['Desenvolvedor', 'Operações', 'Serviços', 'Auditoria', 'Sistema'].map(group => {
-            const itemsInGroup = NAVIGATION_ATIVA.filter(n => n.type === group);
-            if (itemsInGroup.length === 0) return null;
-            
-            const isExpanded = gruposExpandidos[group];
-
-            return (
-              <div key={group} className="nav-group">
-                <div className="nav-group-label hide-on-collapse" onClick={() => toggleGrupo(group)}>
-                  <span>{group}</span>
-                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </div>
-                
-                <div className={`nav-group-items ${isExpanded ? 'expanded' : 'collapsed'}`}>
-                  {itemsInGroup.map(item => (
-                    <button key={item.id} className={`nav-item ${abaAtiva === item.id ? 'active' : ''}`} onClick={() => { setAbaAtiva(item.id); if(window.innerWidth <= 768) setMenuAberto(false); }} title={item.label}>
-                      <item.icon size={20} />
-                      <span className="nav-item-text hide-on-collapse">
-                        {item.label}
-                        {item.isPremium && getPlanoAtual() !== 'FREE' && <span style={{marginLeft: '6px', fontSize: '0.6rem', color: 'var(--info)'}}>?</span>}
-                      </span>
-                      {item.badge > 0 && <span className="badge hide-on-collapse">{item.badge}</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </nav>
-
-        <div style={{ marginTop: 'auto', padding: '1rem', display: 'flex', gap: '8px' }}>
-          <button className="btn-logout flex-1" onClick={() => setIsLocked(true)} title="Modo AFK" style={{ background: 'rgba(245, 158, 11, 0.05)', color: 'var(--warning)', borderColor: 'rgba(245, 158, 11, 0.2)', padding: '12px', border: '1px dashed rgba(245, 158, 11, 0.4)', borderRadius: '10px', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}><Lock size={18} /></button>
-          <button className="btn-logout flex-1 hide-on-collapse" onClick={fazerLogout} title="Encerrar Sessão" style={{ background: 'rgba(239, 68, 68, 0.05)', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '12px', border: '1px dashed rgba(239, 68, 68, 0.4)', borderRadius: '10px', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}><LogOut size={18} /></button>
-        </div>
-      </aside>
+      <Sidebar 
+        menuAberto={menuAberto}
+        setMenuAberto={setMenuAberto}
+        menuRecolhido={menuRecolhido}
+        nomeLogado={nomeLogado}
+        papelLogado={papelLogado}
+        getPlanoVisual={getPlanoAtual} // Passando getPlanoAtual no lugar para resolver a cor lá dentro
+        userRole={userRole}
+        userFilial={userFilial}
+        filialAtiva={filialAtiva}
+        setFilialAtiva={setFilialAtiva}
+        listaFiliais={listaFiliais}
+        gruposExpandidos={gruposExpandidos}
+        toggleGrupo={toggleGrupo}
+        abaAtiva={abaAtiva}
+        setAbaAtiva={setAbaAtiva}
+        NAVIGATION_ATIVA={NAVIGATION_ATIVA}
+        getPlanoAtual={getPlanoAtual}
+        setIsLocked={setIsLocked}
+        fazerLogout={fazerLogout}
+      />
 
       <main className="main-content">
         
@@ -944,168 +713,69 @@ export default function App() {
           </div>
         )}
 
-        <header className="header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <button className="btn-icon" onClick={() => { if (window.innerWidth <= 768) setMenuAberto(true); else setMenuRecolhido(!menuRecolhido); }}><Menu size={22} /></button>
-            <h1 className="page-title desktop-only">{NAVIGATION.find(n => n.id === abaAtiva)?.label || 'ThermoSync NOC'}</h1>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            
-            <div style={{ position: 'relative' }}>
-              <button className="btn-icon" onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)} title="Centro de Notificações">
-                <Bell size={20} />
-                {notificacoesDaFilial?.length > 0 && (
-                  <span style={{ position: 'absolute', top: '2px', right: '2px', background: 'var(--danger)', color: 'white', fontSize: '0.6rem', fontWeight: 'bold', minWidth: '16px', height: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', border: '2px solid var(--bg-color)' }}>
-                    {notificacoesDaFilial.length}
-                  </span>
-                )}
-              </button>
-
-              {mostrarNotificacoes && (
-                <>
-                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }} onClick={() => setMostrarNotificacoes(false)}></div>
-                  
-                  <div className="anim-slide-up" style={{ position: 'absolute', top: '120%', right: '-50px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '320px', zIndex: 9999, boxShadow: '0 10px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}><Bell size={16} color="var(--primary)"/> Alertas Ativos</h4>
-                      {notificacoesDaFilial?.length > 0 && (
-                        <button className="btn-action-small" onClick={() => { resolverTodasNotificacoes(); setMostrarNotificacoes(false); }} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>Limpar Todos</button>
-                      )}
-                    </div>
-                    <div style={{ maxHeight: '350px', overflowY: 'auto', padding: '10px' }}>
-                      {notificacoesDaFilial?.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '2rem 1rem' }}>
-                          <CheckCircle size={32} color="var(--success)" style={{ opacity: 0.5, marginBottom: '10px' }} />
-                          <p style={{ margin: 0 }}>Nenhuma anomalia detectada.</p>
-                        </div>
-                      ) : (
-                        notificacoesDaFilial?.map(n => {
-                          const cfg = getAlertConfig(n.tipo_alerta);
-                          const IconCmp = cfg.icon;
-                          return (
-                            <div key={n.id} onClick={() => { setAbaAtiva('dashboard'); setMostrarNotificacoes(false); }} style={{ background: `color-mix(in srgb, ${cfg.color} 10%, transparent)`, borderLeft: `3px solid ${cfg.color}`, padding: '10px', borderRadius: '6px', marginBottom: '8px', cursor: 'pointer', transition: '0.2s' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <IconCmp size={14} color={cfg.color} />
-                                  {n.equipamento_nome}
-                                </strong>
-                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{new Date(n.data_hora).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                              </div>
-                              <span style={{ color: cfg.color, fontSize: '0.75rem', fontWeight: '600' }}>{n.mensagem}</span>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="telemetry-badge-simple desktop-only" title={isFeatureEnabled('telemetryStream') ? "Socket Conectado" : "Fluxo Bloqueado pelas Políticas"}>
-              <div className={`signal-bars-simple ${!isFeatureEnabled('telemetryStream') ? 'status-offline' : (isOffline ? 'status-offline' : socketInstance ? 'status-good' : 'status-slow')}`}><div className="bar active"></div><div className="bar active"></div><div className={`bar ${socketInstance && !isOffline && isFeatureEnabled('telemetryStream') ? 'active' : ''}`}></div></div>
-              <span className="conn-text">{!isFeatureEnabled('telemetryStream') ? 'STREAM PAUSADA' : (isOffline ? 'SINAL PERDIDO' : 'CONECTADO')}</span>
-              {!isOffline && isFeatureEnabled('telemetryStream') && <span className="conn-ms">{latencia}ms</span>}
-            </div>
-            <button className="btn-outline desktop-only" onClick={() => setShowCommandPalette(true)} style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}><Search size={14} /> Terminal <span style={{ background: 'rgba(0,0,0,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>?K</span></button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-icon" onClick={alternarSom} title={somAtivoState ? "Desarmar Sirenes" : "Armar Sirenes"}>{somAtivoState ? <Volume2 size={18} color="var(--primary)"/> : <VolumeX size={18} />}</button>
-              <button className="btn-icon desktop-only" onClick={toggleFullScreen} title="Painel de Comando TV">{isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
-              <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Modo Visual" disabled={!isFeatureEnabled('forceDarkMode') === false} style={{ opacity: isFeatureEnabled('forceDarkMode') ? 0.3 : 1 }}>{isDarkMode ? <Sun size={18} color="var(--warning)"/> : <Moon size={18} />}</button>
-            </div>
-          </div>
-        </header>
-
+        <Header 
+          setMenuAberto={setMenuAberto}
+          menuRecolhido={menuRecolhido}
+          setMenuRecolhido={setMenuRecolhido}
+          NAVIGATION={NAVIGATION}
+          abaAtiva={abaAtiva}
+          mostrarNotificacoes={mostrarNotificacoes}
+          setMostrarNotificacoes={setMostrarNotificacoes}
+          notificacoesDaFilial={notificacoesDaFilial}
+          resolverTodasNotificacoes={resolverTodasNotificacoes}
+          getAlertConfig={getAlertConfig}
+          isFeatureEnabled={isFeatureEnabled}
+          isOffline={isOffline}
+          socketInstance={socketInstance}
+          latencia={latencia}
+          setShowCommandPalette={setShowCommandPalette}
+          alternarSom={alternarSom}
+          somAtivoState={somAtivoState}
+          toggleFullScreen={toggleFullScreen}
+          isFullScreen={isFullScreen}
+          setIsDarkMode={setIsDarkMode}
+          isDarkMode={isDarkMode}
+        />
+        
         <div className="content-area">
           <ErrorBoundary>
             {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
-            {!isModuloOculto('assistente') && abaAtiva === 'assistente' && (
-              <AssistenteOperacao equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} />
-            )}
-            {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && (
-              <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} />
-            )}
-            {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && (
-              <CentralProcedimentos />
-            )}
-            {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && (
-              <ChecklistTurno api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} />
-            )}
-            {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && (
-              <ResumoTurno equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} />
-            )}
-            {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && (
-              <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} />
-            )}
-            {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && (
-              <ResumoExecutivo api={api} filialAtiva={filialAtiva} />
-            )}
-            {!isModuloOculto('suporte') && abaAtiva === 'suporte' && (
-              <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} />
-            )}
-            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && (
-              <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} />
-            )}
-            
+            {!isModuloOculto('assistente') && abaAtiva === 'assistente' && ( <AssistenteOperacao equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} onNavigate={(id) => setAbaAtiva(id)} showToast={showToast} /> )}
+            {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && ( <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} /> )}
+            {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && ( <CentralProcedimentos /> )}
+            {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && ( <ChecklistTurno api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} /> )}
+            {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && ( <ResumoTurno equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} /> )}
+            {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && ( <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} /> )}
+            {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && ( <ResumoExecutivo api={api} filialAtiva={filialAtiva} /> )}
+            {!isModuloOculto('suporte') && abaAtiva === 'suporte' && ( <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} /> )}
+            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && ( <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} /> )}
             {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} /> )}
             {!isModuloOculto('kanban') && abaAtiva === 'kanban' && ( <Kanban chamados={chamados} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} /> )}
             {!isModuloOculto('metrologia') && abaAtiva === 'metrologia' && ( <Metrologia equipamentosDaFilial={equipamentosDaFilial} editarEquipamento={editarEquipamento} /> )}
             {!isModuloOculto('simulador') && abaAtiva === 'simulador' && userRole === 'DEV' && ( <Simulador api={api} equipamentos={equipamentos} showToast={showToast} /> )}
             {!isModuloOculto('hardware') && abaAtiva === 'hardware' && userRole === 'DEV' && ( <HardwareIoT equipamentos={equipamentos} showToast={showToast} isOffline={isOffline} /> )}
             {!isModuloOculto('sobre') && abaAtiva === 'sobre' && ( <Sobre /> )}
-
             {!isModuloOculto('chat') && abaAtiva === 'chat' && isFeatureEnabled('enableChat') && ( <Chat contatosDb={contatosDb} nomeLogado={nomeLogado} socket={socketInstance} userId={userId} historicoChat={historicoChat} setHistoricoChat={setHistoricoChat} contatoAtivo={contatoChatAtivo} setContatoAtivo={setContatoChatAtivo} naoLidasPorContato={naoLidasPorContato} setNaoLidasPorContato={setNaoLidasPorContato} /> )}
             {!isModuloOculto('motores') && abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
             {!isModuloOculto('umidade') && abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
             {!isModuloOculto('equipamentos') && abaAtiva === 'equipamentos' && ( <Equipamentos api={api} showToast={showToast} isOffline={isOffline} userRole={userRole} userFilial={userFilial} filiaisDb={filiaisDb} listaSetores={listaSetores} listaTipos={listaTipos} carregarDadosBase={carregarDadosBase} equipamentosFiltradosLista={equipamentosFiltradosLista} editarEquipamento={editarEquipamento} pedirExclusao={pedirExclusao} /> )}
-            
-            {/* Telas Atualizadas com a Integração Correta de Banco de Dados */}
-            {!isModuloOculto('relatorios') && abaAtiva === 'relatorios' && ( 
-              <Relatorios 
-                api={api} 
-                filialAtiva={filialAtiva} 
-                showToast={showToast} 
-                isDarkMode={isDarkMode} 
-                isOffline={isOffline} 
-              /> 
-            )}
-            
-            {!isModuloOculto('energia') && abaAtiva === 'energia' && ( 
-              <GestaoEnergetica 
-                api={api} 
-                filialAtiva={filialAtiva} 
-                showToast={showToast} 
-                isDarkMode={isDarkMode} 
-                isOffline={isOffline} 
-              /> 
-            )}
-
+            {!isModuloOculto('relatorios') && abaAtiva === 'relatorios' && ( <Relatorios api={api} filialAtiva={filialAtiva} showToast={showToast} isDarkMode={isDarkMode} isOffline={isOffline} /> )}
+            {!isModuloOculto('energia') && abaAtiva === 'energia' && ( <GestaoEnergetica api={api} filialAtiva={filialAtiva} showToast={showToast} isDarkMode={isDarkMode} isOffline={isOffline} /> )}
             {!isModuloOculto('historico') && abaAtiva === 'historico' && ( <HistoricoLogs historicoFiltradoLista={historicoFiltradoLista} gerarExportacao={gerarExportacao} /> )}
             {!isModuloOculto('chamados') && abaAtiva === 'chamados' && ( <Chamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} equipamentosDaFilial={equipamentosDaFilial} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} gerarLoteOS={gerarLoteOS} /> )}
             {!isModuloOculto('historico_chamados') && abaAtiva === 'historico_chamados' && ( <HistoricoChamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} gerarLoteOS={gerarLoteOS} api={api} carregarChamados={carregarChamados} showToast={showToast} /> )}
-            
             {!isModuloOculto('lojas') && abaAtiva === 'lojas' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoLojas api={api} showToast={showToast} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('usuarios') && abaAtiva === 'usuarios' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
-
-            {/* ? AS NOVAS TELAS ESTÃO RENDERIZADAS AQUI */}
+            
             {abaAtiva === 'bi' && <CentroInteligenciaBI isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} />}
-            {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && ( 
-              <PainelDesenvolvedor 
-                api={api}
-                socket={socketInstance} 
-                abaAtiva={abaAtiva}
-                isDevAuthenticated={isDevAuthenticated}
-                onAuthenticate={() => { setIsDevAuthenticated(true); sessionStorage.setItem('devAuth', 'true'); }}
-                showToast={showToast} 
-                sysConfig={sysConfig}
-                updateSysConfig={updateSysConfig}
-                tocarAlarme={tocarAlarme}
-                usuariosLista={usuariosLista}
-                filiaisDb={filiaisDb}
-                setModalConfig={setModalConfig} 
-              /> 
-            )}
+            {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && (
+               <PainelDesenvolvedor
+                 api={api} socket={socketInstance} abaAtiva={abaAtiva} isDevAuthenticated={isDevAuthenticated}
+                 onAuthenticate={() => { setIsDevAuthenticated(true); sessionStorage.setItem('devAuth', 'true'); }} showToast={showToast}
+                 sysConfig={sysConfig} updateSysConfig={updateSysConfig} tocarAlarme={tocarAlarme} usuariosLista={usuariosLista} filiaisDb={filiaisDb} setModalConfig={setModalConfig}
+               />
+             )}
 
             {((isModuloOculto(abaAtiva) && !['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva)) || (abaAtiva === 'chat' && !isFeatureEnabled('enableChat'))) && (
                <div className="empty-state dashboard-empty anim-fade-in" style={{marginTop: '2rem'}}>

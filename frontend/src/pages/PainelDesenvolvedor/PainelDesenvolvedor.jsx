@@ -148,7 +148,9 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
   }, [serverStartTime]);
 
   useEffect(() => {
+    let isMounted = true;
     const i1 = setInterval(() => {
+      if (!isMounted) return;
       if(sysConfig.maintenanceMode) {
         setMetrics({ cpu: 1, ram: 15, ping: 5, reqs: 0, dbQps: 0, bandwidth: 0 });
         setMetricHistory(prev => [...prev.slice(1), { time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit' }), cpu: 1, ram: 15, bw: 0, db: 0 }]);
@@ -168,14 +170,14 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     }, 2000);
 
     const i2 = setInterval(() => {
-      if(sysConfig.maintenanceMode) return;
+      if (!isMounted || sysConfig.maintenanceMode) return;
       const rotas = [{ method: 'MQTT', route: 'telemetry/esp32/temp_hum', color: isOverclocked ? '#ef4444' : '#10b981', status: 'ACK' }, { method: 'POST', route: '/api/v1/auth/verify', color: '#f59e0b', status: '201 OK' }, { method: 'WSS', route: '/ws/stream/events', color: '#a855f7', status: '101 SW' }, { method: 'GET', route: '/api/v1/sys/health', color: '#38bdf8', status: '304 CA' }];
       const r = rotas[Math.floor(Math.random() * rotas.length)]; const geo = locs[Math.floor(Math.random() * locs.length)];
       setApiTraffic(prev => [...prev.slice(-40), { id: Date.now() + Math.random(), method: r.method, color: r.color, route: r.route, status: r.status, geo, ip: `192.168.${Math.floor(Math.random()*10)}.${Math.floor(Math.random() * 255)}`, ms: Math.floor(Math.random() * 40)+5 }]);
     }, isOverclocked ? 100 : 250);
 
     const i3 = setInterval(() => {
-      if(sysConfig.maintenanceMode) return;
+      if (!isMounted || sysConfig.maintenanceMode) return;
       const ataques = ['TENTATIVA_INJEÇÃO_SQL', 'DDOS_SYN_FLOOD', 'BRUTE_FORCE_JWT', 'PATH_TRAVERSAL'];
       const ips = [`45.33.${Math.floor(Math.random() * 255)}.12`, `188.166.${Math.floor(Math.random() * 255)}.55`, `104.28.${Math.floor(Math.random() * 255)}.1`];
       const atk = `[BLOQUEIO IDS] ASSINATURA: ${ataques[Math.floor(Math.random() * ataques.length)]} -> PACOTE DESCARTADO de ${ips[Math.floor(Math.random() * ips.length)]} (${locs[Math.floor(Math.random() * locs.length)]})`;
@@ -183,7 +185,7 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     }, isOverclocked ? 1500 : 3500);
 
     const i4 = setInterval(() => {
-      if(sysConfig.maintenanceMode) return;
+      if (!isMounted || sysConfig.maintenanceMode) return;
       if (Math.random() > 0.6) {
         const errors = [{ msg: 'Aviso: Sobrecarga temporária na API conectora.', type: 'warning' }, { msg: 'Crítico: Latência do Cluster MySQL Master > 200ms.', type: 'critical' }, { msg: 'Aviso: Memória Cache Redis atingindo 85% de capacidade.', type: 'warning' }, { msg: 'Nó Edge [Filial SP] não envia Heartbeat há 2 min.', type: 'warning' }, { msg: 'Queda de comunicação com Broker MQTT. Tentando reconectar.', type: 'critical' }];
         const err = errors[Math.floor(Math.random() * errors.length)];
@@ -191,7 +193,7 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
       }
     }, 5000);
 
-    return () => { clearInterval(i1); clearInterval(i2); clearInterval(i3); clearInterval(i4); };
+    return () => { isMounted = false; clearInterval(i1); clearInterval(i2); clearInterval(i3); clearInterval(i4); };
   }, [sysConfig.maintenanceMode, isOverclocked]);
 
   useEffect(() => { if (trafficContainerRef.current) trafficContainerRef.current.scrollTop = trafficContainerRef.current.scrollHeight; }, [apiTraffic]);
@@ -216,9 +218,49 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     if (!isOverclocked) showToast('ALERTA: Simulador de Stress Ativado!', 'error');
   };
 
+  // ============================================================================
+  // MATRIZ DE UI - ORDENADA ALFABETICAMENTE
+  // ============================================================================
   const TODOS_MODULOS = [
-    { id: 'dashboard', nome: 'Dashboard Operacional' }, { id: 'assistente', nome: 'Assistente de Operação' }, { id: 'resumo_loja', nome: 'Resumo da Loja' }, { id: 'central_procedimentos', nome: 'Central de Procedimentos' }, { id: 'checklist_turno', nome: 'Checklist de Turno' }, { id: 'resumo_turno', nome: 'Resumo de Turno' }, { id: 'plano_dia', nome: 'Plano do Dia' }, { id: 'resumo_executivo', nome: 'Resumo Executivo' }, { id: 'centro_comando', nome: 'Centro de Comando' }, { id: 'mapa', nome: 'Planta Digital' }, { id: 'motores', nome: 'Monitorização Térmica' }, { id: 'umidade', nome: 'Monitorização de Umidade' }, { id: 'kanban', nome: 'Gestão Ágil (Kanban)' }, { id: 'metrologia', nome: 'Controlo Metrológico' }, { id: 'equipamentos', nome: 'Equipamentos' }, { id: 'parametros', nome: 'Parâmetros Globais' }, { id: 'chamados', nome: 'Chamados' }, { id: 'historico_chamados', nome: 'Histórico de Chamados' }, { id: 'chat', nome: 'Chat' }, { id: 'relatorios', nome: 'Relatórios' }, { id: 'historico', nome: 'Histórico de Logs' }, { id: 'lojas', nome: 'Gestão de Lojas' }, { id: 'usuarios', nome: 'Identidades e Acessos' }, { id: 'sobre', nome: 'Sobre a Plataforma' }, { id: 'simulador', nome: 'Simulador Edge' }, { id: 'hardware', nome: 'Hardware IoT' }, { id: 'dev_panel', nome: 'Painel de Controle' }, { id: 'soc', nome: 'Auditoria / SOC' }, { id: 'atualizacoes', nome: 'Atualizações / Deploy' }, { id: 'sql_terminal', nome: 'Console SQL' }, { id: 'websocket_stream', nome: 'Live Firehose' }, { id: 'system', nome: 'Operações do Sistema' }, { id: 'empresas', nome: 'Organizações' }, { id: 'saas', nome: 'Licenças SaaS' }, { id: 'billing', nome: 'Core Financeiro' }, { id: 'bi', nome: 'Centro de Inteligência (BI)' }
-  ];
+    { id: 'assistente', nome: 'Assistente de Operação' },
+    { id: 'atualizacoes', nome: 'Atualizações / Deploy' },
+    { id: 'soc', nome: 'Auditoria / SOC' },
+    { id: 'central_procedimentos', nome: 'Central de Procedimentos' },
+    { id: 'centro_comando', nome: 'Centro de Comando' },
+    { id: 'bi', nome: 'Centro de Inteligência (BI)' },
+    { id: 'chamados', nome: 'Chamados' },
+    { id: 'chat', nome: 'Chat' },
+    { id: 'checklist_turno', nome: 'Checklist de Turno' },
+    { id: 'sql_terminal', nome: 'Console SQL' },
+    { id: 'metrologia', nome: 'Controlo Metrológico' },
+    { id: 'billing', nome: 'Core Financeiro' },
+    { id: 'dashboard', nome: 'Dashboard Operacional' },
+    { id: 'equipamentos', nome: 'Equipamentos' },
+    { id: 'kanban', nome: 'Gestão Ágil (Kanban)' },
+    { id: 'lojas', nome: 'Gestão de Lojas' },
+    { id: 'energia', nome: 'Gestão Energética' },
+    { id: 'hardware', nome: 'Hardware IoT' },
+    { id: 'historico_chamados', nome: 'Histórico de Chamados' },
+    { id: 'historico', nome: 'Histórico de Logs' },
+    { id: 'usuarios', nome: 'Identidades e Acessos' },
+    { id: 'saas', nome: 'Licenças SaaS' },
+    { id: 'websocket_stream', nome: 'Live Firehose' },
+    { id: 'umidade', nome: 'Monitoramento de Umidade' },
+    { id: 'motores', nome: 'Monitoramento Térmico' },
+    { id: 'system', nome: 'Operações do Sistema' },
+    { id: 'empresas', nome: 'Organizações' },
+    { id: 'dev_panel', nome: 'Painel de Controle' },
+    { id: 'parametros', nome: 'Parâmetros Globais' },
+    { id: 'plano_dia', nome: 'Plano do Dia' },
+    { id: 'mapa', nome: 'Planta Digital' },
+    { id: 'relatorios', nome: 'Relatórios' },
+    { id: 'resumo_loja', nome: 'Resumo da Loja' },
+    { id: 'resumo_turno', nome: 'Resumo de Turno' },
+    { id: 'resumo_executivo', nome: 'Resumo Executivo' },
+    { id: 'simulador', nome: 'Simulador Edge' },
+    { id: 'sobre', nome: 'Sobre a Plataforma' },
+    { id: 'suporte', nome: 'Suporte ao Sistema' }
+  ].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const defconLevel = isOverclocked ? 'MÁXIMO' : (threats.length > 15 ? 'CRÍTICO' : (threats.length > 8 ? 'ELEVADO' : 'SEGURO'));
   const colorPrimary = isOverclocked ? '#ef4444' : '#10b981';

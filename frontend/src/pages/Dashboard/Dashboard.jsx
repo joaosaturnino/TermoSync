@@ -1,4 +1,5 @@
-import React, { useCallback, memo, useState, useMemo } from 'react';
+import React, { useCallback, memo, useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -17,6 +18,8 @@ export const getAlertConfig = (tipo_alerta) => {
     'PORTA': { icon: DoorOpen, color: '#e11d48', action: 'Verificar Porta', critical: true },
     'TEMPERATURA': { icon: ThermometerSnowflake, color: '#ef4444', action: 'Normalizar Temp.', critical: true },
     'UMIDADE': { icon: Droplets, color: '#0ea5e9', action: 'Ajustar Umidade', critical: false },
+    'METROLOGIA': { icon: ClipboardCheck, color: '#6366f1', action: 'Agendar Calibração', critical: true },
+    'PREDITIVO': { icon: ActivitySquare, color: '#8b5cf6', action: 'Prevenção', critical: false }
   };
   return configs[tipo_alerta] || { icon: AlertTriangle, color: 'var(--danger)', action: 'Investigar', critical: true };
 };
@@ -75,7 +78,7 @@ const CustomTooltip = ({ active, payload, isDarkMode }) => {
 const EmptyTooltip = () => (<div style={{ padding: '8px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>Aguardando telemetria...</div>);
 
 export default function Dashboard({ 
-  qtdTotal, qtdOperando, qtdDegelo, qtdFalha, dadosDonutStatus = [], 
+  qtdTotal, qtdDegelo, dadosDonutStatus = [], 
   notificacoesDaFilial = [], resolverTodasNotificacoes, isOffline, pedirNotaResolucao, isDarkMode,
   contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat
 }) {
@@ -84,27 +87,88 @@ export default function Dashboard({
   const [filtroRisco, setFiltroRisco] = useState('TODOS'); 
   const [kioskMode, setKioskMode] = useState(false);
 
+  // =====================================================================
+  // ESTADO REATIVO DE ALERTAS (Sincroniza com Simulador e Banco)
+  // =====================================================================
+  const [localAlertas, setLocalAlertas] = useState(notificacoesDaFilial || []);
+
+  useEffect(() => {
+    setLocalAlertas(notificacoesDaFilial || []);
+  }, [notificacoesDaFilial]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleAlertaRemovido = (data) => {
+      setLocalAlertas(prev => prev.filter(n => !(n.equipamento_id === data.equipamento_id && n.tipo_alerta === data.tipo_alerta)));
+    };
+
+    const handleAlertaRemovidoId = (data) => {
+      setLocalAlertas(prev => prev.filter(n => String(n.id) !== String(data.id)));
+    };
+
+    const handleAlertasLimpos = () => {
+      setLocalAlertas([]);
+    };
+
+    socket.on('alerta_removido', handleAlertaRemovido);
+    socket.on('alerta_removido_id', handleAlertaRemovidoId);
+    socket.on('alertas_limpos', handleAlertasLimpos);
+    
+    return () => {
+      socket.off('alerta_removido', handleAlertaRemovido);
+      socket.off('alerta_removido_id', handleAlertaRemovidoId);
+      socket.off('alertas_limpos', handleAlertasLimpos);
+    };
+  }, [socket]);
+
+  // Listener para sair do Kiosk Mode usando ESC
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setKioskMode(false);
+    };
+    if (kioskMode) window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [kioskMode]);
+
+  // =====================================================================
+  // MATEMÁTICA CORRIGIDA DOS KPIS
+  // =====================================================================
+  const { operandoReal, falhaReal, maquinasEmFalha } = useMemo(() => {
+    const qtAlertas = localAlertas.length;
+    const setMaquinas = new Set(localAlertas.map(a => a.equipamento_id));
+    const qtMaquinasComFalha = setMaquinas.size;
+    const qtOperando = Math.max(0, qtdTotal - qtdDegelo - qtMaquinasComFalha);
+    return { operandoReal: qtOperando, falhaReal: qtAlertas, maquinasEmFalha: qtMaquinasComFalha };
+  }, [localAlertas, qtdTotal, qtdDegelo]);
+
+  const dadosDonutReativos = useMemo(() => [ 
+    { name: 'Ok', value: operandoReal, color: 'var(--success)' }, 
+    { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, 
+    { name: 'Falha', value: maquinasEmFalha, color: 'var(--danger)' } 
+  ].filter(d => d.value > 0), [operandoReal, qtdDegelo, maquinasEmFalha]);
+
+
   const abrirChatInterno = useCallback((notif) => { setChatAtivo(notif); }, []);
   const handleResolve = useCallback((id) => { pedirNotaResolucao(id); }, [pedirNotaResolucao]);
 
   const saudeRede = useMemo(() => {
     if (!qtdTotal || qtdTotal === 0) return { score: 100, status: 'ESTÁVEL', class: 'stable' };
-    const score = Math.round((qtdOperando / qtdTotal) * 100);
+    const score = Math.round((operandoReal / qtdTotal) * 100);
     if (score < 80) return { score, status: 'CRÍTICO', class: 'critical' };
     if (score < 95) return { score, status: 'ATENÇÃO', class: 'warning' };
     return { score, status: 'ESTÁVEL', class: 'stable' };
-  }, [qtdTotal, qtdOperando]);
+  }, [qtdTotal, operandoReal]);
 
   const alertasExibidos = useMemo(() => {
-    if (!notificacoesDaFilial) return [];
-    if (filtroRisco === 'TODOS') return notificacoesDaFilial;
-    return notificacoesDaFilial.filter(n => {
+    if (!localAlertas) return [];
+    if (filtroRisco === 'TODOS') return localAlertas;
+    return localAlertas.filter(n => {
       const isCritical = n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA';
       return filtroRisco === 'CRITICO' ? isCritical : !isCritical;
     });
-  }, [notificacoesDaFilial, filtroRisco]);
+  }, [localAlertas, filtroRisco]);
 
-  // --- NOVA FUNÇÃO: GERADOR DE SNAPSHOT EM PDF ---
   const gerarSnapshotPDF = () => {
     showToast('A compilar Snapshot Operacional...', 'info');
     const doc = new jsPDF();
@@ -119,15 +183,15 @@ export default function Dashboard({
       head: [['Métrica Operacional', 'Valor Atual']],
       body: [
         ['Total de Máquinas na Rede', qtdTotal],
-        ['Operação Normal (Dentro do SLA)', qtdOperando],
+        ['Operação Normal (Dentro do SLA)', operandoReal],
         ['Máquinas em Ciclo de Degelo', qtdDegelo],
-        ['Ocorrências/Alarmes Ativos', qtdFalha]
+        ['Ocorrências/Alarmes Ativos', falhaReal]
       ]
     });
 
-    if (notificacoesDaFilial.length > 0) {
+    if (localAlertas.length > 0) {
       doc.text("Listagem de Alarmes Ativos:", 14, doc.lastAutoTable.finalY + 15);
-      const alarmesBody = notificacoesDaFilial.map(n => [n.equipamento_nome, n.tipo_alerta, n.mensagem]);
+      const alarmesBody = localAlertas.map(n => [n.equipamento_nome, n.tipo_alerta, n.mensagem]);
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 20,
         head: [['Equipamento', 'Tipo', 'Descrição']],
@@ -141,37 +205,70 @@ export default function Dashboard({
   };
 
   const DONUT_COLORS = { 'Ok': '#10b981', 'Degelo': '#38bdf8', 'Falha': '#ef4444' };
-  const temDadosDonut = dadosDonutStatus && dadosDonutStatus.length > 0;
+  const temDadosDonut = dadosDonutReativos && dadosDonutReativos.length > 0;
   const dadosPlaceholder = [{ name: 'Aguardando Dados', value: 1 }];
 
+  // =====================================================================
+  // KIOSK MODE RENDERING (PORTAL)
+  // =====================================================================
   if (kioskMode) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: '#020617', zIndex: 99999, padding: '2rem', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.5s' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
-          <h1 style={{ color: '#10b981', fontFamily: 'Montserrat', margin: 0, fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}><Activity className="pulse-success-icon" size={40} /> KIOSK MODE: {saudeRede.status}</h1>
-          <button onClick={() => setKioskMode(false)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>SAIR [ESC]</button>
+    return createPortal(
+      <div className="kiosk-overlay">
+        <div className="kiosk-header">
+          <h1 className="kiosk-title">
+            <Activity className="pulse-success-icon" size={40} color="var(--success)" /> 
+            KIOSK MODE: {saudeRede.status}
+          </h1>
+          <button className="kiosk-btn-exit" onClick={() => setKioskMode(false)}>
+            SAIR [ESC]
+          </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem', marginBottom: '3rem' }}>
-          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '2rem', borderRadius: '16px', textAlign: 'center' }}><Server size={40} color="#94a3b8" /><h2 style={{ color: '#94a3b8', fontSize: '1.5rem', marginTop: '10px' }}>TOTAL</h2><div style={{ fontSize: '4rem', color: 'white', fontWeight: 'bold' }}>{qtdTotal}</div></div>
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '2px solid #10b981', padding: '2rem', borderRadius: '16px', textAlign: 'center' }}><Activity size={40} color="#10b981" /><h2 style={{ color: '#10b981', fontSize: '1.5rem', marginTop: '10px' }}>OPERANDO</h2><div style={{ fontSize: '4rem', color: '#10b981', fontWeight: 'bold' }}>{qtdOperando}</div></div>
-          <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '2rem', borderRadius: '16px', textAlign: 'center' }}><Snowflake size={40} color="#38bdf8" /><h2 style={{ color: '#38bdf8', fontSize: '1.5rem', marginTop: '10px' }}>DEGELO</h2><div style={{ fontSize: '4rem', color: '#38bdf8', fontWeight: 'bold' }}>{qtdDegelo}</div></div>
-          <div style={{ background: qtdFalha > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)', border: qtdFalha > 0 ? '2px solid #ef4444' : 'none', padding: '2rem', borderRadius: '16px', textAlign: 'center' }}><AlertOctagon size={40} color="#ef4444" className={qtdFalha > 0 ? "pulse-danger-icon" : ""} /><h2 style={{ color: '#ef4444', fontSize: '1.5rem', marginTop: '10px' }}>ALARMES</h2><div style={{ fontSize: '4rem', color: '#ef4444', fontWeight: 'bold' }}>{qtdFalha}</div></div>
+        
+        <div className="kiosk-grid">
+          <div className="kiosk-card total">
+            <Server size={40} color="#94a3b8" />
+            <h2 style={{ color: '#94a3b8' }}>TOTAL</h2>
+            <div className="kiosk-card-val" style={{ color: 'white' }}>{qtdTotal}</div>
+          </div>
+          
+          <div className="kiosk-card ok">
+            <Activity size={40} color="#10b981" />
+            <h2 style={{ color: '#10b981' }}>OPERANDO</h2>
+            <div className="kiosk-card-val" style={{ color: '#10b981' }}>{operandoReal}</div>
+          </div>
+          
+          <div className="kiosk-card degelo">
+            <Snowflake size={40} color="#38bdf8" />
+            <h2 style={{ color: '#38bdf8' }}>DEGELO</h2>
+            <div className="kiosk-card-val" style={{ color: '#38bdf8' }}>{qtdDegelo}</div>
+          </div>
+          
+          <div className={`kiosk-card alerta ${falhaReal === 0 ? 'inactive' : ''}`}>
+            <AlertOctagon size={40} color="#ef4444" className={falhaReal > 0 ? "pulse-danger-icon" : ""} />
+            <h2 style={{ color: '#ef4444' }}>ALARMES</h2>
+            <div className="kiosk-card-val" style={{ color: '#ef4444' }}>{falhaReal}</div>
+          </div>
         </div>
-        <h2 style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>OCORRÊNCIAS EM TEMPO REAL</h2>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-           {notificacoesDaFilial.length === 0 ? (
-              <h1 style={{ color: '#10b981', textAlign: 'center', marginTop: '4rem', opacity: 0.5 }}>TUDO OPERACIONAL NA LOJA</h1>
+        
+        <h2 className="kiosk-log-section">OCORRÊNCIAS EM TEMPO REAL</h2>
+        
+        <div className="kiosk-log-list">
+           {localAlertas.length === 0 ? (
+              <h1 style={{ color: '#10b981', textAlign: 'center', marginTop: '4rem', opacity: 0.5 }}>
+                TUDO OPERACIONAL NA LOJA
+              </h1>
            ) : (
-              notificacoesDaFilial.map((n, i) => (
-                <div key={i} style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '20px', borderRadius: '12px', marginBottom: '15px', borderLeft: '8px solid #ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div style={{ fontSize: '1.8rem', color: 'white', fontWeight: 'bold' }}>{n.equipamento_nome}</div>
-                   <div style={{ fontSize: '1.4rem', color: '#ef4444' }}>{n.mensagem}</div>
-                   <div style={{ fontSize: '1.5rem', color: '#94a3b8', fontFamily: 'Montserrat' }}>{new Date(n.data_hora).toLocaleTimeString()}</div>
+              localAlertas.map((n, i) => (
+                <div key={i} className="kiosk-log-item">
+                   <div className="kiosk-log-name">{n.equipamento_nome}</div>
+                   <div className="kiosk-log-msg">{n.mensagem}</div>
+                   <div className="kiosk-log-time">{new Date(n.data_hora).toLocaleTimeString()}</div>
                 </div>
               ))
            )}
         </div>
-      </div>
+      </div>,
+      document.body // <- Isto joga o modal diretamente no body, impossível a Sidebar ficar na frente
     );
   }
 
@@ -201,9 +298,9 @@ export default function Dashboard({
       <div className="dashboard-grid stagger-2">
         <div className="summary-cards">
           <StatCard title="Máquinas na Rede" value={qtdTotal} icon={Server} iconBg="icon-bg-gray" />
-          <StatCard title="Operação Segura" value={qtdOperando} icon={Activity} iconBg="icon-bg-green" valClass="val-green" />
+          <StatCard title="Operação Segura" value={operandoReal} icon={Activity} iconBg="icon-bg-green" valClass="val-green" />
           <StatCard title="Ciclos de Degelo" value={qtdDegelo} icon={ThermometerSnowflake} iconBg="icon-bg-blue" valClass="val-blue" />
-          <StatCard title="Ocorrências Críticas" value={qtdFalha} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={qtdFalha > 0} />
+          <StatCard title="Ocorrências Críticas" value={falhaReal} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={falhaReal > 0} />
         </div>
 
         <div className="donut-container">
@@ -213,8 +310,8 @@ export default function Dashboard({
               <PieChart>
                 {temDadosDonut ? (
                   <>
-                    <Pie data={dadosDonutStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="name" stroke="none" isAnimationActive={false}>
-                      {dadosDonutStatus.map((entry, index) => (<Cell key={`cell-${index}`} fill={DONUT_COLORS[entry.name] || '#94a3b8'} />))}
+                    <Pie data={dadosDonutReativos} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="name" stroke="none" isAnimationActive={false}>
+                      {dadosDonutReativos.map((entry, index) => (<Cell key={`cell-${index}`} fill={DONUT_COLORS[entry.name] || '#94a3b8'} />))}
                     </Pie>
                     <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} isAnimationActive={false} />
                     <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.85rem', fontWeight: '600', paddingBottom: '10px' }}/>
@@ -235,7 +332,6 @@ export default function Dashboard({
         <h3 className="section-title">Monitor de Incidentes Ativos</h3>
         
         <div className="triage-actions">
-          {/* --- NOVOS BOTÕES DE KIOSK E SNAPSHOT --- */}
           <div style={{ display: 'flex', gap: '8px', marginRight: '10px' }}>
              <button onClick={gerarSnapshotPDF} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'var(--card-bg)' }}>
                <DownloadCloud size={16} style={{marginRight: '6px'}}/> Snapshot PDF
@@ -245,14 +341,14 @@ export default function Dashboard({
              </button>
           </div>
 
-          {notificacoesDaFilial?.length > 0 && (
+          {localAlertas?.length > 0 && (
             <div className="triage-filters">
               <button className={`btn-filter ${filtroRisco === 'TODOS' ? 'active' : ''}`} onClick={() => setFiltroRisco('TODOS')}>Todos</button>
               <button className={`btn-filter critical ${filtroRisco === 'CRITICO' ? 'active' : ''}`} onClick={() => setFiltroRisco('CRITICO')}>Críticos</button>
               <button className={`btn-filter warning ${filtroRisco === 'AVISO' ? 'active' : ''}`} onClick={() => setFiltroRisco('AVISO')}>Avisos</button>
             </div>
           )}
-          {notificacoesDaFilial?.length > 0 && (
+          {localAlertas?.length > 0 && (
             <button className="btn btn-outline btn-archive" onClick={resolverTodasNotificacoes} disabled={isOffline}>
               <CheckCircle size={18} /> Normalizar Todos
             </button>
@@ -279,8 +375,8 @@ export default function Dashboard({
         <div className="noc-ticker-label">LATEST EVENTS</div>
         <div className="noc-ticker">
           <div className="ticker-content">
-            {notificacoesDaFilial.length > 0 ? (
-              notificacoesDaFilial.map((n, i) => (<span key={i} className={`ticker-item ${n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA' ? 'ticker-critical' : 'ticker-warning'}`}>[{new Date(n.data_hora).toLocaleTimeString()}] {n.filial.toUpperCase()} - {n.equipamento_nome.toUpperCase()}: {n.mensagem.toUpperCase()}</span>))
+            {localAlertas.length > 0 ? (
+              localAlertas.map((n, i) => (<span key={i} className={`ticker-item ${n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA' ? 'ticker-critical' : 'ticker-warning'}`}>[{new Date(n.data_hora).toLocaleTimeString()}] {n.filial.toUpperCase()} - {n.equipamento_nome.toUpperCase()}: {n.mensagem.toUpperCase()}</span>))
             ) : (<span className="ticker-item ticker-success">SISTEMA 100% OPERACIONAL - NENHUMA OCORRÊNCIA REGISTRADA NA REDE - MONITORAMENTO DE SENSOR ATIVO</span>)}
           </div>
         </div>
