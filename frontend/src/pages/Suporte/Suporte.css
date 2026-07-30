@@ -533,3 +533,58 @@
     padding-bottom: 0.25rem;
   }
 }
+
+/* =========================================
+   AÇÕES TÁTICAS E MINIETIQUETAS DO CARD
+   ========================================= */
+.support-flow-ticket {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.support-flow-ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+.support-flow-ticket.selected {
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.support-flow-ticket-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.support-flow-toolbar-secondary {
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Modal de SLA e Triagem */
+.modal-content.anim-slide-up {
+  animation: modalSlideUp 0.25s ease-out forwards;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -128,6 +128,19 @@ export default function Sidebar({
                     <span className="nav-item-text hide-on-collapse" style={{ fontSize: '0.85rem', fontWeight: abaAtiva === item.id ? '700' : '500', color: abaAtiva === item.id ? '#fff' : '#cbd5e1', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.label}
                     </span>
+
+                    {/* BADGE NUMÉRICA (MENU ABERTO) */}
+                    {item.badge > 0 && !menuRecolhido && (
+                      <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
+
+                    {/* PONTO VERMELHO (MENU RECOLHIDO) */}
+                    {item.badge > 0 && menuRecolhido && (
+                      <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
+                    )}
+
                     {/* Botão de desafixar (Pino Preenchido) */}
                     <Pin 
                       size={14} 
@@ -171,8 +184,18 @@ export default function Sidebar({
                           {item.label}
                         </span>
                         
-                        {item.badge > 0 && <span className="badge hide-on-collapse" style={{ background: 'var(--danger)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)', marginRight: '8px' }}>{item.badge}</span>}
-                        
+                        {/* BADGE NUMÉRICA (MENU ABERTO) */}
+                        {item.badge > 0 && !menuRecolhido && (
+                          <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
+                            {item.badge > 99 ? '99+' : item.badge}
+                          </span>
+                        )}
+
+                        {/* PONTO VERMELHO (MENU RECOLHIDO) */}
+                        {item.badge > 0 && menuRecolhido && (
+                          <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
+                        )}
+
                         {/* Botão de Fixar/Desfixar */}
                         <Pin 
                           size={14} 

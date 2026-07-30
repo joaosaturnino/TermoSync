@@ -1,0 +1,398 @@
+/* =========================================
+   VIEWPORT & BACKGROUND PRINCIPAL
+   ========================================= */
+.register-viewport {
+  background: radial-gradient(circle at top, rgba(14, 165, 233, 0.12) 0%, rgba(2, 6, 23, 1) 70%), #020617;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  position: relative;
+}
+
+.register-back-btn {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.register-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateX(-3px);
+}
+
+/* =========================================
+   CARD DE ONBOARDING (BOX PRINCIPAL)
+   ========================================= */
+.register-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 2.5rem 2.2rem;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.08);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 1.8rem;
+}
+
+.register-logo-box {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+}
+
+.register-logo-inner {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 18px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.15);
+}
+
+.register-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.register-header h2 {
+  color: white;
+  margin: 0 0 6px 0;
+  font-size: 1.65rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.register-header p {
+  color: #94a3b8;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* =========================================
+   ALERTAS E MENSAGENS DE ERRO
+   ========================================= */
+.register-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1.4rem;
+}
+
+/* =========================================
+   CAMPOS DO FORMULÁRIO
+   ========================================= */
+.register-form {
+  text-align: left;
+}
+
+.register-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.register-field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.register-input-wrapper {
+  position: relative;
+}
+
+.register-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.register-input-wrapper input {
+  width: 100%;
+  padding: 12px 12px 12px 42px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: white;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.register-input-wrapper input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.register-input-wrapper input:focus + .register-input-icon {
+  color: #38bdf8;
+}
+
+.register-grid-2 {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 10px;
+}
+
+/* =========================================
+   BOX DE BENEFÍCIOS & AVISO NOC
+   ========================================= */
+.register-perks-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 1.4rem;
+}
+
+.register-perks-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.register-perks-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+
+.register-perk-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.register-noc-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.register-noc-warning span {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+/* =========================================
+   BOTÕES DE AÇÃO E RODAPÉ DE SEGURANÇA
+   ========================================= */
+.register-submit-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  border: none;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
+  transition: all 0.2s ease;
+}
+
+.register-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.45);
+}
+
+.register-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.register-security-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 0.8rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* =========================================
+   PASSO 2: SUCESSO E LINHA DO TEMPO
+   ========================================= */
+.register-success-view {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.register-success-icon-box {
+  width: 74px;
+  height: 74px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.4rem;
+  box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
+}
+
+.register-success-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.register-success-view h2 {
+  color: white;
+  margin: 0 0 10px 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.register-success-view p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+.register-timeline {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.4rem 1.2rem;
+  text-align: left;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.register-timeline-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.register-timeline-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.register-step-number {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.register-step-number.green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.register-step-info strong {
+  color: #f8fafc;
+  font-size: 0.88rem;
+  display: block;
+}
+
+.register-step-info span {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  display: block;
+  margin-top: 2px;
+}
+
+/* =========================================
+   RESPONSIVIDADE
+   ========================================= */
+@media (max-width: 640px) {
+  .register-card {
+    padding: 1.8rem 1.2rem;
+  }
+
+  .register-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .register-perks-grid {
+    grid-template-columns: 1fr;
+  }
+}

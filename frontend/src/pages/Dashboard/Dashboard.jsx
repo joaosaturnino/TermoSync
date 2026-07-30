@@ -78,7 +78,9 @@ const CustomTooltip = ({ active, payload, isDarkMode }) => {
 const EmptyTooltip = () => (<div style={{ padding: '8px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>Aguardando telemetria...</div>);
 
 export default function Dashboard({ 
-  qtdTotal, qtdDegelo, dadosDonutStatus = [], 
+  qtdTotal, 
+  qtdDegelo, 
+  dadosDonutStatus = [], 
   notificacoesDaFilial = [], resolverTodasNotificacoes, isOffline, pedirNotaResolucao, isDarkMode,
   contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat
 }) {
@@ -134,20 +136,38 @@ export default function Dashboard({
   // =====================================================================
   // MATEMÁTICA CORRIGIDA DOS KPIS
   // =====================================================================
-  const { operandoReal, falhaReal, maquinasEmFalha } = useMemo(() => {
+  const { operandoReal, falhaReal, maquinasEmFalha, maquinasDegelo } = useMemo(() => {
+    // 1. Quantidade bruta de alertas 
     const qtAlertas = localAlertas.length;
-    const setMaquinas = new Set(localAlertas.map(a => a.equipamento_id));
-    const qtMaquinasComFalha = setMaquinas.size;
-    const qtOperando = Math.max(0, qtdTotal - qtdDegelo - qtMaquinasComFalha);
-    return { operandoReal: qtOperando, falhaReal: qtAlertas, maquinasEmFalha: qtMaquinasComFalha };
+    
+    // 2. Extrair apenas as MÁQUINAS (IDs únicos) que possuem alertas
+    // Isso evita que uma máquina com 2 alertas estrague a soma total do Dashboard.
+    const setMaquinasFalhas = new Set(localAlertas.map(a => String(a.equipamento_id)));
+    const qtMaquinasComFalha = setMaquinasFalhas.size;
+    
+    // 3. Define as bases de cálculo
+    let qtDegeloFinal = qtdDegelo || 0;
+    let qtOperando = (qtdTotal || 0) - qtDegeloFinal - qtMaquinasComFalha;
+    
+    // 4. Correção de sobreposição (se a máquina está em Degelo E tem falha)
+    if (qtOperando < 0) {
+        qtOperando = 0;
+        qtDegeloFinal = Math.max(0, (qtdTotal || 0) - qtMaquinasComFalha);
+    }
+    
+    return { 
+        operandoReal: qtOperando, 
+        falhaReal: qtAlertas, 
+        maquinasEmFalha: qtMaquinasComFalha,
+        maquinasDegelo: qtDegeloFinal
+    };
   }, [localAlertas, qtdTotal, qtdDegelo]);
 
   const dadosDonutReativos = useMemo(() => [ 
     { name: 'Ok', value: operandoReal, color: 'var(--success)' }, 
-    { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, 
+    { name: 'Degelo', value: maquinasDegelo, color: '#38bdf8' }, 
     { name: 'Falha', value: maquinasEmFalha, color: 'var(--danger)' } 
-  ].filter(d => d.value > 0), [operandoReal, qtdDegelo, maquinasEmFalha]);
-
+  ].filter(d => d.value > 0), [operandoReal, maquinasDegelo, maquinasEmFalha]);
 
   const abrirChatInterno = useCallback((notif) => { setChatAtivo(notif); }, []);
   const handleResolve = useCallback((id) => { pedirNotaResolucao(id); }, [pedirNotaResolucao]);
@@ -184,8 +204,9 @@ export default function Dashboard({
       body: [
         ['Total de Máquinas na Rede', qtdTotal],
         ['Operação Normal (Dentro do SLA)', operandoReal],
-        ['Máquinas em Ciclo de Degelo', qtdDegelo],
-        ['Ocorrências/Alarmes Ativos', falhaReal]
+        ['Máquinas em Ciclo de Degelo', maquinasDegelo],
+        ['Máquinas em Alerta/Falha', maquinasEmFalha],
+        ['Total de Ocorrências Individuais', falhaReal]
       ]
     });
 
@@ -240,13 +261,13 @@ export default function Dashboard({
           <div className="kiosk-card degelo">
             <Snowflake size={40} color="#38bdf8" />
             <h2 style={{ color: '#38bdf8' }}>DEGELO</h2>
-            <div className="kiosk-card-val" style={{ color: '#38bdf8' }}>{qtdDegelo}</div>
+            <div className="kiosk-card-val" style={{ color: '#38bdf8' }}>{maquinasDegelo}</div>
           </div>
           
-          <div className={`kiosk-card alerta ${falhaReal === 0 ? 'inactive' : ''}`}>
-            <AlertOctagon size={40} color="#ef4444" className={falhaReal > 0 ? "pulse-danger-icon" : ""} />
+          <div className={`kiosk-card alerta ${maquinasEmFalha === 0 ? 'inactive' : ''}`}>
+            <AlertOctagon size={40} color="#ef4444" className={maquinasEmFalha > 0 ? "pulse-danger-icon" : ""} />
             <h2 style={{ color: '#ef4444' }}>ALARMES</h2>
-            <div className="kiosk-card-val" style={{ color: '#ef4444' }}>{falhaReal}</div>
+            <div className="kiosk-card-val" style={{ color: '#ef4444' }}>{maquinasEmFalha}</div>
           </div>
         </div>
         
@@ -268,7 +289,7 @@ export default function Dashboard({
            )}
         </div>
       </div>,
-      document.body // <- Isto joga o modal diretamente no body, impossível a Sidebar ficar na frente
+      document.body 
     );
   }
 
@@ -299,8 +320,8 @@ export default function Dashboard({
         <div className="summary-cards">
           <StatCard title="Máquinas na Rede" value={qtdTotal} icon={Server} iconBg="icon-bg-gray" />
           <StatCard title="Operação Segura" value={operandoReal} icon={Activity} iconBg="icon-bg-green" valClass="val-green" />
-          <StatCard title="Ciclos de Degelo" value={qtdDegelo} icon={ThermometerSnowflake} iconBg="icon-bg-blue" valClass="val-blue" />
-          <StatCard title="Ocorrências Críticas" value={falhaReal} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={falhaReal > 0} />
+          <StatCard title="Ciclos de Degelo" value={maquinasDegelo} icon={ThermometerSnowflake} iconBg="icon-bg-blue" valClass="val-blue" />
+          <StatCard title="Máquinas em Alerta" value={maquinasEmFalha} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={maquinasEmFalha > 0} />
         </div>
 
         <div className="donut-container">

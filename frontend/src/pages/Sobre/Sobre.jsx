@@ -1,18 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Database, Server, GraduationCap, 
-  Code2, GitBranch, Github, Linkedin, Globe, Layers, Activity, Fingerprint, Cpu, Network, Radio
+  Code2, Github, Linkedin, Globe, Layers, Activity, 
+  Fingerprint, Cpu, Network, Radio, TerminalSquare,
+  ArrowRight, Wifi, Zap
 } from 'lucide-react';
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Sobre.css';
 
 export default function Sobre() {
+  const [bootLines, setBootLines] = useState([]);
+  const [showBio, setShowBio] = useState(false);
+
+  // Efeito do Terminal de Boot
+  useEffect(() => {
+    const sequence = [
+      { text: "root@thermosync:~# ./fetch_author_data.sh", delay: 300, type: 'cmd' },
+      { text: "[*] INITIATING SECURE CONNECTION TO NOC CLUSTER...", delay: 1000, type: 'sys' },
+      { text: "[OK] RSA-4096 HANDSHAKE ESTABLISHED.", delay: 1800, type: 'success' },
+      { text: "[*] DECRYPTING AUTHOR BIOGRAPHY DATABANKS...", delay: 2400, type: 'sys' },
+      { text: "[OK] DATASTREAM READY. PRINTING OUTPUT:", delay: 3200, type: 'success' },
+    ];
+
+    let timeouts = [];
+
+    sequence.forEach((line) => {
+      const t = setTimeout(() => {
+        setBootLines(prev => [...prev, line]);
+      }, line.delay);
+      timeouts.push(t);
+    });
+
+    const finalT = setTimeout(() => {
+      setShowBio(true);
+    }, 3800);
+    timeouts.push(finalT);
+
+    return () => timeouts.forEach(clearTimeout);
+  }, []);
+
   return (
     <div className="sobre-container anim-fade-in stagger-1">
       
       {/* SEÇÃO HERO DA PLATAFORMA */}
       <div className="sobre-hero">
         <div className="hero-content">
+          
+          {/* Live Diagnostics Mockup */}
+          <div className="live-diagnostics">
+             <span className="pulse-success-icon" style={{display: 'inline-block', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%'}}></span>
+             <span>UPTIME: <strong>99.999%</strong></span> | 
+             <span>LATENCY: <strong>12ms</strong></span> | 
+             <span>WSS: <strong>SECURE</strong></span>
+          </div>
+
           <TermoSyncLogo size={90} color="#10b981" />
           <h1>ThermoSync</h1>
           
@@ -21,7 +62,7 @@ export default function Sobre() {
               <Activity size={16}/> NOC PLATFORM
             </span>
             <span className="hero-tag tag-ver">
-              <Radio size={16}/> v10.5 ENTERPRISE
+              <Radio size={16}/> v1.5 ENTERPRISE
             </span>
             <span className="hero-tag tag-tcc">
               <GraduationCap size={16}/> TCC - REDES DE COMPUTADORES
@@ -29,8 +70,14 @@ export default function Sobre() {
           </div>
           
           <p>
-            Sistema integrado de monitorização frigorífica e orquestração de redes IoT. Construído sobre uma arquitetura puramente assíncrona, o ecossistema ThermoSync realiza a ingestão massiva de telemetria proveniente de hardwares dedicados dispostos na borda operacional da infraestrutura.
-          </p>
+            <strong>Sobre o ThermoSync:</strong>
+            <br/>
+            O <strong>ThermoSync</strong> é uma plataforma inteligente para monitoramento de câmaras e balcões refrigerados e gerenciamento de dispositivos IoT. Desenvolvido com uma arquitetura totalmente assíncrona, o sistema coleta, processa e sincroniza, em tempo real, dados de telemetria enviados por dispositivos instalados na borda da infraestrutura.
+
+A plataforma oferece monitoramento contínuo de temperatura, umidade e status dos equipamentos, além de gerar alertas, históricos e indicadores que auxiliam na prevenção de falhas e na tomada de decisões.
+
+Com foco em desempenho, escalabilidade e confiabilidade, o ThermoSync integra hardware e software em uma solução completa para garantir o controle da rede refrigerada e a eficiência operacional.
+             </p>
         </div>
       </div>
 
@@ -40,16 +87,49 @@ export default function Sobre() {
         Especificações Arquiteturais
       </div>
 
+      {/* DIAGRAMA VISUAL DE DADOS (NOVO) */}
+      <div className="architecture-flow stagger-2">
+        <div className="flow-node">
+          <Cpu size={24} color="#10b981" />
+          <strong>IoT / Edge Nodes</strong>
+          <span>ESP32 + Sensores</span>
+        </div>
+        
+        <ArrowRight size={24} className="flow-arrow" />
+        
+        <div className="flow-node" style={{ borderColor: 'rgba(56, 189, 248, 0.4)' }}>
+          <Wifi size={24} color="#38bdf8" />
+          <strong>Mqtt / WebSockets</strong>
+          <span>Tráfego Bidirecional</span>
+        </div>
+
+        <ArrowRight size={24} className="flow-arrow" />
+
+        <div className="flow-node" style={{ borderColor: 'rgba(167, 139, 250, 0.4)' }}>
+          <Server size={24} color="#a78bfa" />
+          <strong>SaaS Core API</strong>
+          <span>Node.js + MySQL</span>
+        </div>
+
+        <ArrowRight size={24} className="flow-arrow" />
+
+        <div className="flow-node" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
+          <TerminalSquare size={24} color="#f59e0b" />
+          <strong>NOC Dashboard</strong>
+          <span>React.js Enterprise</span>
+        </div>
+      </div>
+
       <div className="sobre-tech-grid stagger-2">
         <div className="sobre-tech-card" style={{ '--card-color': '#10b981' }}>
           <div className="tech-card-header">
             <div className="tech-icon-wrapper">
-              <Cpu size={26} color="#10b981" />
+              <Zap size={26} color="#10b981" />
             </div>
             <strong>Edge Computing & IoT</strong>
           </div>
           <p>
-            Comunicação escalável em tempo real através de WebSockets bidirecionais, integrando microcontroladores IoT (Arduino/ESP32) sob barramentos estáveis de telemetria na borda da rede.
+            Comunicação escalável em tempo real através de WebSockets bidirecionais, integrando microcontroladores IoT sob barramentos estáveis de telemetria na borda da rede.
           </p>
         </div>
 
@@ -109,8 +189,35 @@ export default function Sobre() {
           <div>
             <h2 className="dev-name">João Henrique</h2>
             <div className="dev-role">
-              <Code2 size={18} /> SOFTWARE ARCHITECT & FULL-STACK ENGINEER
+              <TerminalSquare size={18} /> SOFTWARE ARCHITECT & FULL-STACK ENGINEER
             </div>
+          </div>
+
+          <div className="terminal-prompt-box">
+             {bootLines.map((line, idx) => (
+                <div key={idx} className="terminal-line">
+                  {line.type === 'cmd' ? (
+                     <><span className="terminal-user">root@thermosync</span>:<span className="terminal-dir">~</span>$ {line.text.replace('root@thermosync:~# ', '')}</>
+                  ) : line.type === 'sys' ? (
+                     <span className="terminal-sys">{line.text}</span>
+                  ) : (
+                     <span className="terminal-success">{line.text}</span>
+                  )}
+                </div>
+             ))}
+             
+             {showBio ? (
+                <p className="dev-bio" style={{ animation: 'fadeIn 0.5s ease-out', marginTop: '10px' }}>
+                  Engenheiro e idealizador do ecossistema <strong>ThermoSync</strong>. A plataforma surgiu a partir de uma necessidade operacional identificada no ambiente de trabalho, onde a ausência de uma solução centralizada para o monitoramento de câmaras frigoríficas e equipamentos críticos evidenciava desafios relacionados ao controle, rastreabilidade e resposta a eventos.
+
+Com o potencial da ideia, o projeto foi expandido e estruturado como <strong>Trabalho de Conclusão de Curso (TCC) em Redes de Computadores</strong>, evoluindo de um protótipo acadêmico para uma plataforma empresarial voltada ao monitoramento inteligente e à gestão de dispositivos IoT.
+
+Atualmente, o ThermoSync integra desenvolvimento <strong>Full-Stack</strong>, arquiteturas distribuídas, APIs de alta performance, processamento de telemetria em tempo real e comunicação direta com hardware embarcado, oferecendo uma solução escalável, segura e confiável para o gerenciamento de ambientes frigorificados e da infraestrutura operacional.
+<span className="terminal-cursor"></span>
+                </p>
+             ) : (
+                <div style={{ height: '24px' }}><span className="terminal-cursor"></span></div>
+             )}
           </div>
 
           <div className="tech-stack-pills">
@@ -120,10 +227,6 @@ export default function Sobre() {
              <span className="pill">WebSockets</span>
              <span className="pill">C++ / Arduino (IoT)</span>
           </div>
-          
-          <p className="dev-bio">
-            Engenheiro responsável pela idealização do ecossistema <strong>ThermoSync</strong>. O sistema nasceu como um <strong>Trabalho de Conclusão de Curso (TCC) em Redes de Computadores</strong>, evoluindo para uma robusta plataforma empresarial que une o desenvolvimento Full-Stack de software (interfaces e APIs) com o controlo direto de hardware e telemetria periférica.
-          </p>
 
           {/* GRADE ACADÊMICA COMPLETA */}
           <div className="dev-courses-grid">

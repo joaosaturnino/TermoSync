@@ -469,7 +469,7 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
         <div className="dev-col-left">
           <div className="sys-control-card warning">
             {sysConfig.maintenanceMode && <div className="hazard-stripes"></div>}
-            <div className="dev-card-header" style={{color: '#f59e0b', flexWrap: 'wrap'}}><Radio size={24}/><h3>Controlo de Operações Globais</h3></div>
+            <div className="dev-card-header" style={{color: '#f59e0b', flexWrap: 'wrap'}}><Radio size={24}/><h3>Controle de Operações Globais</h3></div>
             <div style={{position: 'relative', zIndex: 2}}>
               <div className={`sys-status-banner ${sysConfig.maintenanceMode ? 'sys-status-offline' : 'sys-status-online'}`}>{sysConfig.maintenanceMode ? <AlertOctagon size={20} /> : <ShieldCheck size={20} />} STATUS CORE: {sysConfig.maintenanceMode ? 'LOCKDOWN (OFFLINE)' : 'OPERACIONAL (ONLINE)'}</div>
               <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '10px', fontWeight: 'bold'}}>Transmissão Global (Broadcast Tático):</p>
@@ -489,12 +489,12 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
              </div>
           </div>
           <div className="sys-control-card danger">
-            <div className="dev-card-header" style={{color: '#ef4444', position: 'relative', zIndex: 2, flexWrap: 'wrap'}}><ServerCrash size={24}/><h3>Purga Base de Dados</h3></div>
+            <div className="dev-card-header" style={{color: '#ef4444', position: 'relative', zIndex: 2, flexWrap: 'wrap'}}><ServerCrash size={24}/><h3>Apagar Base de Dados</h3></div>
             <div style={{marginBottom: '25px', position: 'relative', zIndex: 2}}>
                <div className="storage-info" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}><span style={{ color: '#cbd5e1' }}>Consumo Volume DB</span><span style={{ color: storageUsed > 80 ? '#ef4444' : 'var(--theme-main)' }}>{storageUsed}% / 100%</span></div>
                <div className="storage-bar-bg" style={{ height: '10px' }}><div className="storage-bar-fill" style={{ width: `${storageUsed}%`, background: storageUsed > 80 ? '#ef4444' : 'var(--theme-main)' }}></div></div>
             </div>
-            <button className="btn btn-outline w-100" onClick={handlePurge} disabled={isPurging} style={{color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)', padding: '16px', borderRadius: '8px'}}>{isPurging ? <Loader2 size={18} className="spin"/> : <Eraser size={18}/>} A EXECUTAR PURGA...</button>
+            <button className="btn btn-outline w-100" onClick={handlePurge} disabled={isPurging} style={{color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)', padding: '16px', borderRadius: '8px'}}>{isPurging ? <Loader2 size={18} className="spin"/> : <Eraser size={18}/>} Apagar...</button>
             <div className="hazard-stripes"></div>
           </div>
         </div>
