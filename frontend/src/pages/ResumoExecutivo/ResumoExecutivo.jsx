@@ -22,6 +22,18 @@ const initialSummary = {
   ultimos_chamados: []
 };
 
+/**
+ * Resumo Executivo
+ *
+ * Responsabilidades:
+ * - Agregar métricas de alto nível para liderança (equipamentos, alertas, chamados)
+ * - Atualizar periodicamente o resumo a partir do backend
+ * - Fornecer lista de pontos críticos e agenda de acompanhamento
+ *
+ * Props:
+ * - `api`: instância HTTP para obter os dados agregados
+ * - `filialAtiva`: escopo de filtragem por filial
+ */
 export default function ResumoExecutivo({ api, filialAtiva }) {
   const [summary, setSummary] = useState(initialSummary);
   const [isSyncing, setIsSyncing] = useState(true);

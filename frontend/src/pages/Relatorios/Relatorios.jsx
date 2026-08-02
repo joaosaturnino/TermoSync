@@ -12,7 +12,23 @@ registerLocale('pt', ptBR);
 
 import 'react-datepicker/dist/react-datepicker.css';
 import './Relatorios.css';
+import logger from '../../utils/logger';
+import Loader from '../../components/Loader';
+import EmptyState from '../../components/EmptyState';
 
+/**
+ * Página de Relatórios e Analytics
+ *
+ * Responsabilidades:
+ * - Buscar leituras históricas do backend (`/relatorios`)
+ * - Processar séries temporais para gráficos e KPIs
+ * - Permitir exportação CSV/PDF e filtros por período/equipamento
+ *
+ * Props:
+ * - `api`: instância para chamadas HTTP
+ * - `filialAtiva`: filtro de escopo (loja/tenant)
+ * - `showToast`, `isDarkMode`, `isOffline`
+ */
 export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, isOffline }) {
 
   // ==========================================
@@ -32,8 +48,8 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
   useEffect(() => {
     if (!api) return;
     api.get('/equipamentos', { params: { filial: filialAtiva !== 'Todas' ? filialAtiva : undefined } })
-       .then(res => setEquipamentos(res.data || []))
-       .catch(err => console.error("Erro ao buscar equipamentos:", err));
+      .then(res => setEquipamentos(res.data || []))
+      .catch(err => logger.error("Erro ao buscar equipamentos:", err));
   }, [api, filialAtiva]);
 
   const buscarRelatorio = useCallback(async () => {
@@ -146,6 +162,9 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
       }
     };
   }, [leiturasBrutas, filialAtiva, equipamentoFiltro, equipamentoSelecionado, equipamentosDaFilial]);
+
+  if (isLoading) return <Loader message="Carregando relatórios..." />;
+  if ((!leiturasBrutas || leiturasBrutas.length === 0) && !isLoading) return <EmptyState title="Sem dados" description="Nenhum registro de leituras disponível para o período selecionado." />;
 
   // ==========================================
   // SEGURANÇA E EXPORTAÇÃO

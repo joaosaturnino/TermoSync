@@ -9,6 +9,7 @@ import {
   Activity, ThermometerSnowflake, AlertOctagon, MessageSquare, Send, X, Clock, Radio, Zap, MonitorPlay, DownloadCloud
 } from 'lucide-react';
 import './Dashboard.css';
+import EmptyState from '../../components/EmptyState';
 
 export const getAlertConfig = (tipo_alerta) => {
   const configs = {
@@ -77,6 +78,14 @@ const CustomTooltip = ({ active, payload, isDarkMode }) => {
 
 const EmptyTooltip = () => (<div style={{ padding: '8px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>Aguardando telemetria...</div>);
 
+/**
+ * Componente Dashboard Operacional
+ *
+ * Responsabilidades:
+ * - Exibir resumo de status das máquinas e alertas
+ * - Fornecer ações rápidas (escalar para chat, gerar PDF)
+ * - Suportar modo Kiosk e integração com sockets para eventos ao vivo
+ */
 export default function Dashboard({ 
   qtdTotal, 
   qtdDegelo, 
@@ -228,6 +237,10 @@ export default function Dashboard({
   const DONUT_COLORS = { 'Ok': '#10b981', 'Degelo': '#38bdf8', 'Falha': '#ef4444' };
   const temDadosDonut = dadosDonutReativos && dadosDonutReativos.length > 0;
   const dadosPlaceholder = [{ name: 'Aguardando Dados', value: 1 }];
+
+  if (!temDadosDonut && (!localAlertas || localAlertas.length === 0) && (!qtdTotal || qtdTotal === 0)) {
+    return <EmptyState title="Sem telemetria" description="Nenhuma telemetria disponível no momento. Verifique a conexão com os gateways ou aguarde novos dados." />;
+  }
 
   // =====================================================================
   // KIOSK MODE RENDERING (PORTAL)

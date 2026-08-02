@@ -10,6 +10,14 @@ import { getApiUrl } from '../../config/api.js';
 
 import './Login.css';
 
+/**
+ * Tela de Login e recuperação de senha
+ *
+ * Responsabilidades:
+ * - Apresentar boot-screen inicial
+ * - Autenticar usuário via `fazerLogin`
+ * - Fornecer fluxo de recuperação de senha e mensagens de erro
+ */
 export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro }) {
   const [isBooting, setIsBooting] = useState(true);
   const [bootLogs, setBootLogs] = useState([]);

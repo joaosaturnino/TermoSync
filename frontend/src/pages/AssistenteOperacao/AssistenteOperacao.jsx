@@ -6,6 +6,16 @@ import {
 } from 'lucide-react';
 import './AssistenteOperacao.css';
 
+/**
+ * Assistente de Operação (Copiloto Tático)
+ *
+ * Responsabilidades:
+ * - Agregar sinais de telemetria, chamados e alertas para gerar recomendações
+ * - Expor ações rápidas e checklists orientados por I.A. para operadores
+ * - Respeitar RBAC ao habilitar navegações e comandos
+ *
+ * Props: `equipamentosDaFilial`, `notificacoesDaFilial`, `chamados`, `userRole`, `filialAtiva`, `onNavigate`, `showToast`
+ */
 export default function AssistenteOperacao({
   equipamentosDaFilial = [],
   notificacoesDaFilial = [],

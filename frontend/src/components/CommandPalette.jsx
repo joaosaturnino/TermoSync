@@ -1,6 +1,15 @@
 import React from 'react';
 import { Search, Keyboard } from 'lucide-react';
 
+/**
+ * CommandPalette (atalhos de teclado)
+ *
+ * Responsabilidades:
+ * - Fornecer UI de pesquisa rápida para navegar entre módulos
+ * - Fechar/abrir via ESC e propagar seleção para o App
+ *
+ * Props: estado de visibilidade, pesquisa e callbacks de navegação
+ */
 export default function CommandPalette({
   showCommandPalette,
   setShowCommandPalette,

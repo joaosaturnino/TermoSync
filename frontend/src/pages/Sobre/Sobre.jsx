@@ -8,6 +8,13 @@ import {
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Sobre.css';
 
+/**
+ * Página "Sobre" do ThermoSync
+ *
+ * Responsabilidades:
+ * - Documentar a arquitetura e apresentar informações institucionais
+ * - Fornecer um terminal mock para efeitos visuais e demonstrações
+ */
 export default function Sobre() {
   const [bootLines, setBootLines] = useState([]);
   const [showBio, setShowBio] = useState(false);

@@ -5,6 +5,20 @@ import {
 } from 'lucide-react';
 import './Metrologia.css';
 
+/**
+ * Gestão Metrológica
+ *
+ * Responsabilidades:
+ * - Controlar e auditar certificados de calibração dos sensores
+ * - Fornecer mecanismos de pesquisa, filtros e ações de registro de aferição
+ * - Isolar dados por filial e aplicar permissões de edição baseadas em roles
+ *
+ * Props:
+ * - `equipamentosDaFilial`: lista de equipamentos visíveis
+ * - `editarEquipamento`: callback para abrir o editor de aferição
+ * - `userRole`: papel do usuário atual (para controle de permissões)
+ * - `filialAtiva`: filial atualmente selecionada
+ */
 export default function Metrologia({ equipamentosDaFilial, editarEquipamento, userRole, filialAtiva }) {
   
   const [busca, setBusca] = useState('');

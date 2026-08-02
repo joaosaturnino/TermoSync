@@ -3,6 +3,13 @@ import { ShieldCheck, Activity, Server, LogIn, UserPlus, ArrowRight } from 'luci
 import TermoSyncLogo from '../../components/TermoSyncLogo'; // Ajuste o caminho se necessário
 import './LandingPage.css';
 
+/**
+ * Página de Entrada (Landing)
+ *
+ * Responsabilidades:
+ * - Apresentar visão resumida da plataforma e chamar telas públicas (login / registro)
+ * - Exibir value propositions e links de navegação
+ */
 export default function LandingPage({ onNavigate }) {
   return (
     <div className="landing-viewport">
@@ -43,7 +50,7 @@ export default function LandingPage({ onNavigate }) {
             <LogIn size={20} /> Acessar Sistema
           </button>
           
-          {/* Chama a tela de Registo */}
+          {/* Chama a tela de Registro */}
           <button className="btn-landing-secondary" onClick={() => onNavigate('register')}>
             <UserPlus size={20} /> Criar Conta <ArrowRight size={16} />
           </button>

@@ -2,6 +2,19 @@ import React, { useState, useMemo } from 'react';
 import { Thermometer, Droplets, Power, Snowflake, AlertOctagon, MapPin, Gauge, ShieldAlert, CheckCircle2, WifiOff, Search, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import './Monitoramento.css';
 
+/**
+ * Tela de Monitoramento
+ *
+ * Responsabilidades:
+ * - Mostrar mapa de calor e lista de equipamentos com telemetria em tempo real
+ * - Fornecer filtros por filial, grupos e tipos de sensores
+ * - Modo Foco para destacar apenas ocorrências relevantes
+ *
+ * Props:
+ * - `isTemp`: booleano que indica se a visão é térmica (true) ou higrométrica (false)
+ * - `listaSetores`: lista de setores disponíveis para filtro
+ * - `equipamentosDaFilial`: lista de equipamentos pertencentes à filial selecionada
+ */
 export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFilial }) {
   const [setorFiltro, setSetorFiltro] = useState('');
   const [buscaNome, setBuscaNome] = useState('');

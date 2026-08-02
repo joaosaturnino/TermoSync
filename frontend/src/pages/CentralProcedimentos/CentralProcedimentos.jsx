@@ -13,6 +13,13 @@ import {
 } from 'lucide-react';
 import './CentralProcedimentos.css';
 
+/**
+ * Central de Procedimentos - cartões com passos operacionais
+ *
+ * Responsabilidades:
+ * - Exibir procedimentos padrão para eventos operacionais comuns (porta, degelo, comunicacao)
+ * - Servir como referência rápida para operadores e manutenção
+ */
 const procedimentos = [
   {
     id: 'refrigeracao',
@@ -81,6 +88,11 @@ const procedimentos = [
   }
 ];
 
+/**
+ * Página Central de Procedimentos
+ *
+ * Nota: componente estático (conteúdo em memória). Incluir aqui instruções claras torna a tela auditável.
+ */
 export default function CentralProcedimentos() {
   return (
     <div className="central-procedimentos anim-fade-in">

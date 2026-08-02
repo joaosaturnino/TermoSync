@@ -61,6 +61,14 @@ const HistoricoCard = memo(({ c }) => {
 // ============================================================================
 // COMPONENTE PRINCIPAL (COM SEGURANÇA E ISOLAMENTO DE DADOS)
 // ============================================================================
+/**
+ * Histórico de Chamados (Laudos)
+ *
+ * Responsabilidades:
+ * - Exibir ordens de serviço já concluídas e seus laudos técnicos
+ * - Fornecer filtros por técnico, filial e termos de busca
+ * - Permitir exportação/impresão e auditoria do histórico
+ */
 export default function HistoricoChamados({
   userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb = [], gerarLoteOS, 
   api, carregarChamados, showToast

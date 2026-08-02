@@ -6,7 +6,23 @@ import {
   Video, Camera, FileText, PhoneCall, PhoneOff, BrainCircuit, Pin, Lock
 } from 'lucide-react';
 import './Chat.css';
+import Loader from '../../components/Loader';
+import EmptyState from '../../components/EmptyState';
 
+/**
+ * Componente de Chat interno
+ *
+ * Responsabilidades:
+ * - Exibir contatos e histórico de mensagens
+ * - Enviar/receber mensagens via `socket`
+ * - Recursos: anexos, gravação de áudio, comandos rápidos e pin
+ *
+ * Props principais:
+ * - `contatosDb`: lista de contatos
+ * - `nomeLogado`, `userId`: identidade do usuário atual
+ * - `socket`: instância socket.io para comunicação em tempo real
+ * - `historicoChat`, `setHistoricoChat`: estado compartilhado do histórico
+ */
 export default function Chat({ 
   contatosDb, nomeLogado, socket, userId, historicoChat, setHistoricoChat,
   contatoAtivo, setContatoAtivo, naoLidasPorContato, setNaoLidasPorContato
@@ -71,6 +87,7 @@ export default function Chat({
   const audioChunksRef = useRef([]);
 
   const handleInputChange = (e) => { const val = e.target.value; setMensagem(val); if (val === '/') setShowCommands(true); else setShowCommands(false); };
+  // Executa um comando rápido (slash command) e envia a mensagem gerada
   const executarComando = (cmdObj) => { dispararMensagem(cmdObj.output); setMensagem(''); setShowCommands(false); };
 
   // Filtra e organiza os contatos por hierarquia de permissão
@@ -122,6 +139,7 @@ export default function Chat({
   const handleScroll = (e) => { const { scrollTop, scrollHeight, clientHeight } = e.target; setShowScrollBottom((scrollHeight - scrollTop - clientHeight) > 150); };
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
+  // Troca o canal/contato ativo no painel de chat
   const handleSelecionarContato = (contato) => {
     if (contatoAtivo?.id === contato.id) return;
     setIsHandshaking(true); setContatoAtivo(contato); setResponderA(null); setShowCommands(false); setShowAttachMenu(false); setShowSearchChat(false); setSearchChat(''); setShowAgentModal(false); setPinnedMessage(null); setIsConfidential(false);
@@ -129,6 +147,7 @@ export default function Chat({
     if (naoLidasPorContato[contato.id]) { setNaoLidasPorContato(prev => { const next = { ...prev }; delete next[contato.id]; return next; }); }
   };
 
+  // Envoca o fluxo de envio de mensagem: valida, empacota e envia via socket
   const dispararMensagem = (textoFinal) => {
     if (!textoFinal.trim() || !contatoAtivo || !socket) return;
     
@@ -290,11 +309,7 @@ export default function Chat({
           <div className="contacts-divider">Rede de Operadores {isDev && <span style={{marginLeft: 'auto', color: 'var(--chat-danger)', fontSize: '0.6rem'}}>*GOD MODE*</span>}</div>
           
           {contatosFiltrados.length === 0 ? (
-            <div className="chat-empty-contacts">
-              <User size={32} />
-              <p style={{fontSize: '0.8rem', marginTop: '10px'}}>Nenhum agente localizado.</p>
-              {!isDev && <p style={{fontSize: '0.7rem', opacity: 0.6}}>O seu acesso está restrito à rede da sua empresa.</p>}
-            </div>
+            <EmptyState title="Nenhum agente localizado" description={!isDev ? 'O seu acesso está restrito à rede da sua empresa.' : 'Nenhum agente corresponde à pesquisa.'} icon={User} />
           ) : (
             contatosFiltrados.map(contato => { 
               const qtdNaoLidas = naoLidasPorContato[contato.id] || 0; 
@@ -444,7 +459,7 @@ export default function Chat({
             </div>
           </>
         ) : (
-          <div className="chat-secure-empty-state" style={{border: 'none', background: 'transparent', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}><div style={{margin: 'auto', textAlign: 'center'}}><Shield size={64} color="var(--chat-primary)" style={{opacity: 0.8, marginBottom: '20px', filter: 'drop-shadow(0 0 15px rgba(16,185,129,0.4))'}} /><h3 style={{color: 'white', fontFamily: 'Montserrat', letterSpacing: '1px'}}>TermoSync Uplink Node</h3><p style={{fontSize: '0.85rem'}}>Aguardando seleção de um colaborador ao lado para<br/>estabelecer túnel de comunicação seguro.</p></div></div>
+          <EmptyState title="TermoSync Uplink Node" description="Aguardando seleção de um colaborador ao lado para estabelecer túnel de comunicação seguro." icon={Shield} />
         )}
       </div>
 

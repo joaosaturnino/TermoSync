@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import logger from '../utils/logger';
 
 const DEFAULT_FEATURES = { 
   allowExports: true, 
@@ -18,7 +19,7 @@ export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAba
   const [sysConfig, setSysConfig] = useState(() => {
     const saved = localStorage.getItem('termosync_sysconfig_saas');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try { return JSON.parse(saved); } catch (e) { logger.error(e); }
     }
     return {
       maintenanceMode: false,
@@ -77,7 +78,7 @@ export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAba
       return true; // TODAS as outras features (exports, som, chat) estão sempre ON para o DEV
     } 
     
-    // Regras normais para o resto dos utilizadores
+    // Regras normais para o resto dos usuários
     try {
       const globalFlag = sysConfig?.regras?.['GLOBAL']?.features?.[featureKey] ?? true;
       const roleFlag = sysConfig?.regras?.[userRole]?.features?.[featureKey] ?? true;

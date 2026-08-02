@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
+import logger from './utils/logger';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import jsPDF from 'jspdf';
@@ -82,7 +83,7 @@ export const getAlertConfig = (tipo_alerta) => {
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
   static getDerivedStateFromError(error) { return { hasError: true }; }
-  componentDidCatch(error, errorInfo) { console.error("Crash interceptado:", error); this.setState({ errorInfo }); }
+  componentDidCatch(error, errorInfo) { logger.error("Crash interceptado:", error); this.setState({ errorInfo }); }
   render() {
     if (this.state.hasError) {
       return (
@@ -101,6 +102,17 @@ class ErrorBoundary extends Component {
   }
 }
 
+/**
+ * Componente Root da aplicação
+ *
+ * Responsabilidades principais:
+ * - Gerenciar estado de autenticação, sessão e roteamento interno (abas)
+ * - Inicializar integrações (API axios, Socket.IO) e prover contexto de sistema
+ * - Orquestrar carregamento de módulos/páginas e fornecer modal/notifications
+ *
+ * Observações:
+ * - Não altera lógica; apenas documentação para facilitar manutenção.
+ */
 export default function App() {
   const [authScreen, setAuthScreen] = useState('landing'); 
 
@@ -138,7 +150,7 @@ export default function App() {
 
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(() => sessionStorage.getItem('terminalLocked') === 'true');
   const [lockPassword, setLockPassword] = useState('');
   const [lockError, setLockError] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -198,7 +210,7 @@ export default function App() {
 
   const fazerLogout = useCallback(() => { 
     setToken(''); setUserId(''); 
-    const chavesAuth = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva'];
+    const chavesAuth = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva', 'terminalLocked'];
     chavesAuth.forEach(k => sessionStorage.removeItem(k));
     sessionStorage.clear();
     
@@ -227,6 +239,10 @@ export default function App() {
   };
 
   useEffect(() => { if (token) sessionStorage.setItem('abaAtiva', abaAtiva); }, [abaAtiva, token]);
+  useEffect(() => {
+    if (isLocked) sessionStorage.setItem('terminalLocked', 'true');
+    else sessionStorage.removeItem('terminalLocked');
+  }, [isLocked]);
 
   useEffect(() => {
     if (!token || isLocked) return;
@@ -409,6 +425,7 @@ export default function App() {
     try {
       await axios.post(`${getApiUrl()}/login`, { usuario: loginAtivo, senha: lockPassword });
       setIsLocked(false); setLockPassword('');
+      sessionStorage.removeItem('terminalLocked');
     } catch (error) { setLockError('Acesso Negado. Credencial inválida.'); } 
     finally { setIsUnlocking(false); }
   };
@@ -509,15 +526,20 @@ export default function App() {
       const lista = Array.isArray(res.data) ? res.data : [];
       setChamados(lista);
       
-      // Deteta novo Chamado Aberto/Atualizado (Dispara Alarme + Pop-up para Admin / Lojas, exceto DEV)
-      const countChamados = lista.filter(c => c.status !== 'Concluído' && c.status !== 'Fechado' && c.status !== 'Cancelado').length;
+      const countChamados = lista.filter(c => {
+        const s = String(c.status || '').trim().toLowerCase();
+        return !['concluído', 'fechado', 'cancelado', 'resolvido'].includes(s) && s !== '';
+      }).length;
+
       if (!isInitialLoadRef.current && userRole !== 'DEV' && countChamados > prevBadgesRef.current.chamados) {
         tocarSomNotificacaoRef.current();
-        setPopupAlerta({
-          titulo: '🔧 Novo Chamado Técnico',
-          mensagem: 'Uma nova Ordem de Serviço (OS) requer atenção ou intervenção técnica.',
-          abaDestino: 'chamados'
-        });
+        if (abaAtivaRef.current !== 'chamados') {
+          setPopupAlerta({
+            titulo: '🔧 Novo Chamado Técnico',
+            mensagem: 'Uma nova Ordem de Serviço (OS) requer atenção ou intervenção técnica.',
+            abaDestino: 'chamados'
+          });
+        }
       }
       prevBadgesRef.current.chamados = countChamados;
     } catch (e) { } 
@@ -535,22 +557,26 @@ export default function App() {
   }, [api, token, isOffline]);
 
   // ============================================================================
-  // CARREGAMENTO DE BADGES EXTRAS & DISPARO DE ALARMES SONOROS + POP-UPS
+  // CARREGAMENTO DE BADGES EXTRAS & ALARMES SONOROS (FILTRO RIGOROSO POR PERFIL)
   // ============================================================================
   const carregarBadgesSecundarios = useCallback(async () => {
     if (!token || isOffline) return;
     try {
-      if (userRole === 'DEV') {
+      const roleAtual = userRoleRef.current || userRole;
+
+      if (roleAtual === 'DEV') {
         const resSaaS = await api.get('/pre-cadastros').catch(() => ({ data: [] }));
         const countSaaS = Array.isArray(resSaaS.data) ? resSaaS.data.length : 0;
         
         if (!isInitialLoadRef.current && countSaaS > prevBadgesRef.current.saas) {
           tocarSomNotificacaoRef.current();
-          setPopupAlerta({
-            titulo: '🚀 Novo Onboarding SaaS',
-            mensagem: 'Uma nova empresa submeteu pedido de pré-cadastro e aguarda aprovação Root.',
-            abaDestino: 'aprovacoes'
-          });
+          if (abaAtivaRef.current !== 'aprovacoes') {
+            setPopupAlerta({
+              titulo: '🚀 Novo Onboarding SaaS',
+              mensagem: 'Uma nova empresa submeteu pedido de pré-cadastro e aguarda aprovação Root.',
+              abaDestino: 'aprovacoes'
+            });
+          }
         }
         prevBadgesRef.current.saas = countSaaS;
         setBadgeSaaS(countSaaS);
@@ -558,15 +584,36 @@ export default function App() {
 
       const resSuporte = await api.get('/suporte/chamados').catch(() => ({ data: [] }));
       if (Array.isArray(resSuporte.data)) {
-        const countSup = resSuporte.data.filter(c => c.status !== 'Concluído' && c.status !== 'Fechado' && c.status !== 'Resolvido').length;
+        let countSup = 0;
+
+        if (roleAtual === 'DEV') {
+          // Para DEV: conta chamados ABERTOS ou EM ANÁLISE que AINDA NÃO têm resposta da engenharia
+          countSup = resSuporte.data.filter(c => {
+            const s = String(c.status || '').trim().toLowerCase();
+            const concluidos = ['concluído', 'resolvido', 'fechado', 'respondido'];
+            if (concluidos.includes(s) || !s) return false;
+            if (c.resposta && String(c.resposta).trim() !== '') return false;
+            return ['aberto', 'em análise', 'em atendimento', 'pendente'].includes(s);
+          }).length;
+        } else {
+          // Para USUÁRIO COMUM: O badge SÓ APARECE se houver resposta do desenvolvedor (status 'Respondido')
+          countSup = resSuporte.data.filter(c => {
+            const s = String(c.status || '').trim().toLowerCase();
+            const temRespostaDev = Boolean(c.resposta && String(c.resposta).trim() !== '');
+            const naoEncerrado = !['concluído', 'fechado', 'resolvido'].includes(s);
+            return temRespostaDev && naoEncerrado && s === 'respondido';
+          }).length;
+        }
         
         if (!isInitialLoadRef.current && countSup > prevBadgesRef.current.suporte) {
           tocarSomNotificacaoRef.current();
-          setPopupAlerta({
-            titulo: '🎧 Novo Chamado de Suporte',
-            mensagem: 'Um ticket de suporte corporativo requer atendimento na plataforma.',
-            abaDestino: 'suporte'
-          });
+          if (abaAtivaRef.current !== 'suporte') {
+            setPopupAlerta({
+              titulo: '🎧 Novo Retorno de Suporte',
+              mensagem: 'A Engenharia ThermoSync respondeu ao seu chamado de suporte.',
+              abaDestino: 'suporte'
+            });
+          }
         }
         prevBadgesRef.current.suporte = countSup;
         setBadgeSuporte(countSup);
@@ -631,18 +678,18 @@ export default function App() {
       carregarBadgesSecundariosRef.current(); 
     });
 
-    // ESCUTA DE RESPOSTAS DO SUPORTE EM TEMPO REAL
     socket.on('resposta_suporte', (data) => {
-      // Se não somos o DEV (somos loja/admin), avisamos sobre a resposta do suporte Root
       if (userRoleRef.current !== 'DEV') {
         if (data.empresa && data.empresa !== userEmpresaRef.current) return;
         
         tocarSomNotificacaoRef.current();
-        setPopupAlerta({
-          titulo: '🎧 Resposta do Suporte (NOC)',
-          mensagem: `Chamado "${data.titulo || '#' + data.id}" atualizado: "${data.resposta || 'Verifique o status de atendimento.'}"`,
-          abaDestino: 'suporte'
-        });
+        if (abaAtivaRef.current !== 'suporte') {
+          setPopupAlerta({
+            titulo: '🎧 Resposta do Suporte (NOC)',
+            mensagem: `Chamado "${data.titulo || '#' + data.id}" atualizado: "${data.resposta || 'Verifique o status de atendimento.'}"`,
+            abaDestino: 'suporte'
+          });
+        }
         showToastRef.current(`Suporte NOC respondeu ao chamado #${data.id}`, 'info');
       }
       carregarBadgesSecundariosRef.current();
@@ -683,11 +730,13 @@ export default function App() {
       
       if (String(msg.remetenteId) !== String(userId)) {
         tocarSomNotificacaoRef.current();
-        setPopupAlerta({
-          titulo: `💬 Chat: ${msg.remetenteNome}`,
-          mensagem: msg.texto,
-          abaDestino: 'chat'
-        });
+        if (abaAtivaRef.current !== 'chat') {
+          setPopupAlerta({
+            titulo: `💬 Chat: ${msg.remetenteNome}`,
+            mensagem: msg.texto,
+            abaDestino: 'chat'
+          });
+        }
         if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) { 
           showToastRef.current(`${msg.remetenteNome}: ${msg.texto}`, 'info'); 
         }
@@ -807,11 +856,14 @@ export default function App() {
     { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     
-    // BADGE OCULTA NO DESENVOLVEDOR (DEV)
-    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: userRole === 'DEV' ? 0 : (chamados?.filter(c => c.status !== 'Concluído' && c.status !== 'Fechado' && c.status !== 'Cancelado').length || 0), type: 'Serviços', priority: 1 },
+    // BADGE OCULTA NO DESENVOLVEDOR (DEV) E COM FILTRAGEM ESTREITA
+    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: userRole === 'DEV' ? 0 : (chamados?.filter(c => {
+      const s = String(c.status || '').trim().toLowerCase();
+      return !['concluído', 'fechado', 'cancelado', 'resolvido'].includes(s) && s !== '';
+    }).length || 0), type: 'Serviços', priority: 1 },
     { id: 'kanban', label: 'Gestão Ágil (Kanban)', icon: Columns, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços', priority: 2 },
     { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas || 0, type: 'Serviços', priority: 3 },
-    { id: 'metrologia', label: 'Controlo Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
+    { id: 'metrologia', label: 'Controle Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'equipamentos', label: 'Equipamentos', icon: Server, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
     { id: 'parametros', label: 'Parâmetros Globais', icon: Sliders, roles: ['ADMIN', 'DEV'], type: 'Serviços' },
     { id: 'historico_chamados', label: 'Histórico de Chamados', icon: Archive, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
@@ -1002,7 +1054,7 @@ export default function App() {
             {!isModuloOculto('usuarios') && abaAtiva === 'usuarios' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
 
-            {abaAtiva === 'bi' && <CentroInteligenciaBI isDarkMode={isDarkMode} equipamentosDaFilial={equipamentosDaFilial} />}
+            {abaAtiva === 'bi' && <CentroInteligenciaBI api={api} isDarkMode={isDarkMode} sysConfig={sysConfig} filiaisDb={filiaisDb} equipamentosDaFilial={equipamentosDaFilial} />}
             {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream'].includes(abaAtiva) && userRole === 'DEV' && (
                <PainelDesenvolvedor
                  api={api} socket={socketInstance} abaAtiva={abaAtiva} isDevAuthenticated={isDevAuthenticated}

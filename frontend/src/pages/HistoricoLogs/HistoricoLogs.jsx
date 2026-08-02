@@ -6,6 +6,13 @@ import {
 } from 'lucide-react';
 import './HistoricoLogs.css';
 
+/**
+ * Visualizador de Logs de Auditoria (SOC Ledger)
+ *
+ * Responsabilidades:
+ * - Classificar e filtrar logs por tipo (thermal, power, network, security)
+ * - Fornecer ferramentas de exportação (PDF/CSV) e contagem de KPIs
+ */
 export default function HistoricoLogs({ historicoFiltradoLista = [], gerarExportacao }) {
   
   const [buscaLog, setBuscaLog] = useState('');

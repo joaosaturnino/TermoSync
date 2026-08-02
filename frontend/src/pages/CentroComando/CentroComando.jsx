@@ -58,6 +58,14 @@ const quickActions = [
   }
 ];
 
+/**
+ * Centro de Comando Operacional
+ *
+ * Responsabilidades:
+ * - Painel tático para acesso rápido aos módulos (dashboard, chamados, chat, inventário)
+ * - Agregar indicadores resumidos e recomendações baseadas no estado da filial
+ * - Respeitar permissões por `userRole` ao habilitar ações
+ */
 export default function CentroComando({
   onNavigate,
   qtdTotal = 0,

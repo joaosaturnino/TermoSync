@@ -7,7 +7,17 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import './Equipamentos.css';
+import Loader from '../../components/Loader';
+import EmptyState from '../../components/EmptyState';
 
+/**
+ * Inventário de Equipamentos e Metrologia
+ *
+ * Responsabilidades:
+ * - Gerenciar ativos IoT (criar, editar, excluir)
+ * - Aplicar padrões de calibração (ex.: ANVISA) por tipo
+ * - Gerar etiquetas QR e relatórios de manutenção
+ */
 export default function Equipamentos({ 
   api, showToast, isOffline, userRole, userFilial, filiaisDb, listaSetores, listaTipos, 
   carregarDadosBase, equipamentosFiltradosLista, editarEquipamento, pedirExclusao 
@@ -131,6 +141,8 @@ export default function Equipamentos({
       (eq.tipo || '').toLowerCase().includes(termo)
     );
   }, [equipamentosFiltradosLista, buscaAtivo]);
+
+  if (!equipamentosFiltradosLista) return <Loader message="Carregando inventário de equipamentos..." />;
 
   const kpis = useMemo(() => {
     if (!ativosExibidos) return { total: 0, riscoCalib: 0, offlines: 0, degelo: 0 };
@@ -276,11 +288,7 @@ export default function Equipamentos({
       
       <div className="card table-responsive stagger-3">
         {(!ativosExibidos || ativosExibidos.length === 0) ? (
-          <div className="empty-state dashboard-empty">
-             <PackageSearch size={56} style={{ opacity: 0.3, marginBottom: '1rem', color: 'var(--text-main)' }} />
-             <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Nenhum ativo localizado.</h3>
-             <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto' }}>A pesquisa não retornou resultados ou esta filial ainda não tem sensores integrados.</p>
-          </div>
+          <EmptyState title="Nenhum ativo localizado" description="A pesquisa não retornou resultados ou esta filial ainda não tem sensores integrados." icon={PackageSearch} />
         ) : (
           <table className="table iot-table">
             <thead>

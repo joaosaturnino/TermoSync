@@ -5,7 +5,27 @@ import {
   Briefcase, ToggleLeft, ToggleRight, Building2, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import './GestaoLojas.css';
+import logger from '../../utils/logger';
+import Loader from '../../components/Loader';
+import EmptyState from '../../components/EmptyState';
 
+/**
+ * Página de Gestão de Lojas
+ *
+ * Responsabilidades:
+ * - Listar unidades (filiais) do sistema
+ * - Permitir criar/editar/excluir uma loja
+ * - Alterar status (Ativa / Suspensa) — ação restringida ao perfil DEV
+ * - Mostrar KPIs rápidos (ativas, suspensas, sem gestor)
+ *
+ * Props:
+ * - `api` (axios-like): instância para chamadas à API backend
+ * - `showToast(message, type)`: função para exibir mensagens ao usuário
+ * - `setModalConfig(config)`: função para exibir modais de confirmação
+ * - `carregarDadosBase()`: callback para recarregar dados globais após alterações
+ *
+ * Observações: comentários e strings foram padronizados para PT-BR.
+ */
 export default function GestaoLojas({ api, showToast, setModalConfig, carregarDadosBase }) {
   
   // PROTEÇÃO: Só o DEV tem permissão para ver Tenants Multi-Empresa e Alterar Status do Sistema
@@ -14,31 +34,38 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
   const [lojasLocais, setLojasLocais] = useState([]);
   const [empresasDb, setEmpresasDb] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [buscaLoja, setBuscaLoja] = useState('');
   
   const formInicialLoja = { id: '', nome: '', endereco_loja: '', telefone_loja: '', empresa: '', status: 'Ativa' };
   const [formLoja, setFormLoja] = useState({ ...formInicialLoja });
   const [modalLoja, setModalLoja] = useState(false);
 
-  // Busca a Tabela de Lojas do Servidor
+  // Busca a lista de lojas/filiiais no backend e atualiza o estado local
+  // - Mantém `isLoading` enquanto a chamada estiver em progresso
   const buscarLojasServidor = useCallback(async () => {
+    if (!api) return;
+    setIsLoading(true);
     try {
       const res = await api.get('/lojas');
       setLojasLocais(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error("Erro ao buscar lojas:", error);
+      logger.error("Erro ao buscar lojas:", error);
       showToast('Aviso: Falha ao carregar a lista de filiais.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   }, [api, showToast]);
 
-  // Se o usuário for DEV, busca a Tabela de Empresas
+  // Se o perfil for `DEV`, carrega a lista de empresas/tenants
+  // (usada para vincular uma loja a um cliente no formulário)
   const buscarEmpresas = useCallback(async () => {
     if (role !== 'DEV') return;
     try {
       const res = await api.get('/empresas');
       setEmpresasDb(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error("Erro ao buscar clientes/empresas", error);
+      logger.error("Erro ao buscar clientes/empresas", error);
     }
   }, [api, role]);
 
@@ -47,6 +74,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     buscarEmpresas();
   }, [buscarLojasServidor, buscarEmpresas]);
 
+  // Atualiza localmente a lista de lojas e, se aplicável, empresas
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await buscarLojasServidor();
@@ -78,6 +106,9 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     return { total: lojasLocais.length, ativas, suspensas, risco };
   }, [lojasLocais]);
 
+  // Salva formulário da loja: cria novo registro ou atualiza existente
+  // - Valida nome
+  // - Chama API POST (novo) ou PUT (editar)
   const salvarLoja = async (e) => {
     e.preventDefault();
     try {
@@ -107,6 +138,8 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     }
   };
 
+  // Alterna o status operacional da loja entre 'Ativa' e 'Suspensa'
+  // (função sensível — exige autorização nível DEV na UI)
   const alternarStatusLoja = async (loja) => {
     try {
       const novoStatus = loja.status === 'Ativa' || !loja.status ? 'Suspensa' : 'Ativa';
@@ -125,6 +158,8 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     }
   };
 
+  // Dispara modal de confirmação e, se confirmado, exclui a loja
+  // - Remove configurações vinculadas e atualiza a listagem
   const pedirExclusaoLoja = (id, nome) => {
     setModalConfig({
       isOpen: true,
@@ -198,12 +233,10 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
 
       {/* TABELA DE LOJAS */}
       <div className="table-card stagger-3">
-        {lojasFiltradas.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#94a3b8' }}>
-            <Store size={56} style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
-            <h3 style={{ color: 'white', margin: '0 0 0.5rem 0', fontSize: '1.4rem' }}>Nenhuma Loja Cadastrada</h3>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>O sistema não possui filiais registradas. Clique em "Cadastrar Nova Loja".</p>
-          </div>
+        {isLoading ? (
+          <Loader message="Carregando lojas..." />
+        ) : lojasFiltradas.length === 0 ? (
+          <EmptyState title="Nenhuma Loja Cadastrada" description="O sistema não possui filiais registradas. Clique em Cadastrar Nova Loja." icon={Store} />
         ) : (
           <div className="table-wrapper">
             <table className="table">

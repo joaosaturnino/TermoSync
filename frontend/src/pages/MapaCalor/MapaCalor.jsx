@@ -2,6 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { Map, AlertTriangle, Snowflake, Activity, Search, ThermometerSnowflake, Droplets, Target, Wind } from 'lucide-react';
 import './MapaCalor.css'; 
 
+/**
+ * Gêmeo Digital / Heatmap (Mapa de Calor)
+ *
+ * Responsabilidades:
+ * - Renderizar uma visão espacial dos equipamentos e seus estados térmicos
+ * - Indicar focos críticos, ciclos de degelo e equipamentos inativos
+ * - Fornecer busca e KPIs resumidos para navegação rápida
+ *
+ * Props: `equipamentosDaFilial`, `notificacoesDaFilial`
+ */
 export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }) {
   
   const [busca, setBusca] = useState('');

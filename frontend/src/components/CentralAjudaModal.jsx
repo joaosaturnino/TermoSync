@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Sparkles, X, Search, ChevronRight, CheckCircle2, ShieldAlert } from 'lucide-react';
 
+/**
+ * Modal de Ajuda / Central de Conhecimento
+ *
+ * Responsabilidades:
+ * - Buscar e exibir artigos operacionais e changelog do sistema
+ * - Permitir pesquisa e navegação entre abas de artigo/changelog
+ *
+ * Props: `isOpen`, `onClose`, `api`, `isDarkMode`
+ */
 export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode }) {
   const [aba, setAba] = useState('artigos'); // 'artigos' ou 'changelog'
   const [artigos, setArtigos] = useState([]);

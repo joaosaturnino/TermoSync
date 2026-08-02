@@ -23,6 +23,19 @@ import TermoSyncLogo from '../../components/TermoSyncLogo.jsx';
 // ============================================================================
 // COMPONENTE PRINCIPAL (CONTAINER OS)
 // ============================================================================
+/**
+ * Painel do Desenvolvedor / NOC
+ *
+ * Responsabilidades:
+ * - Fornecer um container para ferramentas de operação (NOC, Billing, SaaS, Terminal SQL)
+ * - Exibir logs do terminal, métricas sintéticas e permitir ações de emergência
+ * - Integrar com `GestaoEmpresas` e diversas ferramentas internas usadas por engenharia
+ *
+ * Props principais:
+ * - `api`, `socket`: integrações com backend/socket
+ * - `sysConfig`, `updateSysConfig`: configuração global do sistema
+ * - `isDevAuthenticated`: controle de acesso ao painel
+ */
 export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthenticated, onAuthenticate, showToast, sysConfig, updateSysConfig, tocarAlarme, usuariosLista, filiaisDb, setModalConfig }) {
   const [terminalLogs, setTerminalLogs] = useState([]);
   const [isOverclocked, setIsOverclocked] = useState(false); 
@@ -100,6 +113,17 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
   );
 }
 
+/**
+ * Tela NOC (Network Operations Center)
+ *
+ * Responsabilidades:
+ * - Apresentar métricas em tempo real (CPU, RAM, tráfego, QPS)
+ * - Exibir logs de tráfego, WAF e incidentes
+ * - Permitir ações de observabilidade e trocas de escopo
+ *
+ * Props:
+ * - `api`, `showToast`, `sysConfig`, `updateSysConfig`, `usuariosLista`, `addLog`
+ */
 const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, addLog, isOverclocked, setIsOverclocked }) => {
   const [scopeType, setScopeType] = useState('ROLE');
   const [activeScope, setActiveScope] = useState('GLOBAL');
@@ -232,7 +256,7 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
     { id: 'chat', nome: 'Chat' },
     { id: 'checklist_turno', nome: 'Checklist de Turno' },
     { id: 'sql_terminal', nome: 'Console SQL' },
-    { id: 'metrologia', nome: 'Controlo Metrológico' },
+    { id: 'metrologia', nome: 'Controle Metrológico' },
     { id: 'billing', nome: 'Core Financeiro' },
     { id: 'dashboard', nome: 'Dashboard Operacional' },
     { id: 'equipamentos', nome: 'Equipamentos' },
@@ -385,7 +409,7 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
       <div className="switchboard-grid anim-stagger-3">
         <div className="switch-panel">
           <div className="switch-panel-title"><ShieldCheck size={14}/> GESTÃO DE IDENTIDADE (IAM)</div>
-          <div className="scope-types"><button className={scopeType === 'ROLE' ? 'active' : ''} onClick={() => setScopeType('ROLE')}>POR CARGO</button><button className={scopeType === 'USER' ? 'active' : ''} onClick={() => setScopeType('USER')}>POR UTILIZADOR</button></div>
+          <div className="scope-types"><button className={scopeType === 'ROLE' ? 'active' : ''} onClick={() => setScopeType('ROLE')}>POR CARGO</button><button className={scopeType === 'USER' ? 'active' : ''} onClick={() => setScopeType('USER')}>POR USUÁRIO</button></div>
           <div className="scope-targets" style={{marginTop: 'auto'}}>
             {scopeType === 'ROLE' && <div className="scope-tabs"><button className={activeScope === 'GLOBAL' ? 'active' : ''} onClick={() => setActiveScope('GLOBAL')}>Global</button><button className={activeScope === 'ADMIN' ? 'active' : ''} onClick={() => setActiveScope('ADMIN')}>Admins</button><button className={activeScope === 'LOJA' ? 'active' : ''} onClick={() => setActiveScope('LOJA')}>Lojistas</button></div>}
             {scopeType === 'USER' && <select value={activeScope} onChange={e => setActiveScope(e.target.value)} className="dev-select-input">{usuariosLista?.map((u, i) => <option key={i} value={u.usuario}>{u.nome_tecnico || u.nome_gerente || u.usuario} ({u.role})</option>)}</select>}
@@ -413,8 +437,17 @@ const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, ad
 };
 
 // ============================================================================
-// TELA DE CONTROLO DO SISTEMA (CONFIGURAÇÕES GLOBAIS)
+// TELA DE CONTROLE DO SISTEMA (CONFIGURAÇÕES GLOBAIS)
 // ============================================================================
+/**
+ * Tela de Operações do Sistema
+ *
+ * Responsabilidades:
+ * - Controle de manutenção (lockdown), purge de dados e extrações (dumps)
+ * - Emissão de banners globais e execução de operações críticas
+ *
+ * Props: `api`, `showToast`, `addLog`, `sysConfig`, `updateSysConfig`, `setModalConfig`
+ */
 const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setModalConfig }) => {
   const [globalBanner, setGlobalBanner] = useState(sysConfig?.regras?.GLOBAL?.features?.globalBanner || '');
   const [isExporting, setIsExporting] = useState(null);
@@ -437,12 +470,12 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
   const handlePurge = () => {
     setModalConfig({
       isOpen: true, title: 'Limpeza de Dados (Purge)',
-      message: 'Tem a certeza de que deseja apagar permanentemente todos os registos de telemetria com mais de 90 dias da base de dados MySQL? Esta ação não pode ser desfeita.',
+      message: 'Tem a certeza de que deseja apagar permanentemente todos os registros de telemetria com mais de 90 dias da base de dados MySQL? Esta ação não pode ser desfeita.',
       onConfirm: async () => {
         setIsPurging(true);
         try {
           const res = await api.post('/system/purge', { dias: 90 });
-          showToast(`Registos antigos apagados com sucesso.`, 'success'); addLog(`[DB] Exclusão executada: ${res.data?.deleted || 0} linhas removidas.`, 'warning'); setStorageUsed(12);
+          showToast(`Registros antigos apagados com sucesso.`, 'success'); addLog(`[DB] Exclusão executada: ${res.data?.deleted || 0} linhas removidas.`, 'warning'); setStorageUsed(12);
         } catch (e) { showToast('Falha na exclusão.', 'error'); }
         setIsPurging(false);
       }
@@ -460,7 +493,7 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
       const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Dump_${nomeTabela}_${Date.now()}.csv`;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       showToast(`Download de ${nomeTabela} concluído!`, 'success'); addLog(`[DB] Dump CSV extraído.`, 'success');
-    } catch (erro) { showToast('Falha ao aceder à BD.', 'error'); addLog(`[DB ERR] Ligação recusada.`, 'error'); } finally { setIsExporting(null); }
+    } catch (erro) { showToast('Falha ao acessar a BD.', 'error'); addLog(`[DB ERR] Ligação recusada.`, 'error'); } finally { setIsExporting(null); }
   };
 
   return (
@@ -506,6 +539,15 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, setMo
 // ============================================================================
 // TELA SAAS E MULTITENANCY (MELHORADA COM 360 VIEW)
 // ============================================================================
+/**
+ * Tela SaaS / Multi-tenant
+ *
+ * Responsabilidades:
+ * - Gestão de tenants, licenças e chaves API
+ * - Ferramentas para impersonation e ajustes de retenção
+ *
+ * Props: `api`, `sysConfig`, `updateSysConfig`, `filiaisDb`, `showToast`, `addLog`, `setModalConfig`
+ */
 const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLog, setModalConfig }) => {
   const [chavesAPI, setChavesAPI] = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
@@ -518,7 +560,7 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
   const handleForcarLogout = (loja) => {
     setModalConfig({
       isOpen: true, title: 'Forçar Logout Remoto',
-      message: `Tem a certeza de que deseja acionar o Kill Switch para a organização ${loja}? Todos os utilizadores locais serão desconectados instantaneamente.`,
+      message: `Tem a certeza de que deseja acionar o Kill Switch para a organização ${loja}? Todos os usuários locais serão desconectados instantaneamente.`,
       onConfirm: () => { localStorage.setItem('termosync_force_logout', `${loja}_${Date.now()}`); addLog(`[SECURITY] Sinal de KILL SWITCH disparado para: ${loja}.`, 'error'); showToast(`Comando de expulsão enviado para ${loja}.`, 'success'); }
     });
   };
@@ -625,7 +667,7 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
                   
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <button className="btn-icon-small" title="Visão 360 do Cliente" onClick={() => setModal360({ nome: filial, plano: planoAtual, nodes: nodeCount })} style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}><ActivitySquare size={18} /></button>
-                    <button className="btn-icon-small" title="Aceder Como Cliente (Impersonate)" onClick={() => loginAs(filial)}><UserCheck size={18} /></button>
+                    <button className="btn-icon-small" title="Acessar Como Cliente (Impersonate)" onClick={() => loginAs(filial)}><UserCheck size={18} /></button>
                     <button className="btn-icon-small danger-text" title="Forçar Logout Remoto (Kill Switch)" onClick={() => handleForcarLogout(filial)}><Power size={18} /></button>
                   </div>
                 </div>
@@ -684,6 +726,15 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
 // ============================================================================
 // TELA BILLING (FINANCEIRO E FATURAMENTO) - MELHORADA COM PDF, NODEMAILER E HISTÓRICO
 // ============================================================================
+/**
+ * Tela Billing (Financeiro)
+ *
+ * Responsabilidades:
+ * - Exibir métricas financeiras (MRR, inadimplência) e faturas
+ * - Gerar PDFs/relatórios, reagir a eventos de pagamento via socket
+ *
+ * Props: `api`, `socket`, `sysConfig`, `filiaisDb`, `showToast`, `addLog`, `updateSysConfig`, `setModalConfig`
+ */
 const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, updateSysConfig, setModalConfig }) => {
   const [billingSetup, setBillingSetup] = useState(() => {
     const saved = localStorage.getItem('termosync_billing_setup');
@@ -1196,6 +1247,15 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
 // ============================================================================
 // 8. TELA SOC & GESTÃO DE IDENTIDADE (IAM / ZERO-TRUST)
 // ============================================================================
+/**
+ * Tela SOC (Security Operations Center)
+ *
+ * Responsabilidades:
+ * - Exibir alertas de segurança e ferramentas de auditoria
+ * - Fornecer visibilidade sobre ataques/blocklist e workflows de resposta
+ *
+ * Props: `api`, `showToast`, `addLog`, `setModalConfig`, `usuariosLista`
+ */
 const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
   const [activeSessions, setActiveSessions] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -1256,8 +1316,8 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
   const handleBlockAction = (id, nome) => {
     const isBlocked = blockedUsers.includes(id); const newBlocked = isBlocked ? blockedUsers.filter(uid => uid !== id) : [...blockedUsers, id];
     setBlockedUsers(newBlocked); localStorage.setItem('termosync_blocked_users', JSON.stringify(newBlocked));
-    if (isBlocked) { addLog(`[IAM] Utilizador ${nome} desbloqueado.`, 'success'); showToast('Utilizador desbloqueado.', 'success'); } 
-    else { addLog(`[IAM] Utilizador ${nome} bloqueado preventivamente.`, 'error'); showToast('Utilizador bloqueado.', 'warning'); const userBase = usuariosLista.find(u => u.id === id); const session = activeSessions.find(s => s.usuario === userBase?.usuario); if (session) api.post(`/soc/revogar/${session.id}`).then(() => carregarDadosSOC()).catch(()=>{}); }
+    if (isBlocked) { addLog(`[IAM] Usuário ${nome} desbloqueado.`, 'success'); showToast('Usuário desbloqueado.', 'success'); } 
+    else { addLog(`[IAM] Usuário ${nome} bloqueado preventivamente.`, 'error'); showToast('Usuário bloqueado.', 'warning'); const userBase = usuariosLista.find(u => u.id === id); const session = activeSessions.find(s => s.usuario === userBase?.usuario); if (session) api.post(`/soc/revogar/${session.id}`).then(() => carregarDadosSOC()).catch(()=>{}); }
   };
 
   const salvarNovoUsuario = async (e) => {
@@ -1266,7 +1326,7 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
   };
 
   const exportarLogsCSV = () => {
-    if (auditLogs.length === 0) return showToast('Sem registos para exportar.', 'warning');
+    if (auditLogs.length === 0) return showToast('Sem registros para exportar.', 'warning');
     let csvContent = "Data/Hora,Ação Realizada,Ator,Alvo,Severidade\n"; auditLogs.forEach(log => { csvContent += `"${log.time}","${log.action}","${log.actor}","${log.target}","${(log.severity || 'info').toUpperCase()}"\n`; });
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Auditoria_ZeroTrust_${Date.now()}.csv`; link.click();
@@ -1290,13 +1350,13 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
                 <div style={{display:'flex', gap:'8px', alignItems:'center', width: '100%', justifyContent: 'space-between', flexWrap: 'wrap'}}>
                   <div style={{display:'flex', gap:'8px', alignItems:'center'}}><UserCog size={24}/><h3>Diretório (AD)</h3></div>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
-                    <div className="iam-search-box"><Search size={14} color="#64748b" /><input type="text" placeholder="Procurar utilizador..." value={buscaUsuario} onChange={e => setBuscaUsuario(e.target.value)} /></div>
+                    <div className="iam-search-box"><Search size={14} color="#64748b" /><input type="text" placeholder="Procurar usuário..." value={buscaUsuario} onChange={e => setBuscaUsuario(e.target.value)} /></div>
                     <button className="btn btn-outline" onClick={() => setIsModalUserOpen(true)} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'rgba(56,189,248,0.3)', color: '#38bdf8', minHeight: '34px'}}><UserPlus size={14} style={{marginRight: '6px'}}/> Novo</button>
                   </div>
                 </div>
               </div>
               <div className="table-responsive-wrapper">
-                <div className="saas-table-header iam-ad-grid-cols"><div>Utilizador / Cargo</div><div>Role do Sistema</div><div>Status / MFA</div><div>Último IP</div><div style={{textAlign: 'right'}}>Ações</div></div>
+                <div className="saas-table-header iam-ad-grid-cols"><div>Usuário / Cargo</div><div>Role do Sistema</div><div>Status / MFA</div><div>Último IP</div><div style={{textAlign: 'right'}}>Ações</div></div>
                 <div style={{maxHeight: '40vh', overflowY: 'auto', paddingRight: '8px', paddingBottom: '20px'}}>
                   {filteredUsuarios.map((u) => (
                     <div key={u.id} className={`saas-client-row iam-ad-grid-cols ${u.status === 'BLOQUEADO' ? 'row-suspended' : ''}`}>
@@ -1317,7 +1377,7 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
                 {activeSessions.length > 0 && <button className="btn btn-outline danger-text" onClick={handleRevokeAll} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444', minHeight: '34px'}}><ShieldBan size={14} style={{marginRight: '6px'}}/> Revogar Tudo</button>}
               </div>
               <div className="table-responsive-wrapper">
-                <div className="saas-table-header soc-grid-cols"><div>Utilizador (Token)</div><div>IP / Device</div><div>Ciclo de Vida</div><div style={{textAlign: 'right'}}>Ação</div></div>
+                <div className="saas-table-header soc-grid-cols"><div>Usuário (Token)</div><div>IP / Device</div><div>Ciclo de Vida</div><div style={{textAlign: 'right'}}>Ação</div></div>
                 <div style={{maxHeight: '40vh', overflowY: 'auto', paddingRight: '8px', paddingBottom: '20px'}}>
                   {activeSessions.map((s) => (
                     <div key={s.id} className="saas-client-row soc-grid-cols">
@@ -1357,7 +1417,7 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
               <div className="dev-card-header flex-between" style={{color: 'var(--danger)', flexWrap: 'wrap', marginBottom: '10px'}}>
                 <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
                   <History size={20}/>
-                  <h3>Registo de Auditoria Zero-Trust</h3>
+                  <h3>Registro de Auditoria Zero-Trust</h3>
                 </div>
                 
                 <div 
@@ -1425,6 +1485,15 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
 // ============================================================================
 // 9. TELA BI E RELATÓRIOS
 // ============================================================================
+/**
+ * Tela BI (Visão Analítica)
+ *
+ * Responsabilidades:
+ * - Exibir dashboards analíticos e KPIs agrupados por tenant
+ * - Integrar com backend para relatórios e previsões
+ *
+ * Props: `api`, `showToast`, `addLog`, `sysConfig`, `filiaisDb`
+ */
 const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
   const [isProcessing, setIsProcessing] = useState(null);
 
@@ -1438,7 +1507,7 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
       body = (filiaisDb || []).map(filial => [filial, sysConfig?.planos?.[filial] || 'FREE', sysConfig?.planos?.[filial] === 'ENTERPRISE' ? 'R$ 899,90' : 'R$ 299,90', sysConfig?.planos?.[filial] === 'SUSPENSO' ? 'BLOQUEADO' : 'ATIVO']);
     } else if (tipo === 'SYSOPS_HEALTH') {
       const res = await api.get('/system/health'); head = ['Métrica', 'Valor', 'Status'];
-      body = [['Cluster MySQL', res.data.db, 'NORMAL'], ['WebSockets Ativos', res.data.sockets, 'NORMAL'], ['Volume (Registos)', res.data.total_records, 'NORMAL']];
+      body = [['Cluster MySQL', res.data.db, 'NORMAL'], ['WebSockets Ativos', res.data.sockets, 'NORMAL'], ['Volume (Registros)', res.data.total_records, 'NORMAL']];
     } else { head = ['Campo 1', 'Campo 2']; body = [['Sem dados', '...']]; }
     return { head, body };
   };
@@ -1498,28 +1567,120 @@ const TelaBI = ({ api, showToast, addLog, sysConfig, filiaisDb }) => {
 };
 
 // ============================================================================
-// 10. TELA DE ATUALIZAÇÕES DO SISTEMA E DEPLOY
+// 10. TELA DE ATUALIZAÇÕES DO SISTEMA E DEPLOY (INTEGRADA & INTELIGENTE)
 // ============================================================================
+/**
+ * Tela de Atualizações / Deploys
+ *
+ * Responsabilidades:
+ * - Listar atualizações disponíveis, iniciar deploys e mostrar histórico
+ * - Integrar com ferramentas de CI/CD quando disponível
+ *
+ * Props: `api`, `showToast`, `addLog`, `setModalConfig`, `isOverclocked`
+ */
 const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocked }) => {
-  const [updates, setUpdates] = useState(() => JSON.parse(localStorage.getItem('termosync_changelog')) || [{ id: 4, version: 'v13.1.0', title: 'Módulo de Deploy', type: 'feature', date: new Date().toISOString(), author: 'Root', desc: 'Aba de deploy.' }]);
-  useEffect(() => { localStorage.setItem('termosync_changelog', JSON.stringify(updates)); }, [updates]);
-
-  const [newUpdate, setNewUpdate] = useState({ version: '', title: '', type: 'feature', desc: '' });
+  const [updates, setUpdates] = useState([]);
+  const [newUpdate, setNewUpdate] = useState({
+    version: '',
+    title: '',
+    type: 'feature',
+    desc: '',
+    targetType: 'AUTO' // 'AUTO' | 'FRONTEND' | 'BACKEND' | 'FULLSTACK'
+  });
   const [updateFile, setUpdateFile] = useState(null);
+  const [fileDetails, setFileDetails] = useState(null);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deployStep, setDeployStep] = useState(0); 
-  const [checkBackup, setCheckBackup] = useState(false); const [checkDowntime, setCheckDowntime] = useState(false);
+  const [deployStep, setDeployStep] = useState(0);
+  const [checkBackup, setCheckBackup] = useState(false);
+  const [checkDowntime, setCheckDowntime] = useState(false);
+
+  // Carrega histórico real do MySQL (integrando com as outras telas)
+  const carregarChangelog = useCallback(async () => {
+    try {
+      const res = await api.get('/system/changelog');
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setUpdates(res.data);
+      } else {
+        // Fallback local caso a tabela esteja vazia
+        const local = JSON.parse(localStorage.getItem('termosync_changelog')) || [];
+        setUpdates(local);
+      }
+    } catch (e) {
+      const local = JSON.parse(localStorage.getItem('termosync_changelog')) || [];
+      setUpdates(local);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    carregarChangelog();
+  }, [carregarChangelog]);
+
+  // Detector inteligente de tipo de arquivo
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    setUpdateFile(file);
+
+    const name = file.name.toLowerCase();
+    let detected = 'AUTO';
+    let hint = 'Pacote genérico zipado';
+
+    if (name.includes('front') || name.includes('ui') || name.includes('dist') || name.includes('build')) {
+      detected = 'FRONTEND';
+      hint = 'Detectado: Interface Web / Assets React (public_html)';
+    } else if (name.includes('back') || name.includes('api') || name.includes('server') || name.includes('node')) {
+      detected = 'BACKEND';
+      hint = 'Detectado: Core API / Banco / Rotas Node.js';
+    } else if (name.includes('full') || name.includes('release')) {
+      detected = 'FULLSTACK';
+      hint = 'Detectado: Release Full-Stack Completo';
+    }
+
+    setFileDetails({
+      name: file.name,
+      size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+      detected,
+      hint
+    });
+
+    setNewUpdate((prev) => ({ ...prev, targetType: detected }));
+  };
 
   const handleDeploy = (e) => {
     e.preventDefault();
-    if (!newUpdate.version || !newUpdate.title || !newUpdate.desc || !updateFile || !checkBackup || !checkDowntime) return showToast('Preencha os dados e valide o checklist.', 'error');
+    if (!newUpdate.version || !newUpdate.title || !newUpdate.desc || !updateFile || !checkBackup || !checkDowntime) {
+      return showToast('Preencha os dados e valide o checklist.', 'error');
+    }
+
     setModalConfig({
-      isOpen: true, title: 'INICIAR DEPLOY EM PRODUÇÃO', message: `A versão ${newUpdate.version} será injetada. Confirmar?`,
+      isOpen: true,
+      title: 'INICIAR DEPLOY EM PRODUÇÃO',
+      message: `O pacote "${updateFile.name}" será injetado no ambiente [${newUpdate.targetType}]. Confirmar deploy?`,
       onConfirm: async () => {
-        setIsDeploying(true); setDeployStep(1); addLog(`[CICD] Upload iniciado...`, 'warning');
-        const formData = new FormData(); formData.append('updatePackage', updateFile); formData.append('version', newUpdate.version);
-        try { setTimeout(() => setDeployStep(2), 1500); await api.post('/system/deploy-update', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setDeployStep(3); verificarRetornoServidor(); } 
-        catch (error) { setDeployStep(3); verificarRetornoServidor(); }
+        setIsDeploying(true);
+        setDeployStep(1);
+        addLog(`[CI/CD] Upload de pacote ${newUpdate.targetType} iniciado...`, 'warning');
+
+        const formData = new FormData();
+        formData.append('updatePackage', updateFile);
+        formData.append('version', newUpdate.version);
+        formData.append('title', newUpdate.title);
+        formData.append('desc', newUpdate.desc);
+        formData.append('type', newUpdate.type);
+        formData.append('targetType', newUpdate.targetType);
+
+        try {
+          setTimeout(() => setDeployStep(2), 1200);
+          const response = await api.post('/system/deploy-update', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+
+          setDeployStep(3);
+          addLog(`[CI/CD] Servidor identificou destino: ${response.data?.targetDetected}`, 'info');
+          verificarRetornoServidor();
+        } catch (error) {
+          setDeployStep(3);
+          verificarRetornoServidor();
+        }
       }
     });
   };
@@ -1529,17 +1690,35 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
     let tentativas = 0;
     const intervalo = setInterval(async () => {
       tentativas++;
-      try { await api.get('/system/health'); clearInterval(intervalo); finalizarDeploySucesso(); } 
-      catch (e) { if (tentativas > 20) { clearInterval(intervalo); setIsDeploying(false); setDeployStep(0); showToast('Falha: Timeout.', 'error'); } }
-    }, 2000); 
+      try {
+        await api.get('/system/health');
+        clearInterval(intervalo);
+        finalizarDeploySucesso();
+      } catch (e) {
+        if (tentativas > 20) {
+          clearInterval(intervalo);
+          setIsDeploying(false);
+          setDeployStep(0);
+          showToast('Falha: Timeout de reconexão do servidor.', 'error');
+        }
+      }
+    }, 2000);
   };
 
   const finalizarDeploySucesso = () => {
     setDeployStep(5);
     setTimeout(() => {
-      setUpdates(prev => [{ id: Date.now(), version: newUpdate.version, title: newUpdate.title, type: newUpdate.type, desc: newUpdate.desc, date: new Date().toISOString(), author: 'Root / Você' }, ...prev]);
-      setIsDeploying(false); setDeployStep(0); setNewUpdate({ version: '', title: '', type: 'feature', desc: '' }); setUpdateFile(null); setCheckBackup(false); setCheckDowntime(false);
-      showToast(`Deploy concluído 100%!`, 'success'); addLog(`[CICD] Deploy finalizado.`, 'success');
+      carregarChangelog(); // Recarrega do MySQL para atualizar a timeline
+      setIsDeploying(false);
+      setDeployStep(0);
+      setNewUpdate({ version: '', title: '', type: 'feature', desc: '', targetType: 'AUTO' });
+      setUpdateFile(null);
+      setFileDetails(null);
+      setCheckBackup(false);
+      setCheckDowntime(false);
+
+      showToast('Deploy 100% integrado concluído!', 'success');
+      addLog('[CI/CD] Sincronização concluída com Changelog, SOC e WebSockets.', 'success');
     }, 1500);
   };
 
@@ -1548,62 +1727,193 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
   return (
     <div className="dev-tela-scroll">
       <div className="dev-grid-main anim-stagger-2">
+        {/* COLUNA ESQUERDA: FORMULÁRIO DE DEPLOY */}
         <div className="dev-col-left" style={{ flex: '1.2' }}>
           <div className="dev-card glass-card" style={{ borderTop: `4px solid ${isOverclocked ? '#ef4444' : 'var(--theme-sec)'}` }}>
-            <div className="dev-card-header" style={{ color: isOverclocked ? '#ef4444' : 'var(--theme-sec)', marginBottom: '20px' }}><Rocket size={24} /><h3>Motor de Deploy (CI/CD)</h3></div>
+            <div className="dev-card-header flex-between" style={{ color: isOverclocked ? '#ef4444' : 'var(--theme-sec)', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Rocket size={24} />
+                <h3>Motor de Deploy (CI/CD)</h3>
+              </div>
+              <span className="status-badge" style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--theme-sec)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                INTELIGENTE & INTEGRADO
+              </span>
+            </div>
+
             {isDeploying ? (
-              <div style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-focus)', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--theme-main)', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}><Loader2 size={24} className="spin" /><h3 style={{ margin: 0, fontSize: '1rem' }}>Injetando Pacote...</h3></div>
-                 <div className="crt-terminal" style={{ flex: 1, fontFamily: 'Montserrat', fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                   <div style={{color: '#94a3b8'}}>[SYSTEM] Iniciando Continuous Deployment...</div>
-                   {deployStep >= 1 && <div><span style={{color: 'var(--secondary)'}}>[UPLOAD]</span> Transferindo arquivos...</div>}
-                   {deployStep >= 2 && <div><span style={{color: 'var(--warning)'}}>[EXTRACT]</span> Sobrescrevendo sistema...</div>}
-                   {deployStep >= 3 && <div><span style={{color: 'var(--danger)'}}>[CORE]</span> Reinício enviado ao PM2...</div>}
-                   {deployStep >= 4 && <div className="pulse-icon"><span style={{color: 'var(--secondary)'}}>[PING]</span> Aguardando servidor voltar...</div>}
-                   {deployStep >= 5 && <div style={{color: 'var(--theme-main)', fontWeight: 'bold'}}>[SUCESSO] Sistema Operacional 100% Atualizado!</div>}
-                 </div>
+              <div style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-focus)', minHeight: '420px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--theme-main)', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                  <Loader2 size={24} className="spin" />
+                  <h3 style={{ margin: 0, fontSize: '1rem' }}>Injetando Pacote no Servidor...</h3>
+                </div>
+                <div className="crt-terminal" style={{ flex: 1, fontFamily: 'Montserrat', fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ color: '#94a3b8' }}>[CI/CD] Validando assinatura e tipo de alvo ({newUpdate.targetType})...</div>
+                  {deployStep >= 1 && <div><span style={{ color: 'var(--secondary)' }}>[UPLOAD]</span> Transferindo artefato ZIP para tmp/...</div>}
+                  {deployStep >= 2 && <div><span style={{ color: 'var(--warning)' }}>[EXTRACT]</span> Distribuindo arquivos para {newUpdate.targetType === 'FRONTEND' ? 'public_html/' : 'raiz backend/'}...</div>}
+                  {deployStep >= 3 && <div><span style={{ color: '#a855f7' }}>[INTEGRAÇÃO]</span> Gravando DB Changelog e emitindo evento Socket...</div>}
+                  {deployStep >= 4 && <div className="pulse-icon"><span style={{ color: 'var(--secondary)' }}>[HEALTH]</span> Checando uptime e resposta PM2...</div>}
+                  {deployStep >= 5 && <div style={{ color: 'var(--theme-main)', fontWeight: 'bold' }}>[SUCESSO] Deploy finalizado com sucesso!</div>}
+                </div>
               </div>
             ) : (
               <form onSubmit={handleDeploy} className="deploy-form-grid">
+                {/* SELETOR DE ALVO (FRONTEND vs BACKEND) */}
+                <div className="form-group" style={{ marginBottom: '5px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--dim-text)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
+                    Alvo do Deploy (Destino) *
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className={`btn btn-outline ${newUpdate.targetType === 'FRONTEND' ? 'active' : ''}`}
+                      onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FRONTEND' })}
+                      style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'FRONTEND' ? '#38bdf8' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'FRONTEND' ? 'rgba(56,189,248,0.15)' : 'transparent', color: newUpdate.targetType === 'FRONTEND' ? '#38bdf8' : 'white' }}
+                    >
+                      🌐 FRONTEND (UI)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-outline ${newUpdate.targetType === 'BACKEND' ? 'active' : ''}`}
+                      onClick={() => setNewUpdate({ ...newUpdate, targetType: 'BACKEND' })}
+                      style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'BACKEND' ? '#10b981' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'BACKEND' ? 'rgba(16,185,129,0.15)' : 'transparent', color: newUpdate.targetType === 'BACKEND' ? '#10b981' : 'white' }}
+                    >
+                      ⚙️ BACKEND (API)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-outline ${newUpdate.targetType === 'FULLSTACK' ? 'active' : ''}`}
+                      onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FULLSTACK' })}
+                      style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'FULLSTACK' ? '#a855f7' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'FULLSTACK' ? 'rgba(168,85,247,0.15)' : 'transparent', color: newUpdate.targetType === 'FULLSTACK' ? '#a855f7' : 'white' }}
+                    >
+                      🚀 FULL-STACK
+                    </button>
+                  </div>
+                </div>
+
+                {/* UPLOAD DO ARQUIVO ZIP COM INSPETOR */}
                 <div className="form-group" style={{ marginBottom: '10px' }}>
                   <label style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pacote ZIP *</label>
-                  <div style={{ position: 'relative', border: `2px dashed ${updateFile ? 'var(--primary)' : 'var(--border-focus)'}`, borderRadius: '12px', padding: '25px 20px', textAlign: 'center', background: updateFile ? 'rgba(16, 185, 129, 0.05)' : 'rgba(0,0,0,0.3)' }}>
-                    <input type="file" accept=".zip" onChange={e => { if(e.target.files[0]) setUpdateFile(e.target.files[0]); }} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }} />
+                  <div style={{ position: 'relative', border: `2px dashed ${updateFile ? 'var(--primary)' : 'var(--border-focus)'}`, borderRadius: '12px', padding: '20px', textAlign: 'center', background: updateFile ? 'rgba(16, 185, 129, 0.05)' : 'rgba(0,0,0,0.3)' }}>
+                    <input
+                      type="file"
+                      accept=".zip"
+                      onChange={(e) => handleFileSelect(e.target.files[0])}
+                      style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }}
+                    />
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <FileCode size={36} color={updateFile ? 'var(--primary)' : 'var(--dim-text)'} />
-                      <span style={{ color: updateFile ? 'var(--primary)' : 'white', fontWeight: 'bold', marginTop: '5px' }}>{updateFile ? updateFile.name : 'Clique para enviar .zip'}</span>
+                      <FileCode size={32} color={updateFile ? 'var(--primary)' : 'var(--dim-text)'} />
+                      <span style={{ color: updateFile ? 'var(--primary)' : 'white', fontWeight: 'bold', marginTop: '5px' }}>
+                        {updateFile ? updateFile.name : 'Clique ou arraste um arquivo .zip aqui'}
+                      </span>
+                      {fileDetails && (
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: '6px', marginTop: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          Tamanho: <strong>{fileDetails.size}</strong> | {fileDetails.hint}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* METADADOS DO CHANGELOG */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div className="form-group"><label>Versão *</label><div className="config-input-wrapper"><GitCommit size={16} /><input type="text" value={newUpdate.version} onChange={e => setNewUpdate({...newUpdate, version: e.target.value})} /></div></div>
-                  <div className="form-group"><label>Categoria *</label><select value={newUpdate.type} onChange={e => setNewUpdate({...newUpdate, type: e.target.value})} style={{minHeight: '48px'}}><option value="feature">Feature</option><option value="fix">Bugfix</option><option value="security">Segurança</option></select></div>
+                  <div className="form-group">
+                    <label>Versão *</label>
+                    <div className="config-input-wrapper">
+                      <GitCommit size={16} />
+                      <input type="text" placeholder="v13.2.0" value={newUpdate.version} onChange={(e) => setNewUpdate({ ...newUpdate, version: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Categoria *</label>
+                    <select value={newUpdate.type} onChange={(e) => setNewUpdate({ ...newUpdate, type: e.target.value })} style={{ minHeight: '48px' }}>
+                      <option value="feature">Feature (Melhoria)</option>
+                      <option value="fix">Bugfix (Correção)</option>
+                      <option value="security">Segurança (SOC)</option>
+                      <option value="refactor">Refatoração</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="form-group"><label>Título *</label><div className="config-input-wrapper"><input type="text" value={newUpdate.title} onChange={e => setNewUpdate({...newUpdate, title: e.target.value})} /></div></div>
-                <div className="form-group"><label>Descrição (Changelog) *</label><textarea value={newUpdate.desc} onChange={e => setNewUpdate({...newUpdate, desc: e.target.value})}></textarea></div>
-                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '15px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid var(--border-dim)' }}>
-                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkBackup ? 'var(--primary)' : 'white' }}><input type="checkbox" checked={checkBackup} onChange={e => setCheckBackup(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />Backup (MySQL) realizado.</label>
-                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkDowntime ? 'var(--warning)' : 'white' }}><input type="checkbox" checked={checkDowntime} onChange={e => setCheckDowntime(e.target.checked)} style={{ accentColor: 'var(--warning)' }} />Ciente da queda de instâncias IoT.</label>
+
+                <div className="form-group">
+                  <label>Título da Versão *</label>
+                  <div className="config-input-wrapper">
+                    <input type="text" placeholder="Ex: Módulo de Degelo Dinâmico" value={newUpdate.title} onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })} />
+                  </div>
                 </div>
-                <button type="submit" className="btn btn-primary w-100" disabled={!isFormReady} style={{ marginTop: '5px', filter: isFormReady ? 'none' : 'grayscale(1)' }}><Rocket size={18} /> DEPLOY</button>
+
+                <div className="form-group">
+                  <label>Descrição do Changelog (Integrado com DB) *</label>
+                  <textarea placeholder="Detalhe as mudanças operacionais..." value={newUpdate.desc} onChange={(e) => setNewUpdate({ ...newUpdate, desc: e.target.value })} style={{ minHeight: '80px' }} />
+                </div>
+
+                {/* BOX DE CHECKLIST E INFORMAÇÃO DE INTEGRAÇÃO */}
+                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px 15px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px', border: '1px solid var(--border-dim)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkBackup ? 'var(--primary)' : 'white' }}>
+                    <input type="checkbox" checked={checkBackup} onChange={(e) => setCheckBackup(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
+                    Backup DB/Arquivos validado antes da atualização.
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkDowntime ? 'var(--warning)' : 'white' }}>
+                    <input type="checkbox" checked={checkDowntime} onChange={(e) => setCheckDowntime(e.target.checked)} style={{ accentColor: 'var(--warning)' }} />
+                    Ciente das interconexões com SOC, WebSockets e Changelog.
+                  </label>
+                </div>
+
+                <button type="submit" className="btn btn-primary w-100" disabled={!isFormReady} style={{ marginTop: '5px', filter: isFormReady ? 'none' : 'grayscale(1)' }}>
+                  <Rocket size={18} /> INICIAR DEPLOY DO {newUpdate.targetType}
+                </button>
               </form>
             )}
           </div>
         </div>
 
+        {/* COLUNA DIREITA: TIMELINE HISTÓRICO INTEGRADO */}
         <div className="dev-col-right" style={{ flex: '1.8' }}>
           <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--theme-main)', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="dev-card-header flex-between" style={{ color: 'var(--theme-main)', marginBottom: '15px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={24} /><h3>Changelog</h3></div></div>
+            <div className="dev-card-header flex-between" style={{ color: 'var(--theme-main)', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <History size={24} />
+                <h3>Changelog & Auditoria de Deploys</h3>
+              </div>
+              <button className="btn btn-outline" onClick={carregarChangelog} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px' }}>
+                <RefreshCw size={14} style={{ marginRight: '6px' }} /> Sincronizar DB
+              </button>
+            </div>
+
             <div className="timeline-container" style={{ flex: 1, overflowY: 'auto', paddingRight: '10px', marginTop: 0 }}>
-              {updates.map((upd) => (
-                <div key={upd.id} className="timeline-item">
-                  <div className="timeline-node"></div>
-                  <div className="timeline-content">
-                    <div className="timeline-header"><span className="version-badge">{upd.version}</span><div className="update-meta"><Clock size={12} /> {new Date(upd.date).toLocaleString('pt-BR')}</div></div>
-                    <h4 className="update-title">{upd.title}</h4><p className="update-desc">{upd.desc}</p>
-                  </div>
-                </div>
-              ))}
+              {updates.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--dim-text)', padding: '40px' }}>Nenhuma atualização registrada na tabela system_changelog.</div>
+              ) : (
+                updates.map((upd, idx) => {
+                  const targetBadge = upd.title?.includes('[FRONTEND]') ? 'FRONTEND' : upd.title?.includes('[BACKEND]') ? 'BACKEND' : 'FULLSTACK';
+                  const titleClean = upd.title?.replace(/\[(FRONTEND|BACKEND|FULLSTACK)\]\s*/gi, '') || upd.title;
+
+                  return (
+                    <div key={upd.id || idx} className="timeline-item">
+                      <div className="timeline-node" style={{ borderColor: targetBadge === 'FRONTEND' ? '#38bdf8' : targetBadge === 'BACKEND' ? '#10b981' : '#a855f7' }}></div>
+                      <div className="timeline-content">
+                        <div className="timeline-header">
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span className="version-badge">{upd.version}</span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '4px', background: targetBadge === 'FRONTEND' ? 'rgba(56,189,248,0.15)' : 'rgba(16,185,129,0.15)', color: targetBadge === 'FRONTEND' ? '#38bdf8' : '#10b981', border: `1px solid ${targetBadge === 'FRONTEND' ? 'rgba(56,189,248,0.4)' : 'rgba(16,185,129,0.4)'}` }}>
+                              {targetBadge}
+                            </span>
+                          </div>
+                          <div className="update-meta">
+                            <Clock size={12} /> {upd.date ? new Date(upd.date).toLocaleString('pt-BR') : 'Data Indisponível'}
+                          </div>
+                        </div>
+                        <h4 className="update-title" style={{ marginTop: '6px' }}>{titleClean}</h4>
+                        <p className="update-desc">{upd.desc_text || upd.desc}</p>
+                        {upd.author && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--dim-text)', marginTop: '8px', fontStyle: 'italic' }}>
+                            Autor: {upd.author}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -1615,6 +1925,15 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
 // ============================================================================
 // 12. TELA: CONSOLE TERMINAL SQL (RAW DB QUERY EXECUTOR)
 // ============================================================================
+/**
+ * Terminal SQL (Console)
+ *
+ * Responsabilidades:
+ * - Executar queries ad-hoc e extrair resultados para auditoria
+ * - Mostrar logs de execução e permitir operações de exportação
+ *
+ * Props: `api`, `showToast`, `addLog`
+ */
 const TelaTerminalSQL = ({ api, showToast, addLog }) => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1672,6 +1991,15 @@ const TelaTerminalSQL = ({ api, showToast, addLog }) => {
 // ============================================================================
 // 13. TELA: MONITOR WEBSOCKET LIVE (FIREHOSE STREAM) 
 // ============================================================================
+/**
+ * Visualizador de WebSocket / Firehose
+ *
+ * Responsabilidades:
+ * - Inspecionar eventos em tempo real do stream WebSocket
+ * - Permitir filtragem e gravação de amostras para análise
+ *
+ * Props: `socket`, `addLog`
+ */
 const TelaWebSocketStream = ({ socket, addLog }) => {
   const [packets, setPackets] = useState([]);
   const [isStreaming, setIsStreaming] = useState(true);
@@ -1703,7 +2031,7 @@ const TelaWebSocketStream = ({ socket, addLog }) => {
            <button className={`btn btn-outline ${filterMode === 'LEITURAS' ? 'active' : ''}`} onClick={() => setFilterMode('LEITURAS')} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', flex: 'none', background: filterMode==='LEITURAS'?'var(--secondary)':'', color: filterMode==='LEITURAS'?'#000':'' }}>Apenas Leituras</button>
            <button className={`btn btn-outline ${filterMode === 'ALERTAS' ? 'active' : ''}`} onClick={() => setFilterMode('ALERTAS')} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', flex: 'none', background: filterMode==='ALERTAS'?'var(--danger)':'', color: filterMode==='ALERTAS'?'#000':'' }}>Apenas Alertas</button>
         </div>
-        <button className="btn btn-outline danger-text" onClick={limparConsole} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', flex: 'none', borderColor: 'rgba(239, 68, 68, 0.3)' }}><Trash2 size={14} style={{ marginRight: '6px' }}/> Limpar Ecrã</button>
+        <button className="btn btn-outline danger-text" onClick={limparConsole} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', flex: 'none', borderColor: 'rgba(239, 68, 68, 0.3)' }}><Trash2 size={14} style={{ marginRight: '6px' }}/> Limpar Tela</button>
       </div>
 
       <div className="dev-card glass-card" style={{ borderTop: '4px solid #a855f7', height: '75vh', display: 'flex', flexDirection: 'column' }}>

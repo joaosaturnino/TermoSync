@@ -7,6 +7,17 @@ import {
 } from 'lucide-react';
 import './GestaoEmpresas.css';
 
+/**
+ * Gestão de Organizações / Tenants
+ *
+ * Responsabilidades:
+ * - Listar, criar, editar e exportar tenants (organizações)
+ * - Fornecer KPIs básicos e operações administrativas (export CSV)
+ *
+ * Props:
+ * - `api`: instância HTTP para chamadas ao backend
+ * - `showToast`, `setModalConfig`: utilitários de UI/modal
+ */
 export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
   const [empresas, setEmpresas] = useState([]);
   const [busca, setBusca] = useState('');

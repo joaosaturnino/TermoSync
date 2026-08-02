@@ -1,6 +1,15 @@
 import React from 'react';
 import { Menu, Bell, CheckCircle, Search, Volume2, VolumeX, Minimize, Maximize, Sun, Moon, ChevronRight } from 'lucide-react';
 
+/**
+ * Componente Header (barra superior)
+ *
+ * Responsabilidades:
+ * - Exibir breadcrumbs, notificações, estado de telemetria e ações rápidas
+ * - Controlar palette de comandos, tema e indicadores de conexão
+ *
+ * Props: várias callbacks e dados de UI (ver assinatura abaixo)
+ */
 export default function Header({
   setMenuAberto,
   menuRecolhido,

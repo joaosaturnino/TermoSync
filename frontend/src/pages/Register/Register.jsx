@@ -9,6 +9,18 @@ import {
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Register.css';
 
+/**
+ * Tela de Onboarding / Registro Público (Formulário)
+ *
+ * Responsabilidades:
+ * - Coletar dados de organização para pré-cadastro SaaS
+ * - Validar campos básicos e enviar para o endpoint de pré-cadastros
+ * - Exibir estado de progresso e mensagens de erro/ sucesso
+ *
+ * Props:
+ * - `onNavigate(target)`: callback para navegação interna
+ * - `isOffline`: indica ausência de conexão de rede
+ */
 export default function Register({ onNavigate, isOffline }) {
   const [step, setStep] = useState(1); 
   const [isLoading, setIsLoading] = useState(false);

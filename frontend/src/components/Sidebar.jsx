@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, UserCheck, Lock, ChevronDown, ChevronRight, LogOut, X, Pin } from 'lucide-react';
 import TermoSyncLogo from './TermoSyncLogo';
 
+/**
+ * Componente Sidebar (navegação lateral)
+ *
+ * Responsabilidades:
+ * - Renderizar navegação principal, favoritos e seletor de contexto (filial)
+ * - Persistir favoritos por `userRole` e controlar estados de colapso
+ *
+ * Props: menu state, usuário, navegação e callbacks de interação
+ */
 export default function Sidebar({
   menuAberto,
   setMenuAberto,
@@ -33,7 +42,6 @@ export default function Sidebar({
   const [favoritos, setFavoritos] = useState(() => {
     const salvos = localStorage.getItem(`termosync_favoritos_${userRole}`);
     if (salvos) return JSON.parse(salvos);
-    // Telas fixadas por padrão na primeira vez que o usuário loga
     return ['dashboard', 'motores', 'chamados'];
   });
 
@@ -42,7 +50,7 @@ export default function Sidebar({
   }, [favoritos, userRole]);
 
   const toggleFavorito = (e, id) => {
-    e.stopPropagation(); // Evita que clicar no pino mude a página
+    e.stopPropagation(); 
     setFavoritos(prev => 
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
@@ -59,7 +67,7 @@ export default function Sidebar({
           <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={20} /></button>
         </div>
         
-        {/* PERFIL DO USUÁRIO AVANÇADO */}
+        {/* PERFIL DO USUÁRIO */}
         <div className="sidebar-user-section hide-on-collapse" style={{ padding: '0 1rem 1rem' }}>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
             <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: `radial-gradient(circle at 50% 50%, ${visualContext.cor} 0%, transparent 60%)`, opacity: isDevUser ? 0.15 : 0.05, pointerEvents: 'none' }}></div>
@@ -129,19 +137,18 @@ export default function Sidebar({
                       {item.label}
                     </span>
 
-                    {/* BADGE NUMÉRICA (MENU ABERTO) */}
-                    {item.badge > 0 && !menuRecolhido && (
+                    {/* BADGE NUMÉRICA COM VALIDAÇÃO ESTRITA > 0 */}
+                    {Number(item.badge) > 0 && !menuRecolhido && (
                       <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
-                        {item.badge > 99 ? '99+' : item.badge}
+                        {Number(item.badge) > 99 ? '99+' : Number(item.badge)}
                       </span>
                     )}
 
-                    {/* PONTO VERMELHO (MENU RECOLHIDO) */}
-                    {item.badge > 0 && menuRecolhido && (
+                    {/* PONTO VERMELHO NO MENU RECOLHIDO */}
+                    {Number(item.badge) > 0 && menuRecolhido && (
                       <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
                     )}
 
-                    {/* Botão de desafixar (Pino Preenchido) */}
                     <Pin 
                       size={14} 
                       onClick={(e) => toggleFavorito(e, item.id)} 
@@ -154,7 +161,7 @@ export default function Sidebar({
             </div>
           )}
 
-          {/* DEMAIS GRUPOS (SANFONADOS) */}
+          {/* DEMAIS GRUPOS */}
           {['Desenvolvedor', 'Operações', 'Serviços', 'Auditoria', 'Sistema'].map(group => {
             const itemsInGroup = NAVIGATION_ATIVA.filter(n => n.type === group);
             if (itemsInGroup.length === 0) return null;
@@ -184,19 +191,18 @@ export default function Sidebar({
                           {item.label}
                         </span>
                         
-                        {/* BADGE NUMÉRICA (MENU ABERTO) */}
-                        {item.badge > 0 && !menuRecolhido && (
+                        {/* BADGE NUMÉRICA COM VALIDAÇÃO ESTRITA > 0 */}
+                        {Number(item.badge) > 0 && !menuRecolhido && (
                           <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
-                            {item.badge > 99 ? '99+' : item.badge}
+                            {Number(item.badge) > 99 ? '99+' : Number(item.badge)}
                           </span>
                         )}
 
-                        {/* PONTO VERMELHO (MENU RECOLHIDO) */}
-                        {item.badge > 0 && menuRecolhido && (
+                        {/* PONTO VERMELHO NO MENU RECOLHIDO */}
+                        {Number(item.badge) > 0 && menuRecolhido && (
                           <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
                         )}
 
-                        {/* Botão de Fixar/Desfixar */}
                         <Pin 
                           size={14} 
                           onClick={(e) => toggleFavorito(e, item.id)} 

@@ -30,9 +30,6 @@ const formatDate = (value) => {
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 };
 
-// ============================================================================
-// CONFIGURADORES VISUAIS DE PRIORIDADE E SLA
-// ============================================================================
 const getPriorityConfig = (prioridade) => {
   const p = String(prioridade || 'Média').toLowerCase();
   if (p === 'crítica' || p === 'critica') {
@@ -50,7 +47,7 @@ const getPriorityConfig = (prioridade) => {
 const isChamadoRecente = (dataCriacao) => {
   if (!dataCriacao) return false;
   const diffMinutos = (Date.now() - new Date(dataCriacao).getTime()) / (1000 * 60);
-  return diffMinutos <= 120; // Aberto nas últimas 2 horas
+  return diffMinutos <= 120; 
 };
 
 const calcularSLA = (prioridade, dataCriacao, status) => {
@@ -81,9 +78,6 @@ const calcularSLA = (prioridade, dataCriacao, status) => {
   };
 };
 
-// ============================================================================
-// CARDS DE TICKETS COM SLA EM TEMPO REAL E DESTAQUE POR PRIORIDADE
-// ============================================================================
 const SupportTicketCard = memo(({ ticket, selected, onClick }) => {
   const pConfig = getPriorityConfig(ticket.prioridade);
   const recente = isChamadoRecente(ticket.criado_em);
@@ -122,7 +116,6 @@ const SupportTicketCard = memo(({ ticket, selected, onClick }) => {
         <span><Clock3 size={14} /> {formatDate(ticket.criado_em)}</span>
         <span><BookOpen size={14} /> {ticket.categoria || 'Geral'}</span>
         
-        {/* MINIETIQUETA DE SLA DIRETO NO CARD */}
         <span style={{ color: slaInfo.color, fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
           <Hourglass size={13} /> {slaInfo.text}
         </span>
@@ -174,7 +167,6 @@ const SupportQueueCard = memo(({ ticket, selected, onClick }) => {
         <span><Clock3 size={14} /> {formatDate(ticket.criado_em)}</span>
         <span><ShieldCheck size={14} /> {ticket.categoria || 'Geral'}</span>
         
-        {/* MINIETIQUETA DE SLA DIRETO NO CARD */}
         <span style={{ color: slaInfo.color, fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
           <Hourglass size={13} /> {slaInfo.text}
         </span>
@@ -188,14 +180,20 @@ const SupportQueueCard = memo(({ ticket, selected, onClick }) => {
   );
 });
 
-// ============================================================================
-// COMPONENTE PRINCIPAL DO MÓDULO DE SUPORTE
-// ============================================================================
+/**
+ * Módulo de Suporte (Entrada)
+ *
+ * Responsabilidades:
+ * - Gerenciar criação e atendimento de chamados
+ * - Fornecer triagem, acompanhamento e integração com notificações
+ * - Otimizar fluxo com filtros, prioridade e SLA visual
+ */
 export default function Suporte({ api, socket, userRole, nomeLogado, userFilial, showToast, isOffline, onNavigate }) {
   const isDev = userRole === 'DEV';
   const [modoVisao, setModoVisao] = useState(isDev ? 'triagem' : 'acompanhamento');
 
-  // Modal Detalhado de Abertura de Chamado e Modal de Ajuda
+  const [alertaNovoChamado, setAlertaNovoChamado] = useState(null);
+
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [modalAjudaOpen, setModalAjudaOpen] = useState(false);
   const [formNovo, setFormNovo] = useState({ 
@@ -207,7 +205,6 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   });
   const [enviando, setEnviando] = useState(false);
 
-  // Estados de listagem e histórico
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -217,14 +214,12 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   const [selecionado, setSelecionado] = useState(null);
   const [historico, setHistorico] = useState([]);
 
-  // Estados do NOC / Desenvolvedor
   const [resposta, setResposta] = useState('');
   const [statusAtual, setStatusAtual] = useState('Em análise');
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [copiadoId, setCopiadoId] = useState(false);
 
-  // Carregamento de tickets com atualização silenciosa
   const carregarTickets = useCallback(async (silencioso = false) => {
     if (!api || isOffline) return;
     try {
@@ -245,16 +240,31 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
 
   useEffect(() => {
     if (!socket) return undefined;
-    const handler = () => carregarTicketsRef.current(true);
-    socket.on('resposta_suporte', handler);
-    socket.on('atualizacao_dados', handler);
-    return () => {
-      socket.off('resposta_suporte', handler);
-      socket.off('atualizacao_dados', handler);
+    
+    const handleNovoChamado = (novoTicket) => {
+      // SÓ MOSTRA O BANNER SE QUEM ESTIVER NA TELA FOR TÉCNICO DEV (NOC)
+      if (isDev && novoTicket && String(novoTicket.status || 'Aberto').toLowerCase() === 'aberto') {
+        setAlertaNovoChamado(novoTicket);
+        showToast?.(`Novo chamado #${novoTicket.id} aberto por ${novoTicket.solicitante}!`, 'info');
+      }
+      carregarTicketsRef.current(true);
     };
-  }, [socket]);
 
-  // ORDENAÇÃO CRONOLÓGICA ABSOLUTA: Chamados recém-criados sempre ficam em primeiro (#1)
+    const handleUpdateSilencioso = () => {
+      carregarTicketsRef.current(true);
+    };
+
+    socket.on('novo_chamado_suporte', handleNovoChamado);
+    socket.on('resposta_suporte', handleUpdateSilencioso);
+    socket.on('atualizacao_dados', handleUpdateSilencioso);
+
+    return () => {
+      socket.off('novo_chamado_suporte', handleNovoChamado);
+      socket.off('resposta_suporte', handleUpdateSilencioso);
+      socket.off('atualizacao_dados', handleUpdateSilencioso);
+    };
+  }, [socket, showToast, isDev]);
+
   const ticketsVisiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
 
@@ -317,7 +327,6 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     carregarHistorico();
   }, [api, isOffline, selecionado?.id]);
 
-  // Enviar Novo Chamado (Detalhamento Tático + SLA)
   const handleCriarChamado = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast?.('Ação bloqueada. Sem rede.', 'error');
@@ -348,7 +357,6 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }
   };
 
-  // Gravar parecer normal ou ação rápida de 1 Clique
   const salvarRespostaDev = async (statusOverride = null) => {
     if (!selecionado) return;
     if (isOffline) return showToast?.('Sem conexão com o servidor.', 'warning');
@@ -400,6 +408,45 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   return (
     <div className="support-flow-shell anim-fade-in">
       
+      {/* BANNER INTERNO: SOMENTE PERFIS DEV RECONHECEM E VEEM ESTE AVISO */}
+      {alertaNovoChamado && (
+        <div className="support-dev-alert anim-fade-in" role="alert">
+          <div className="support-dev-alert-icon">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="support-dev-alert-copy">
+            <strong>Novo chamado #{alertaNovoChamado.id} aberto no suporte!</strong>
+            <span>
+              <strong>{alertaNovoChamado.solicitante}</strong> ({alertaNovoChamado.filial || alertaNovoChamado.empresa || 'Unidade'}) abriu um ticket com prioridade <strong>{alertaNovoChamado.prioridade}</strong>: "{alertaNovoChamado.titulo}"
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
+            <span className="support-dev-alert-badge">
+              {alertaNovoChamado.categoria || 'Geral'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAlertaNovoChamado(null)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title="Fechar notificação"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* HERO / BANNER SUPERIOR */}
       {modoVisao === 'triagem' ? (
         <section className="support-flow-hero support-flow-hero-triagem">

@@ -7,6 +7,14 @@ import {
 } from 'lucide-react';
 import './ParametrosGlobais.css';
 
+/**
+ * Parâmetros Globais e Políticas de SLA
+ *
+ * Responsabilidades:
+ * - Gerenciar catálogos de `setores` e `tipos` de refrigeração
+ * - Permitir criação/edição/exclusão de políticas que afetam limites operacionais
+ * - Respeitar permissões de edição por `userRole`
+ */
 export default function ParametrosGlobais({ 
   api, showToast, listaSetores, listaTipos, 
   carregarParametrosGerais, carregarDadosBase, setModalConfig,
@@ -28,7 +36,7 @@ export default function ParametrosGlobais({
   // ============================================================================
   const roleLogada = userRole || sessionStorage.getItem('userRole') || 'LOJA';
   
-  // Lê o cargo exato do utilizador no Session Storage
+  // Lê o cargo exato do usuário no Session Storage
   const papelLogado = sessionStorage.getItem('papelLogado') || ''; 
   const isGestorLoja = papelLogado.toLowerCase().includes('gerente') || papelLogado.toLowerCase().includes('coordenador');
 

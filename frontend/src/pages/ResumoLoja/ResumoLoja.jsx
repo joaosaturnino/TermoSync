@@ -5,6 +5,16 @@ import {
 } from 'lucide-react';
 import './ResumoLoja.css';
 
+/**
+ * Resumo da Loja (Visão Operacional)
+ *
+ * Responsabilidades:
+ * - Consolidar indicadores rápidos da filial (ativos, alertas, chamados)
+ * - Servir como painel de decisão para supervisores e turno
+ *
+ * Props:
+ * - `equipamentosDaFilial`, `notificacoesDaFilial`, `chamados` e contexto de `filialAtiva`
+ */
 export default function ResumoLoja({
   equipamentosDaFilial = [],
   notificacoesDaFilial = [],

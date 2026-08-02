@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import logger from '../../utils/logger';
 import {
   CheckCircle2, ClipboardList, ListChecks, RefreshCw, 
   ShieldCheck, TimerReset, TrendingUp, Check, 
@@ -65,6 +66,20 @@ const sectionIndexByKey = {
   'encerramento': 2
 };
 
+/**
+ * Checklist de Turno
+ *
+ * Responsabilidades:
+ * - Fornecer listas de verificação pré-turno, operação e encerramento
+ * - Suportar auto-seed de rotinas padrão quando o banco estiver vazio
+ * - Sincronizar alterações com o backend e gerar status de progresso
+ *
+ * Props:
+ * - `api`: instância HTTP para chamadas ao backend
+ * - `filialAtiva`: filial/contexto atual
+ * - `showToast(message, type)`: função para notificações de UI
+ * - `userRole`: perfil do usuário para controle de permissões
+ */
 export default function ChecklistTurno({ api, filialAtiva, showToast, userRole = 'LOJA' }) {
   const [sections, setSections] = useState(initialChecklistTemplate);
   const [isSyncing, setIsSyncing] = useState(true);
@@ -78,7 +93,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
 
   const emitToast = (msg, type) => {
     if (showToast) showToast(msg, type);
-    else console.log(`[${type.toUpperCase()}] ${msg}`);
+    else logger.info(`[${type.toUpperCase()}] ${msg}`);
   };
 
   const buildSections = useCallback((rows = []) => {

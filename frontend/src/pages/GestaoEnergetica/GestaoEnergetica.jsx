@@ -10,6 +10,16 @@ registerLocale('pt', ptBR);
 import 'react-datepicker/dist/react-datepicker.css';
 import './GestaoEnergetica.css'; 
 
+/**
+ * Página de Gestão Energética (ESG)
+ *
+ * Responsabilidades:
+ * - Agregar leituras de energia por equipamento e período
+ * - Calcular custo estimado, pegada de carbono e identificar picos
+ * - Expor gráficos e relatórios para auditoria energética
+ *
+ * Props: `api`, `filialAtiva`, `showToast`, `isDarkMode`, `isOffline`
+ */
 export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMode, isOffline }) {
   
   // ==========================================

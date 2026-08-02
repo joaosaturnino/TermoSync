@@ -4,14 +4,29 @@ import {
   Search, Calendar, MapPin, ActivitySquare, Server, Loader2, AlertOctagon
 } from 'lucide-react';
 import './Kanban.css';
+import logger from '../../utils/logger';
 
+/**
+ * Quadro Kanban para Gestão de Incidentes (ITSM)
+ *
+ * Responsabilidades:
+ * - Apresentar tickets por coluna (Triagem, Em Andamento, Logística, Concluído)
+ * - Permitir drag-and-drop nativo e ações de movimentação manual
+ * - Fornecer filtros de busca e KPIs resumidos para operação rápida
+ *
+ * Props:
+ * - `chamados`: lista de ordens de serviço
+ * - `api`: instância HTTP para atualizações de status
+ * - `carregarChamados`: função para recarregar dados após mudanças
+ * - `showToast`, `isOffline`: utilitários de UI/estado offline
+ */
 export default function Kanban({ chamados, api, carregarChamados, showToast, isOffline }) {
   const [busca, setBusca] = useState('');
   
-  // Controlo UX: Bloqueio do card que está a atualizar na API
+  // Controle UX: Bloqueio do card que está a atualizar na API
   const [movingTicketId, setMovingTicketId] = useState(null);
   
-  // Controlo UX: Drag and Drop Nativo (Arrastar e Largar)
+  // Controle UX: Drag and Drop Nativo (Arrastar e Largar)
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColId, setDragOverColId] = useState(null);
 
@@ -36,7 +51,7 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
       await carregarChamados(); 
       showToast(`OS encaminhada para a fila: ${novoStatus}`, 'success');
     } catch (e) { 
-      console.error(e);
+      logger.error(e);
       showToast('Falha na sincronização do ticket. Verifique a rede.', 'error'); 
     } finally {
       setMovingTicketId(null); 

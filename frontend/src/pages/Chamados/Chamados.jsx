@@ -5,6 +5,8 @@ import {
   Search, AlertTriangle, Loader2, Info, Shield
 } from 'lucide-react';
 import './Chamados.css';
+import Loader from '../../components/Loader';
+import EmptyState from '../../components/EmptyState';
 
 // ============================================================================
 // COMPONENTE OTIMIZADO (MEMO): Evita a re-renderização massiva da lista
@@ -86,6 +88,14 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, isSelected, on
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
+/**
+ * Central de Chamados (Ordens de Serviço)
+ *
+ * Responsabilidades:
+ * - Listar e filtrar OS por filial, status e urgência
+ * - Abrir novas ordens, atribuir técnicos e registrar resolução
+ * - Suportar seleção em lote para relatórios/impressão
+ */
 export default function Chamados({ 
   userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb = [], 
   api, carregarChamados, showToast, isOffline, gerarLoteOS 
@@ -446,18 +456,7 @@ export default function Chamados({
 
       <div className="grid-cards stagger-3">
         {chamadosFiltrados.length === 0 ? (
-          <div className="empty-state dashboard-empty" style={{ gridColumn: '1 / -1', marginTop: '2rem' }}>
-            <div className="empty-shield-box" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
-               <CheckCircle size={48} color="var(--success)" />
-            </div>
-            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Painel Limpo</h3>
-            <p style={{ color: 'var(--text-muted)', maxWidth: '400px' }}>
-              {busca 
-                ? 'Nenhum resultado corresponde à sua pesquisa.' 
-                : `Nenhuma Ordem de Serviço encontrada na categoria "${filtroStatus}".`
-              }
-            </p>
-          </div>
+          <EmptyState title={busca ? 'Nenhum resultado' : 'Painel Limpo'} description={busca ? 'Nenhum resultado corresponde à sua pesquisa.' : `Nenhuma Ordem de Serviço encontrada na categoria "${filtroStatus}".`} icon={CheckCircle} />
         ) : (
           chamadosFiltrados.map(c => (
             <ChamadoCard 

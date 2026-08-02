@@ -27,6 +27,19 @@ const WifiBars = ({ dbm, isOffline }) => {
   );
 };
 
+/**
+ * Monitor de Hardware IoT
+ *
+ * Responsabilidades:
+ * - Exibir nós de hardware (gateways/edge) e seu status de conectividade
+ * - Fornecer ações de gerenciamento simuladas (reboot, OTA)
+ * - Mostrar KPIs de online/offline para diagnóstico rápido
+ *
+ * Props:
+ * - `equipamentos`: lista de equipamentos conhecida pelo frontend
+ * - `showToast(message, type)`: função para notificações
+ * - `isOffline`: booleano indicando modo offline do app
+ */
 export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
   const [hwNodes, setHwNodes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +254,7 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
               <div className="spec-item">
                 <span className="spec-label">Último Heartbeat (PONG)</span>
                 <span className="spec-value" style={{color: node.isNodeOffline ? '#ef4444' : 'inherit'}}>
-                  {node.ultima_comunicacao ? new Date(node.ultima_comunicacao).toLocaleTimeString('pt-BR') : 'Sem registo'}
+                  {node.ultima_comunicacao ? new Date(node.ultima_comunicacao).toLocaleTimeString('pt-BR') : 'Sem registro'}
                 </span>
               </div>
             </div>

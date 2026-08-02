@@ -5,6 +5,14 @@ import {
 } from 'lucide-react';
 import './Simulador.css';
 
+/**
+ * Simulador de Telemetria
+ *
+ * Responsabilidades:
+ * - Injetar leituras sintéticas no backend para testes e validação
+ * - Permitir modos SINGLE/CLUSTER e simular falhas (degelo, rede, mecânica)
+ * - Fornecer logs e mecanismos de restauração automática
+ */
 export default function Simulador({ api, equipamentos, showToast }) {
   const [targetMode, setTargetMode] = useState('SINGLE');
   const [eqId, setEqId] = useState('');

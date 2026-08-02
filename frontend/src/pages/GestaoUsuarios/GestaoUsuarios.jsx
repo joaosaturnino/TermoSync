@@ -5,7 +5,16 @@ import {
   Lock, Briefcase, Eye, EyeOff, Users, Settings
 } from 'lucide-react';
 import './GestaoUsuarios.css';
+import logger from '../../utils/logger';
 
+/**
+ * Página de Gestão de Usuários e Acessos (IAM)
+ *
+ * Responsabilidades:
+ * - Listar, criar, editar e excluir contas de usuário
+ * - Prover UI para definição de roles, MFA e bloqueios
+ * - Integrar com endpoints auxiliares para filiais e empresas
+ */
 export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
 
   const roleLogada = sessionStorage.getItem('userRole') || 'LOJA';
@@ -46,7 +55,7 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
         setEmpresasDb(Array.isArray(resE.data) ? resE.data : []);
       }
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   }, [api, roleLogada]);
 

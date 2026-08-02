@@ -24,6 +24,22 @@ const metasPadrao = [
   { chave: 'meta-14', titulo: 'Ativar Lockdown Digital dos equipamentos / Encerramento', horario: '22:00' }
 ];
 
+import logger from '../../utils/logger';
+
+/**
+ * Plano do Dia — gerenciador de metas operacionais diárias
+ *
+ * Responsabilidades:
+ * - Listar, criar, completar e resetar metas do dia (cronograma operacional)
+ * - Sincronizar com backend e suportar auto-seed de metas padrão quando vazio
+ * - Gerar relatórios CSV e exportações para auditoria
+ *
+ * Props:
+ * - `api`: instância HTTP para chamadas ao backend
+ * - `filialAtiva`: escopo de filtragem por filial
+ * - `showToast`: função para notificações de UI
+ * - `userRole`: role atual do usuário (padrão: 'LOJA')
+ */
 export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA' }) {
   const [tasks, setTasks] = useState([]);
   const [isSyncing, setIsSyncing] = useState(true);
@@ -40,7 +56,7 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
 
   const emitToast = (msg, type) => {
     if (showToast) showToast(msg, type);
-    else console.log(`[${type.toUpperCase()}] ${msg}`);
+    else logger.info(`[${type.toUpperCase()}] ${msg}`);
   };
 
   const carregarTarefas = useCallback(async () => {

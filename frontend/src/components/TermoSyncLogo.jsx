@@ -1,5 +1,13 @@
 import React from 'react';
 
+/**
+ * SVG do logotipo ThermoSync
+ *
+ * Props:
+ * - `size`: tamanho em pixels
+ * - `color`: cor principal do logo
+ * - `className`: classes CSS adicionais
+ */
 export default function TermoSyncLogo({ size = 40, color = "currentColor", className = "" }) {
   return (
     <svg 

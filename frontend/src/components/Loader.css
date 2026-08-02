@@ -1,0 +1,6 @@
+.ts-loader-container{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;color:var(--text-muted);
+}
+.ts-loader-spinner{border:4px solid rgba(0,0,0,0.06);border-top-color:var(--accent,#10b981);border-radius:50%;animation:ts-spin 1s linear infinite}
+.ts-loader-message{margin-top:10px;font-size:0.95rem}
+@keyframes ts-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

@@ -7,20 +7,6 @@ import {
 import '../Suporte/SuporteTelas.css';
 import './AprovacoesSaaS.css';
 
-/**
- * Tela de Aprovações SaaS (Onboarding)
- *
- * Responsabilidades:
- * - Listar pré-cadastros pendentes e permitir aprovação ou rejeição
- * - Executar deploy automático de tenants aprovados e notificar clientes
- * - Fornecer fluxo manual para criação de pré-cadastros quando necessário
- *
- * Props:
- * - `showToast(message, type)`: notificador de UI
- * - `isOffline`: booleano de conectividade
- * - `api`: instância axios para chamadas backend
- * - `socket`: instância socket.io para eventos em tempo real
- */
 export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
   const [pendentes, setPendentes] = useState([]);
   const [acaoProcessando, setAcaoProcessando] = useState(null);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
+import logger from '../utils/logger';
 
 export function useSecurity(initialToken, onLogout) {
   const [authState, setAuthState] = useState({
@@ -35,22 +36,22 @@ export function useSecurity(initialToken, onLogout) {
           headers: { Authorization: `Bearer ${currentToken}` }
         });
 
-        if (isMounted) {
-          setAuthState({
-            isAuthenticated: true,
-            isVerifying: false,
-            role: response.data.role || sessionStorage.getItem('userRole'),
-            token: currentToken,
-            user: response.data
-          });
-        }
+          if (isMounted) {
+            setAuthState({
+              isAuthenticated: true,
+              isVerifying: false,
+              role: response.data.role || sessionStorage.getItem('userRole'),
+              token: currentToken,
+              user: response.data
+            });
+          }
       } catch (error) {
         if (isMounted) {
           if (error.response && error.response.status === 401) {
-            console.error("[SECURITY] Acesso Negado. O Token expirou de verdade.");
+            logger.error('[SECURITY] Acesso Negado. O Token expirou de verdade.');
             forceLogout();
           } else {
-            console.warn("[SECURITY] Validação online falhou (Rede/CORS). Assumindo a sessão pelo Cache Local.");
+            logger.warn('[SECURITY] Validação online falhou (Rede/CORS). Assumindo a sessão pelo Cache Local.');
             setAuthState({
               isAuthenticated: true,
               isVerifying: false,

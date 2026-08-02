@@ -11,6 +11,15 @@ import {
 } from 'lucide-react';
 import './ResumoTurno.css';
 
+/**
+ * Resumo de Turno
+ *
+ * Responsabilidades:
+ * - Mostrar resumo objetivo para início/encerramento de turno
+ * - Apresentar KPIs rápidos: equipamentos, alertas e chamados
+ *
+ * Props: `equipamentosDaFilial`, `notificacoesDaFilial`, `chamados`, `filialAtiva`, `userRole`
+ */
 export default function ResumoTurno({ equipamentosDaFilial = [], notificacoesDaFilial = [], chamados = [], filialAtiva, userRole }) {
   const totalEquipamentos = equipamentosDaFilial.length;
   const alertasAtivos = notificacoesDaFilial.length;
