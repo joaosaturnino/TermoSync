@@ -10,16 +10,7 @@ import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Register.css';
 
 /**
- * Tela de Onboarding / Registro Público (Formulário)
- *
- * Responsabilidades:
- * - Coletar dados de organização para pré-cadastro SaaS
- * - Validar campos básicos e enviar para o endpoint de pré-cadastros
- * - Exibir estado de progresso e mensagens de erro/ sucesso
- *
- * Props:
- * - `onNavigate(target)`: callback para navegação interna
- * - `isOffline`: indica ausência de conexão de rede
+ * Tela de Onboarding / Registro Público (100% Responsiva)
  */
 export default function Register({ onNavigate, isOffline }) {
   const [step, setStep] = useState(1); 
@@ -46,7 +37,7 @@ export default function Register({ onNavigate, isOffline }) {
     setIsLoading(true);
     try {
       await axios.post(`${getApiUrl()}/pre-cadastros`, formData);
-      setStep(2); // Transição para a tela de Sucesso e Linha do Tempo
+      setStep(2);
     } catch (error) {
       const serverError = error.response?.data?.error || "Não foi possível submeter o requerimento. Tente novamente em instantes.";
       setErrorMessage(serverError);
@@ -58,8 +49,9 @@ export default function Register({ onNavigate, isOffline }) {
   return (
     <div className="register-viewport">
       
-      {/* BOTÃO VOLTAR AO INÍCIO */}
+      {/* BOTÃO VOLTAR NA LATERAL SUPERIOR ESQUERDA */}
       <button 
+        type="button"
         onClick={() => onNavigate('landing')}
         className="register-back-btn"
       >
@@ -72,10 +64,10 @@ export default function Register({ onNavigate, isOffline }) {
         {step === 1 && (
           <>
             {/* CABEÇALHO DO FORMULÁRIO */}
-            <div className="register-header">
+            <header className="register-header">
               <div className="register-logo-box">
                 <div className="register-logo-inner">
-                  <TermoSyncLogo size={42} color="#38bdf8" />
+                  <TermoSyncLogo size={40} color="#38bdf8" />
                 </div>
               </div>
               
@@ -87,7 +79,7 @@ export default function Register({ onNavigate, isOffline }) {
               <p>
                 Submeta os dados da sua organização para gerar um Tenant dedicado com telemetria e SLA monitorado.
               </p>
-            </div>
+            </header>
 
             {/* BANNER INLINE DE ERROS */}
             {errorMessage && (
@@ -103,10 +95,11 @@ export default function Register({ onNavigate, isOffline }) {
                 
                 {/* EMPRESA */}
                 <div className="register-field">
-                  <label>Razão Social / Organização</label>
+                  <label htmlFor="empresa-input">Razão Social / Organização</label>
                   <div className="register-input-wrapper">
                     <Building2 size={18} className="register-input-icon" />
                     <input 
+                      id="empresa-input"
                       type="text" 
                       placeholder="Ex: Supermercados Alpha S/A" 
                       required 
@@ -117,30 +110,32 @@ export default function Register({ onNavigate, isOffline }) {
                   </div>
                 </div>
 
-                {/* CNPJ / NIF E TELEFONE EM GRID */}
+                {/* CNPJ / NIF E TELEFONE EM GRID RESPONSIVO */}
                 <div className="register-grid-2">
                   <div className="register-field">
-                    <label>CNPJ / NIF Fiscal</label>
+                    <label htmlFor="cnpj-input">CNPJ / NIF Fiscal</label>
                     <div className="register-input-wrapper">
                       <FileText size={18} className="register-input-icon" />
                       <input 
+                        id="cnpj-input"
                         type="text" 
                         placeholder="00.000.000/0001-00" 
                         required 
                         value={formData.cnpj} 
                         onChange={e => setFormData({...formData, cnpj: e.target.value})} 
-                        style={{ fontFamily: 'monospace' }}
+                        style={{ fontFamily: 'Montserrat, sans-serif' }}
                         disabled={isLoading}
                       />
                     </div>
                   </div>
 
                   <div className="register-field">
-                    <label>Telefone / Celular</label>
+                    <label htmlFor="telefone-input">Telefone / Celular</label>
                     <div className="register-input-wrapper">
                       <Phone size={18} className="register-input-icon" />
                       <input 
-                        type="text" 
+                        id="telefone-input"
+                        type="tel" 
                         placeholder="(11) 90000-0000" 
                         required 
                         value={formData.telefone} 
@@ -153,10 +148,11 @@ export default function Register({ onNavigate, isOffline }) {
 
                 {/* RESPONSÁVEL TÉCNICO */}
                 <div className="register-field">
-                  <label>Nome do Responsável Técnico / Operacional</label>
+                  <label htmlFor="responsavel-input">Nome do Responsável Técnico / Operacional</label>
                   <div className="register-input-wrapper">
                     <User size={18} className="register-input-icon" />
                     <input 
+                      id="responsavel-input"
                       type="text" 
                       placeholder="Ex: Eng. Roberto Carlos Silva" 
                       required 
@@ -169,12 +165,13 @@ export default function Register({ onNavigate, isOffline }) {
 
                 {/* EMAIL CORPORATIVO */}
                 <div className="register-field">
-                  <label>
-                    E-mail Corporativo <span style={{ color: '#64748b', textTransform: 'none', fontWeight: 'normal' }}>(Receberá as credenciais Root)</span>
+                  <label htmlFor="email-input">
+                    E-mail Corporativo <span>(Receberá as credenciais Root)</span>
                   </label>
                   <div className="register-input-wrapper">
                     <Mail size={18} className="register-input-icon" />
                     <input 
+                      id="email-input"
                       type="email" 
                       placeholder="roberto.silva@empresa.com.br" 
                       required 
@@ -295,16 +292,9 @@ export default function Register({ onNavigate, isOffline }) {
             </div>
 
             <button 
-              className="btn btn-outline w-100" 
-              onClick={() => onNavigate('landing')} 
-              style={{ 
-                padding: '12px', 
-                borderRadius: '12px', 
-                fontWeight: '700', 
-                fontSize: '0.9rem', 
-                borderColor: 'rgba(255,255,255,0.18)', 
-                color: 'white' 
-              }}
+              type="button"
+              className="register-return-btn"
+              onClick={() => onNavigate('landing')}
             >
               Concluir & Retornar ao Início
             </button>

@@ -1,62 +1,110 @@
 import React from 'react';
-import { ShieldCheck, Activity, Server, LogIn, UserPlus, ArrowRight } from 'lucide-react';
-import TermoSyncLogo from '../../components/TermoSyncLogo'; // Ajuste o caminho se necessário
+import { 
+  ShieldCheck, Activity, Server, LogIn, UserPlus, 
+  ArrowRight, Lock, CheckCircle2 
+} from 'lucide-react';
+import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './LandingPage.css';
 
 /**
- * Página de Entrada (Landing)
- *
- * Responsabilidades:
- * - Apresentar visão resumida da plataforma e chamar telas públicas (login / registro)
- * - Exibir value propositions e links de navegação
+ * Página de Entrada (Landing Page - SaaS Enterprise)
  */
 export default function LandingPage({ onNavigate }) {
   return (
     <div className="landing-viewport">
-      <div className="landing-content">
+      
+      {/* Cabeçalho com Status e Atalho Rápido */}
+      <header className="landing-header">
+        <div className="landing-header-status">
+          <span className="status-dot"></span>
+          <span>Sistemas Operacionais • <strong>100% Online</strong></span>
+        </div>
+        
+        <button className="btn-header-login" onClick={() => onNavigate('login')}>
+          <LogIn size={15} /> Acessar Portal
+        </button>
+      </header>
+
+      {/* Conteúdo Principal (Hero Section) */}
+      <main className="landing-content">
         
         <div className="landing-badge">
-          <span className="pulse-success-icon" style={{display: 'inline-block', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%'}}></span>
-          Sistemas Operacionais
+          <span className="pulse-success-icon"></span>
+          PLATAFORMA IOT & TELEMETRIA
         </div>
 
-        <TermoSyncLogo size={80} color="#38bdf8" style={{ marginBottom: '1rem' }} />
+        <div className="landing-logo-wrapper">
+          <TermoSyncLogo size={68} color="#38bdf8" />
+        </div>
         
         <h1 className="landing-title">ThermoSync</h1>
         
         <p className="landing-subtitle">
-          Plataforma Enterprise de Monitorização Frigorífica e Orquestração IoT. 
-          Tenha controle absoluto sobre a telemetria, compliance e cadeia de frio da sua infraestrutura em tempo real.
+          Monitorização frigorífica e orquestração de ponta a ponta. 
+          Tenha controle absoluto sobre a cadeia de frio, compliance sanitário e alertas da sua infraestrutura em tempo real.
         </p>
 
-        <div className="landing-features">
-          <div className="feature-pill">
-            <Activity size={20} color="#38bdf8" />
-            <strong>Telemetria em Tempo Real</strong>
-          </div>
-          <div className="feature-pill">
-            <ShieldCheck size={20} color="#10b981" />
-            <strong>Auditoria e Compliance</strong>
-          </div>
-          <div className="feature-pill">
-            <Server size={20} color="#a78bfa" />
-            <strong>Cloud Multi-Tenant</strong>
-          </div>
-        </div>
-
+        {/* OS DOIS BOTÕES PRINCIPAIS EM DESTAQUE */}
         <div className="landing-actions">
-          {/* Chama a tela de Login */}
-          <button className="btn-landing-primary" onClick={() => onNavigate('login')}>
+          {/* <button className="btn-landing-primary" onClick={() => onNavigate('login')}>
             <LogIn size={20} /> Acessar Sistema
-          </button>
+          </button> */}
           
-          {/* Chama a tela de Registro */}
           <button className="btn-landing-secondary" onClick={() => onNavigate('register')}>
             <UserPlus size={20} /> Criar Conta <ArrowRight size={16} />
           </button>
         </div>
 
-      </div>
+        {/* Minicards de Proposta de Valor */}
+        <div className="landing-features">
+          <div className="feature-card">
+            <div className="feature-icon-wrapper blue">
+              <Activity size={22} />
+            </div>
+            <div className="feature-text">
+              <strong>Telemetria em Tempo Real</strong>
+              <span>Sensores com leitura contínua e precisão térmica</span>
+            </div>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon-wrapper green">
+              <ShieldCheck size={22} />
+            </div>
+            <div className="feature-text">
+              <strong>Auditoria & Compliance</strong>
+              <span>Histórico imutável para vigilância sanitária</span>
+            </div>
+          </div>
+
+          <div className="feature-card">
+            <div className="feature-icon-wrapper purple">
+              <Server size={22} />
+            </div>
+            <div className="feature-text">
+              <strong>Cloud Multi-Tenant</strong>
+              <span>Gestão centralizada para matriz e filiais</span>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      {/* Rodapé Discreto com Credibilidade */}
+      <footer className="landing-footer">
+        <div className="footer-item">
+          <Lock size={14} /> Criptografia AES-256 E2E
+        </div>
+        <span className="footer-divider">•</span>
+        <div className="footer-item">
+          <CheckCircle2 size={14} /> SLA de Disponibilidade 99.98%
+        </div>
+        <span className="footer-divider">•</span>
+        <div className="footer-item">
+          ThermoSync Enterprise © 2026
+        </div>
+      </footer>
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
-/* =========================================
-   LandingPage.css - Tela Inicial do SaaS
-   ========================================= */
+/* =========================================================
+   LandingPage.css - Tela Inicial do SaaS Enterprise
+   ========================================================= */
 
 .landing-viewport {
     position: fixed;
@@ -8,190 +8,337 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
-    overflow: hidden;
+    justify-content: space-between;
+    background: radial-gradient(circle at 50% 20%, #091223 0%, #020617 80%);
+    overflow-y: auto;
+    overflow-x: hidden;
     font-family: 'Montserrat', sans-serif;
     color: white;
-    z-index: 9999; /* Fica por cima de tudo */
+    z-index: 9999;
 }
 
-/* Fundo Cyber Animado */
+/* Grid Cibernético de Fundo com Vinheta */
 .landing-viewport::before {
     content: '';
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
-    background-size: 50px 50px;
+      linear-gradient(to right, rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 90%);
+    -webkit-mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 90%);
     z-index: 0;
-    animation: panLandingGrid 40s linear infinite;
+    animation: panLandingGrid 60s linear infinite;
+    pointer-events: none;
 }
 
+/* Brilho Radial Central Suave */
 .landing-viewport::after {
     content: '';
     position: absolute;
     width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
-    top: 50%;
+    height: 350px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(56, 189, 248, 0.05) 50%, transparent 70%);
+    top: 35%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1;
     pointer-events: none;
-    animation: pulseCore 6s ease-in-out infinite alternate;
+    filter: blur(40px);
 }
 
 @keyframes panLandingGrid {
     0% { background-position: 0 0; }
-    100% { background-position: 50px 50px; }
+    100% { background-position: 40px 40px; }
 }
 
-@keyframes pulseCore {
-    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-    100% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+/* =========================================================
+   Cabeçalho
+   ========================================================= */
+.landing-header {
+    width: 100%;
+    max-width: 1100px;
+    padding: 1.25rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 10;
 }
 
+.landing-header-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    backdrop-filter: blur(8px);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.btn-header-login {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s ease;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.btn-header-login:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+    color: white;
+}
+
+/* =========================================================
+   Hero & Conteúdo
+   ========================================================= */
 .landing-content {
     position: relative;
-    z-index: 2;
+    z-index: 5;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    max-width: 900px;
-    padding: 2rem;
-    animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 850px;
+    padding: 1rem 1.5rem;
+    animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: auto 0;
+}
+
+@keyframes slideUpFade {
+    0% { opacity: 0; transform: translateY(15px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
 .landing-badge {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
     color: #10b981;
     padding: 6px 16px;
     border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 800;
+    font-size: 0.72rem;
+    font-weight: 700;
     letter-spacing: 1.5px;
-    text-transform: uppercase;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+.pulse-success-icon {
+    width: 6px;
+    height: 6px;
+    background: #10b981;
+    border-radius: 50%;
+}
+
+.landing-logo-wrapper {
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 4px 15px rgba(56, 189, 248, 0.2));
 }
 
 .landing-title {
-    font-size: 5rem;
+    font-size: clamp(2.8rem, 6vw, 4rem);
     font-weight: 900;
-    margin: 0 0 1.5rem 0;
-    letter-spacing: -2px;
+    margin: 0 0 0.85rem 0;
+    letter-spacing: -1.5px;
     line-height: 1.1;
-    background: linear-gradient(to right, #ffffff 30%, #38bdf8 70%);
+    background: linear-gradient(135deg, #ffffff 40%, #38bdf8 90%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    text-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
 }
 
 .landing-subtitle {
-    font-size: 1.25rem;
+    font-size: clamp(0.95rem, 2vw, 1.08rem);
     color: #94a3b8;
     line-height: 1.6;
-    margin-bottom: 3.5rem;
-    font-weight: 500;
-    max-width: 700px;
+    margin-bottom: 2rem;
+    font-weight: 400;
+    max-width: 620px;
 }
 
-/* Feature Cards Horizontais */
-.landing-features {
-    display: flex;
-    gap: 1.5rem;
-    margin-bottom: 4rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.feature-pill {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 12px 24px;
-    border-radius: 16px;
-    backdrop-filter: blur(10px);
-    transition: 0.3s;
-}
-
-.feature-pill:hover {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: rgba(56, 189, 248, 0.5);
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-}
-
-.feature-pill strong {
-    font-size: 0.9rem;
-    color: #f8fafc;
-}
-
-/* Ações (Botões) */
+/* =========================================================
+   Botões de Ação (Em Destaque)
+   ========================================================= */
 .landing-actions {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+    width: 100%;
 }
 
 .btn-landing-primary {
     background: linear-gradient(135deg, #059669 0%, #10b981 100%);
     color: white;
     border: none;
-    padding: 16px 32px;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 800;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    transition: 0.3s;
-    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    transition: 0.2s ease;
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.25);
+    font-family: 'Montserrat', sans-serif;
 }
 
 .btn-landing-primary:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 15px 35px rgba(16, 185, 129, 0.6), inset 0 1px 0 rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(16, 185, 129, 0.4);
+    filter: brightness(1.05);
 }
 
 .btn-landing-secondary {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 16px 32px;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 800;
+    background: rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    transition: 0.3s;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    transition: 0.2s ease;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .btn-landing-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: white;
-    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+    transform: translateY(-2px);
 }
 
+/* =========================================================
+   Minicards de Valor
+   ========================================================= */
+.landing-features {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.feature-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 12px 18px;
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    transition: 0.2s ease;
+    text-align: left;
+    flex: 1;
+    min-width: 230px;
+    max-width: 270px;
+}
+
+.feature-card:hover {
+    background: rgba(15, 23, 42, 0.85);
+    border-color: rgba(56, 189, 248, 0.3);
+    transform: translateY(-2px);
+}
+
+.feature-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.feature-icon-wrapper.blue   { background: rgba(56, 189, 248, 0.1); color: #38bdf8; }
+.feature-icon-wrapper.green  { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.feature-icon-wrapper.purple { background: rgba(167, 139, 250, 0.1); color: #a78bfa; }
+
+.feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.feature-text strong {
+    font-size: 0.84rem;
+    color: #f8fafc;
+    font-weight: 600;
+}
+
+.feature-text span {
+    font-size: 0.7rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   Rodapé
+   ========================================================= */
+.landing-footer {
+    width: 100%;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    position: relative;
+    z-index: 10;
+}
+
+.footer-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.footer-divider {
+    color: #334155;
+}
+
+/* =========================================================
+   Responsividade
+   ========================================================= */
 @media (max-width: 768px) {
-    .landing-title { font-size: 3rem; }
-    .landing-actions { flex-direction: column; width: 100%; }
+    .landing-header { flex-direction: column; gap: 10px; text-align: center; }
+    .landing-title { font-size: 2.5rem; }
+    .landing-actions { flex-direction: column; width: 100%; margin-bottom: 2rem; }
     .landing-actions button { width: 100%; justify-content: center; }
+    .landing-features { flex-direction: column; align-items: center; }
+    .feature-card { width: 100%; max-width: 100%; }
+    .landing-footer { flex-wrap: wrap; gap: 0.5rem; text-align: center; }
+    .footer-divider { display: none; }
 }

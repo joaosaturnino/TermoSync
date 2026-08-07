@@ -184,7 +184,7 @@
     font-weight: 900;
     color: white;
     line-height: 1.1;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .kpi-label-modern {
@@ -375,7 +375,7 @@
     color: white;
     font-weight: 900;
     font-size: 0.85rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Montserrat', sans-serif;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -512,7 +512,7 @@
     justify-content: center;
     gap: 15px;
     color: var(--primary);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Montserrat', sans-serif;
     font-weight: 900;
     font-size: 0.85rem;
 }

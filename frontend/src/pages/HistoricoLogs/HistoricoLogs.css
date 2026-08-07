@@ -192,7 +192,7 @@
   background: transparent;
   width: 100%;
   outline: none;
-  font-family: inherit;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.95rem;
   color: white;
 }
@@ -229,7 +229,7 @@
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .triage-chip:hover {
@@ -365,7 +365,7 @@
 }
 
 .hash-string {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.7rem;
   color: #64748b;
   background: rgba(0, 0, 0, 0.4);
@@ -435,7 +435,7 @@
   color: #e2e8f0;
   line-height: 1.6;
   font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .log-issue-text strong {

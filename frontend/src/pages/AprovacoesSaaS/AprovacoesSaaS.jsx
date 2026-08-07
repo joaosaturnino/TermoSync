@@ -409,7 +409,7 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
                     required 
                     value={formManual.cnpj} 
                     onChange={e => setFormManual({...formManual, cnpj: e.target.value})}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', padding: '10px 12px', borderRadius: '10px', color: 'white', fontSize: '0.88rem', fontFamily: 'monospace' }}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', padding: '10px 12px', borderRadius: '10px', color: 'white', fontSize: '0.88rem', fontFamily: 'Montserrat' }}
                   />
                 </div>
                 <div>
@@ -487,7 +487,7 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
             <div className="aprovacoes-modal-grid">
               <div>
                 <span>CNPJ</span>
-                <strong style={{ fontFamily: 'monospace' }}>{modalInspecao.cnpj}</strong>
+                <strong style={{ fontFamily: 'Montserrat' }}>{modalInspecao.cnpj}</strong>
               </div>
               <div>
                 <span>Data da Submissão</span>

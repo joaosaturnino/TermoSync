@@ -1,7 +1,6 @@
 /* =========================================
    PlanoDia.css - Enterprise Edition
    ========================================= */
-
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 .plano-dia {
@@ -10,6 +9,8 @@
   gap: 1.2rem;
   font-family: 'Montserrat', sans-serif;
   animation: fadeIn 0.4s ease-out;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -29,7 +30,6 @@
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 0.9));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 4px solid #8b5cf6;
-  /* Roxo para distinguir do Checklist */
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
@@ -193,7 +193,7 @@
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
 }
 
-/* --- TAREFAS (LISTA) --- */
+/* --- TAREFAS SEM SCROLL TRAVADO --- */
 .tasks-plano {
   display: flex;
   flex-direction: column;
@@ -203,6 +203,8 @@
   border-radius: 16px;
   padding: 1.25rem;
   backdrop-filter: blur(12px);
+  height: auto;
+  overflow: visible;
 }
 
 .task-plano {
@@ -281,13 +283,12 @@
   margin: 0;
   color: #94a3b8;
   font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-/* --- AÇÕES NA TAREFA --- */
 .task-actions-group {
   display: flex;
   align-items: center;
@@ -333,7 +334,6 @@
   color: #ef4444;
 }
 
-/* --- ADICIONAR NOVA META --- */
 .add-task-container {
   margin-top: 1rem;
 }
@@ -391,7 +391,7 @@
   color: white;
   padding: 8px;
   border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   outline: none;
   font-size: 0.85rem;
 }
@@ -433,7 +433,6 @@
   color: white;
 }
 
-/* --- FOOTER --- */
 .footer-plano {
   display: flex;
   justify-content: flex-start;

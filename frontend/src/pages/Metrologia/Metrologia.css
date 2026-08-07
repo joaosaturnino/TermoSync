@@ -123,7 +123,7 @@
   color: var(--text-main);
   line-height: 1.1;
   margin-bottom: 2px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .kpi-label {
@@ -217,7 +217,7 @@
 }
 
 .dias-box {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.9rem;
   font-weight: 800;
   display: flex;

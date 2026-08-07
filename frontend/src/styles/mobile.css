@@ -113,7 +113,7 @@
   background: rgba(2, 6, 23, 0.8);
   color: #f8fafc;
   font-size: 0.85rem;
-  font-family: monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .server-config-body input:focus {
@@ -131,7 +131,7 @@
 .server-config-current {
   font-size: 0.7rem;
   color: #10b981;
-  font-family: monospace;
+  font-family: 'Montserrat', sans-serif;
   word-break: break-all;
 }
 
@@ -159,3 +159,4 @@
     padding-top: calc(1.5rem + var(--safe-top));
   }
 }
+

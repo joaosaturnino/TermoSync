@@ -211,7 +211,7 @@
   color: var(--text-main);
   line-height: 1;
   margin-bottom: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   letter-spacing: -1px;
 }
 
@@ -340,7 +340,7 @@
   color: var(--text-muted);
   font-size: 1.2rem;
   opacity: 0.5;
-  font-family: Georgia, serif;
+  font-family: 'Montserrat', sans-serif;
   margin: 0 2px;
 }
 
@@ -425,7 +425,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .audit-stamp {

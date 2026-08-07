@@ -162,7 +162,7 @@
 
 .kpi-item-small:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); }
 
-.kpi-val { font-size: 1.15rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; color: white; }
+.kpi-val { font-size: 1.15rem; font-weight: 900; font-family: 'Montserrat', sans-serif; color: white; }
 .kpi-lbl { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .kpi-item-small.active { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
@@ -196,7 +196,7 @@
   background: transparent;
   width: 100%;
   outline: none;
-  font-family: inherit;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.95rem;
   color: white;
 }
@@ -263,7 +263,7 @@
 
 .user-details { display: flex; flex-direction: column; }
 .user-name-table { font-weight: 800; font-size: 1.05rem; color: white; letter-spacing: -0.3px; }
-.user-role-table { font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-weight: 600; margin-top: 2px;}
+.user-role-table { font-size: 0.75rem; color: #94a3b8; font-family: 'Montserrat', sans-serif; font-weight: 600; margin-top: 2px;}
 
 /* Badges */
 .login-badge {
@@ -274,7 +274,7 @@
   border: 1px solid rgba(255,255,255,0.05);
   padding: 6px 12px;
   border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
   color: #cbd5e1;

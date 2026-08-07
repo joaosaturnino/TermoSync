@@ -1,7 +1,13 @@
+/* =========================================
+   Suporte.css - Módulo de Atendimento & NOC
+   ========================================= */
+
 .support-shell {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .support-dev-alert {
@@ -72,13 +78,27 @@
 }
 
 @keyframes support-alert-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.18); }
-  50% { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.18);
+  }
+
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
 }
 
 @keyframes support-alert-sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .support-hero {
@@ -216,10 +236,12 @@
   border-color: transparent;
 }
 
+/* GRADE SEM SCROLL INTERNO */
 .support-grid {
   display: grid;
   grid-template-columns: 1.4fr 0.9fr;
   gap: 1rem;
+  align-items: start;
 }
 
 .support-panel {
@@ -228,6 +250,8 @@
   border-radius: 24px;
   padding: 1.25rem;
   box-shadow: 0 14px 40px rgba(15, 23, 42, 0.05);
+  height: auto;
+  overflow: visible;
 }
 
 .panel-title {
@@ -238,7 +262,7 @@
   margin-bottom: 1rem;
 }
 
-.panel-title > div {
+.panel-title>div {
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -429,15 +453,45 @@
   font-weight: 800;
 }
 
-.badge-open { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
-.badge-progress { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
-.badge-answer { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); }
-.badge-done { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.badge-open {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
 
-.priority-baixa { background: rgba(148, 163, 184, 0.14); color: var(--text-muted); }
-.priority-média { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
-.priority-alta { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
-.priority-crítica { background: color-mix(in srgb, var(--danger) 26%, transparent); color: var(--danger); }
+.badge-progress {
+  background: color-mix(in srgb, var(--info) 15%, transparent);
+  color: var(--info);
+}
+
+.badge-answer {
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  color: var(--secondary);
+}
+
+.badge-done {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.priority-baixa {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+}
+
+.priority-media {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+.priority-alta {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.priority-critica {
+  background: color-mix(in srgb, var(--danger) 26%, transparent);
+  color: var(--danger);
+}
 
 .support-modal-backdrop {
   position: fixed;
@@ -456,6 +510,8 @@
   border-radius: 24px;
   border: 1px solid var(--border);
   padding: 1.2rem;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .support-modal-head {
@@ -466,7 +522,7 @@
   margin-bottom: 1rem;
 }
 
-.support-modal-head > div {
+.support-modal-head>div {
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -492,7 +548,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1024px) {
@@ -534,9 +592,6 @@
   }
 }
 
-/* =========================================
-   AÇÕES TÁTICAS E MINIETIQUETAS DO CARD
-   ========================================= */
 .support-flow-ticket {
   position: relative;
   overflow: hidden;
@@ -573,7 +628,6 @@
   gap: 1rem;
 }
 
-/* Modal de SLA e Triagem */
 .modal-content.anim-slide-up {
   animation: modalSlideUp 0.25s ease-out forwards;
 }
@@ -583,6 +637,7 @@
     opacity: 0;
     transform: translateY(20px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);

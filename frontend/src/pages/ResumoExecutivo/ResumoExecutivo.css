@@ -1,7 +1,13 @@
+/* =========================================
+   ResumoExecutivo.css - Visão C-Level
+   ========================================= */
+
 .resumo-executivo {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .hero-resumo-executivo {
@@ -14,11 +20,10 @@
   gap: 1rem;
   align-items: center;
   backdrop-filter: blur(12px);
+  height: auto;
 }
 
-.dark-theme .hero-resumo-executivo {
-  background: rgba(15, 23, 42, 0.85);
-}
+.dark-theme .hero-resumo-executivo { background: rgba(15, 23, 42, 0.85); }
 
 .hero-badge-resumo-executivo {
   display: inline-flex;
@@ -34,16 +39,8 @@
   width: fit-content;
 }
 
-.hero-resumo-executivo h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1.2rem;
-}
-
-.hero-resumo-executivo p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
+.hero-resumo-executivo h3 { margin: 0 0 0.35rem; font-size: 1.2rem; }
+.hero-resumo-executivo p { margin: 0; color: var(--text-muted); line-height: 1.5; }
 
 .hero-summary-resumo-executivo {
   display: flex;
@@ -75,33 +72,20 @@
   border-radius: 16px;
   padding: 0.95rem;
   backdrop-filter: blur(12px);
+  height: auto;
 }
 
-.dark-theme .highlight-card-executivo {
-  background: rgba(15, 23, 42, 0.75);
-}
+.dark-theme .highlight-card-executivo { background: rgba(15, 23, 42, 0.75); }
 
-.highlight-card-executivo h4 {
-  margin: 0 0 0.25rem;
-  font-size: 1.1rem;
-}
-
-.highlight-card-executivo p {
-  margin: 0;
-  font-weight: 700;
-}
-
-.highlight-card-executivo span {
-  display: block;
-  margin-top: 0.3rem;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
+.highlight-card-executivo h4 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+.highlight-card-executivo p { margin: 0; font-weight: 700; }
+.highlight-card-executivo span { display: block; margin-top: 0.3rem; color: var(--text-muted); font-size: 0.8rem; }
 
 .executive-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
+  align-items: start;
 }
 
 .panel-executivo {
@@ -110,11 +94,11 @@
   border-radius: 16px;
   padding: 0.95rem 1rem;
   backdrop-filter: blur(12px);
+  height: auto;
+  overflow: visible;
 }
 
-.dark-theme .panel-executivo {
-  background: rgba(15, 23, 42, 0.75);
-}
+.dark-theme .panel-executivo { background: rgba(15, 23, 42, 0.75); }
 
 .panel-title-executivo {
   display: flex;
@@ -139,9 +123,7 @@
   backdrop-filter: blur(12px);
 }
 
-.dark-theme .footer-executivo {
-  background: rgba(15, 23, 42, 0.75);
-}
+.dark-theme .footer-executivo { background: rgba(15, 23, 42, 0.75); }
 
 .footer-pill-executivo {
   display: inline-flex;
@@ -156,14 +138,9 @@
 
 @media (max-width: 900px) {
   .highlights-resumo-executivo,
-  .executive-grid {
-    grid-template-columns: 1fr;
-  }
+  .executive-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {
-  .hero-resumo-executivo {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .hero-resumo-executivo { flex-direction: column; align-items: flex-start; }
 }

@@ -4,7 +4,7 @@
 :root {
   /* Fontes Globais Otimizadas */
   --sans: 'Montserrat';
-  --mono: 'Fira Code', 'Courier New', Consolas, monospace;
+  --mono: 'Montserrat';
 
   /* Força a renderização com motores escuros nativos do navegador */
   color-scheme: dark light;
@@ -56,7 +56,7 @@ button,
 input,
 select,
 textarea {
-  font-family: inherit;
+  font-family: 'Montserrat', sans-serif;
 }
 
 /* Remove a formatação padrão das âncoras/links */

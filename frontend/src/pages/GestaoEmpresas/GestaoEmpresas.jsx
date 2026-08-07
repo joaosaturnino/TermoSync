@@ -34,8 +34,9 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClosing, setModalClosing] = useState(false);
 
-  // --- NOVA FUNÇÃO: MÁSCARA DE CNPJ AUTOMÁTICA ---
+  // Máscara de CNPJ segura contra valores null/undefined
   const maskCNPJ = (value) => {
+    if (!value) return '';
     return value
       .replace(/\D/g, '')
       .replace(/^(\d{2})(\d)/, '$1.$2')
@@ -47,7 +48,11 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
 
   const fecharModal = () => {
     setModalClosing(true);
-    setTimeout(() => { setModalAberto(false); setModalClosing(false); setForm({ ...formInicial }); }, 300);
+    setTimeout(() => { 
+      setModalAberto(false); 
+      setModalClosing(false); 
+      setForm({ ...formInicial }); 
+    }, 300);
   };
 
   const carregarEmpresas = useCallback(async (isSilent = false) => {
@@ -64,25 +69,43 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
     }
   }, [api, showToast]);
 
-  useEffect(() => { carregarEmpresas(); }, [carregarEmpresas]);
+  useEffect(() => { 
+    carregarEmpresas(); 
+  }, [carregarEmpresas]);
 
+  // ============================================================================
+  // SALVAR EMPRESA COM PAYLOAD SANITIZADO (EVITA ERRO 500 NO MYSQL2)
+  // ============================================================================
   const salvarEmpresa = async (e) => {
     e.preventDefault();
-    if (!form.nome) return showToast('A designação da empresa é obrigatória.', 'error');
+    if (!form.nome || !form.nome.trim()) {
+      return showToast('A designação da empresa é obrigatória.', 'error');
+    }
     
     setIsSubmitting(true);
     try {
+      // Sanitização do payload para evitar valores 'undefined' que quebram o MySQL2
+      const payload = {
+        nome: form.nome.trim(),
+        cnpj: form.cnpj ? form.cnpj.trim() : null,
+        contato: form.contato ? form.contato.trim() : null,
+        email: form.email ? form.email.trim() : null,
+        status: form.status || 'Ativa'
+      };
+
       if (form.id) {
-        await api.put(`/empresas/${form.id}`, form);
-        showToast(`Tenant ${form.nome} atualizado.`, 'success');
+        await api.put(`/empresas/${form.id}`, payload);
+        showToast(`Tenant ${payload.nome} atualizado com sucesso.`, 'success');
       } else {
-        await api.post('/empresas', form);
-        showToast(`Tenant ${form.nome} provisionado no sistema.`, 'success');
+        await api.post('/empresas', payload);
+        showToast(`Tenant ${payload.nome} provisionado no sistema.`, 'success');
       }
       fecharModal();
       carregarEmpresas(true);
-    } catch (e) {
-      showToast('Erro ao alocar o Tenant na base de dados.', 'error');
+    } catch (err) {
+      console.error('Erro ao salvar empresa:', err);
+      const msgErro = err.response?.data?.error || 'Erro ao alocar o Tenant na base de dados.';
+      showToast(msgErro, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -90,7 +113,7 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
 
   const empresasFiltradas = useMemo(() => {
     return empresas.filter(emp => {
-      const matchBusca = emp.nome.toLowerCase().includes(busca.toLowerCase()) || 
+      const matchBusca = (emp.nome && emp.nome.toLowerCase().includes(busca.toLowerCase())) || 
                          (emp.cnpj && emp.cnpj.includes(busca)) || 
                          (emp.email && emp.email.toLowerCase().includes(busca.toLowerCase()));
       const matchStatus = filtroStatus === 'Todas' || emp.status === filtroStatus;
@@ -106,7 +129,6 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
     };
   }, [empresas]);
 
-  // --- NOVA FUNÇÃO: EXPORTAR PARA CSV ---
   const exportarEmpresasCSV = () => {
     setIsExporting(true);
     setTimeout(() => {
@@ -117,7 +139,7 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
       }
       let csvContent = "ID,Organizacao,CNPJ,Contato,Email,Status\n";
       empresasFiltradas.forEach(emp => {
-        csvContent += `"${emp.id}","${emp.nome}","${emp.cnpj || ''}","${emp.contato || ''}","${emp.email || ''}","${emp.status}"\n`;
+        csvContent += `"${emp.id}","${emp.nome || ''}","${emp.cnpj || ''}","${emp.contato || ''}","${emp.email || ''}","${emp.status || ''}"\n`;
       });
       const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
@@ -219,10 +241,25 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
                 <div className="tenant-card-title">
                   <h3>{emp.nome}</h3>
                   <span className={`tenant-badge ${emp.status === 'Ativa' ? 'success' : 'danger'}`}>
-                    {emp.status.toUpperCase()}
+                    {emp.status ? emp.status.toUpperCase() : 'DESCONHECIDO'}
                   </span>
                 </div>
-                <button className="btn-icon" onClick={() => { setForm(emp); setModalAberto(true); }} title="Editar organização">
+                <button 
+                  className="btn-icon" 
+                  onClick={() => { 
+                    // Carregamento seguro para o estado do formulário editado
+                    setForm({
+                      id: emp.id,
+                      nome: emp.nome || '',
+                      cnpj: emp.cnpj || '',
+                      contato: emp.contato || '',
+                      email: emp.email || '',
+                      status: emp.status || 'Ativa'
+                    }); 
+                    setModalAberto(true); 
+                  }} 
+                  title="Editar organização"
+                >
                   <Edit size={18} />
                 </button>
               </div>
@@ -264,7 +301,15 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
                 
                 <div className="input-group-modern">
                   <label>Organização (Tenant Name) *</label>
-                  <input type="text" className="modern-input" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex: Supermercados Alpha" required autoFocus />
+                  <input 
+                    type="text" 
+                    className="modern-input" 
+                    value={form.nome || ''} 
+                    onChange={(e) => setForm({ ...form, nome: e.target.value })} 
+                    placeholder="Ex: Supermercados Alpha" 
+                    required 
+                    autoFocus 
+                  />
                 </div>
                 
                 <div className="input-group-modern">
@@ -272,7 +317,7 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
                   <input 
                     type="text" 
                     className="modern-input" 
-                    value={form.cnpj} 
+                    value={form.cnpj || ''} 
                     onChange={(e) => setForm({ ...form, cnpj: maskCNPJ(e.target.value) })} 
                     placeholder="00.000.000/0000-00" 
                     maxLength="18"
@@ -295,12 +340,24 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
                 
                 <div className="input-group-modern">
                   <label>Contato de Emergência (Telefone)</label>
-                  <input type="text" className="modern-input" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} placeholder="(00) 00000-0000" />
+                  <input 
+                    type="text" 
+                    className="modern-input" 
+                    value={form.contato || ''} 
+                    onChange={(e) => setForm({ ...form, contato: e.target.value })} 
+                    placeholder="(00) 00000-0000" 
+                  />
                 </div>
                 
                 <div className="input-group-modern">
                   <label>E-mail de Serviço (Admin)</label>
-                  <input type="email" className="modern-input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="admin@host.com" />
+                  <input 
+                    type="email" 
+                    className="modern-input" 
+                    value={form.email || ''} 
+                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                    placeholder="admin@host.com" 
+                  />
                 </div>
               </div>
 

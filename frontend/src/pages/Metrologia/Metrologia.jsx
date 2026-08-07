@@ -162,7 +162,7 @@ export default function Metrologia({ equipamentosDaFilial, editarEquipamento, us
                     {eq.dias_calibracao === 999 ? 'Sem Registro' : `${eq.dias_calibracao} dias atrás`}
                   </div>
                   {eq.data_calibracao && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'Montserrat' }}>
                       Aferido em: {new Date(eq.data_calibracao).toLocaleDateString('pt-BR')}
                     </div>
                   )}

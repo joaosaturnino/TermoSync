@@ -1,7 +1,6 @@
 /* =========================================
    Relatorios.css - Gestão de Dados & Qualidade (Varejo)
    ========================================= */
-
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 .anim-fade-in {
@@ -176,7 +175,7 @@
   box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.15);
 }
 
-.custom-datepicker { cursor: pointer; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+.custom-datepicker { cursor: pointer; text-align: center; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; }
 
 /* DatePicker Core Styles */
 .react-datepicker-wrapper { width: 100%; }
@@ -215,7 +214,7 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .btn-quick-range:hover { background: rgba(255,255,255,0.05); color: white; }
@@ -284,7 +283,7 @@
   font-size: 2.2rem;
   font-weight: 900;
   color: white;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   margin: 0;
   display: flex;
   align-items: baseline;
@@ -318,9 +317,9 @@
   box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 .recharts-tooltip-item { color: white !important; font-weight: 600; font-family: 'Montserrat', sans-serif; }
-.recharts-tooltip-label { color: #94a3b8 !important; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-bottom: 5px; }
+.recharts-tooltip-label { color: #94a3b8 !important; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; margin-bottom: 5px; }
 
-/* --- TABELA DE LEITURAS (HISTÓRICO AUTENTICADO) --- */
+/* --- TABELA DE LEITURAS (SEM DUPLO SCROLL VERTICAL) --- */
 .leituras-log-card {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -329,6 +328,7 @@
   box-shadow: 0 10px 30px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
+  height: auto;
 }
 
 .log-header {
@@ -363,9 +363,13 @@
   text-transform: uppercase;
 }
 
+/* Rolagem permitida apenas na horizontal */
 .log-table-wrapper {
+  width: 100%;
   overflow-x: auto;
-  max-height: 400px;
+  overflow-y: visible;
+  max-height: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .log-table {
@@ -398,17 +402,18 @@
 
 .log-row:hover { background: rgba(255,255,255,0.02); }
 .log-row.critical { background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; }
-
 .log-time { color: #94a3b8; font-weight: 600; }
 .log-node { color: white; font-weight: 700; }
-.log-hash { 
-  font-family: 'JetBrains Mono', monospace; 
-  color: #3b82f6; 
-  font-size: 0.75rem; 
+
+.log-hash {
+  font-family: 'Montserrat', sans-serif;
+  color: #3b82f6;
+  font-size: 0.75rem;
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
 }
+
 .log-val-alert { color: #ef4444; font-weight: 800; }
 .log-val-ok { color: #10b981; font-weight: 600; }
 
@@ -426,40 +431,37 @@
   .relatorios-hero { flex-direction: column; align-items: stretch; padding: 1.5rem; gap: 1.5rem; }
   .hero-actions { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
   .btn-export { width: 100%; justify-content: center; }
-  
   .deck-row { flex-direction: column; align-items: stretch; gap: 1rem; }
   .control-group { min-width: 100%; width: 100%; }
   .quick-range-group { justify-content: space-between; }
   .btn-quick-range { flex: 1; text-align: center; padding: 8px 4px; }
-  
   .kpi-grid { grid-template-columns: 1fr; }
   .chart-container-hud { padding: 1rem; height: 350px; }
-  
   .leituras-log-card { padding: 1rem; }
   
   /* Tabela em Cards no Mobile */
   .log-table thead { display: none; }
   .log-table, .log-table tbody, .log-table tr, .log-table td { display: block; width: 100%; }
-  .log-row { 
-    background: rgba(0,0,0,0.2); 
-    border: 1px solid rgba(255,255,255,0.05); 
-    border-radius: 12px; 
-    margin-bottom: 1rem; 
+  .log-row {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    margin-bottom: 1rem;
     padding: 10px;
   }
-  .log-table td { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    padding: 8px 0; 
-    border-bottom: 1px dashed rgba(255,255,255,0.05); 
+  .log-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
   }
   .log-table td:last-child { border-bottom: none; }
-  .log-table td::before { 
-    content: attr(data-label); 
-    font-weight: 800; 
-    color: #64748b; 
-    font-size: 0.7rem; 
-    text-transform: uppercase; 
+  .log-table td::before {
+    content: attr(data-label);
+    font-weight: 800;
+    color: #64748b;
+    font-size: 0.7rem;
+    text-transform: uppercase;
   }
 }

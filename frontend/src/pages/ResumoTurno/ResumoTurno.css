@@ -1,7 +1,13 @@
+/* =========================================
+   ResumoTurno.css - Visão de Turno
+   ========================================= */
+
 .resumo-turno {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .hero-resumo-turno {
@@ -14,11 +20,10 @@
   gap: 1rem;
   align-items: center;
   backdrop-filter: blur(12px);
+  height: auto;
 }
 
-.dark-theme .hero-resumo-turno {
-  background: rgba(15, 23, 42, 0.85);
-}
+.dark-theme .hero-resumo-turno { background: rgba(15, 23, 42, 0.85); }
 
 .hero-badge-resumo-turno {
   display: inline-flex;
@@ -34,16 +39,8 @@
   width: fit-content;
 }
 
-.hero-resumo-turno h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1.2rem;
-}
-
-.hero-resumo-turno p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
+.hero-resumo-turno h3 { margin: 0 0 0.35rem; font-size: 1.2rem; }
+.hero-resumo-turno p { margin: 0; color: var(--text-muted); line-height: 1.5; }
 
 .hero-summary-resumo-turno {
   display: flex;
@@ -78,11 +75,10 @@
   gap: 0.7rem;
   align-items: center;
   backdrop-filter: blur(12px);
+  height: auto;
 }
 
-.dark-theme .resumo-card {
-  background: rgba(15, 23, 42, 0.75);
-}
+.dark-theme .resumo-card { background: rgba(15, 23, 42, 0.75); }
 
 .resumo-icon {
   display: inline-flex;
@@ -91,43 +87,22 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
+  flex-shrink: 0;
 }
 
-.resumo-icon.status {
-  background: rgba(56, 189, 248, 0.16);
-  color: var(--secondary);
-}
+.resumo-icon.status { background: rgba(56, 189, 248, 0.16); color: var(--secondary); }
+.resumo-icon.alert { background: rgba(248, 113, 113, 0.16); color: var(--danger); }
+.resumo-icon.service { background: rgba(245, 158, 11, 0.16); color: var(--warning); }
+.resumo-icon.success { background: rgba(16, 185, 129, 0.16); color: var(--success); }
 
-.resumo-icon.alert {
-  background: rgba(248, 113, 113, 0.16);
-  color: var(--danger);
-}
-
-.resumo-icon.service {
-  background: rgba(245, 158, 11, 0.16);
-  color: var(--warning);
-}
-
-.resumo-icon.success {
-  background: rgba(16, 185, 129, 0.16);
-  color: var(--success);
-}
-
-.resumo-card h4 {
-  margin: 0 0 0.2rem;
-  font-size: 1rem;
-}
-
-.resumo-card p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
+.resumo-card h4 { margin: 0 0 0.2rem; font-size: 1rem; }
+.resumo-card p { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
 
 .resumo-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
+  align-items: start;
 }
 
 .panel-resumo {
@@ -136,11 +111,11 @@
   border-radius: 16px;
   padding: 0.95rem 1rem;
   backdrop-filter: blur(12px);
+  height: auto;
+  overflow: visible;
 }
 
-.dark-theme .panel-resumo {
-  background: rgba(15, 23, 42, 0.75);
-}
+.dark-theme .panel-resumo { background: rgba(15, 23, 42, 0.75); }
 
 .panel-title {
   display: flex;
@@ -166,14 +141,9 @@
 
 @media (max-width: 900px) {
   .cards-resumo-turno,
-  .resumo-grid {
-    grid-template-columns: 1fr;
-  }
+  .resumo-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {
-  .hero-resumo-turno {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .hero-resumo-turno { flex-direction: column; align-items: flex-start; }
 }

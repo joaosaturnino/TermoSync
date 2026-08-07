@@ -1,7 +1,6 @@
 /* =========================================
    ESTILOS PREMIUM: POLÍTICAS E COMPLIANCE (NOC)
    ========================================= */
-
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 .parametros-header-area {
@@ -150,7 +149,7 @@
   color: var(--text-main);
   line-height: 1.1;
   margin-bottom: 2px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .kpi-label {
@@ -183,11 +182,13 @@
   width: 100%;
 }
 
+/* Card crescendo de acordo com o conteúdo (sem duplo scroll) */
 .policy-card {
   display: flex;
   flex-direction: column;
-  min-height: 400px;
-  max-height: 600px;
+  min-height: 380px;
+  height: auto;
+  max-height: none;
   border-top: 4px solid var(--info);
   background: var(--card-bg);
   border-radius: 16px;
@@ -249,34 +250,20 @@
   background: transparent;
   width: 100%;
   outline: none;
-  font-family: inherit;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.85rem;
   color: var(--text-main);
   min-width: 0;
 }
 
-/* Listagem */
+/* Listagem sem scrollbar vertical interna */
 .policy-list {
   flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 5px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.policy-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.policy-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.policy-list::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 10px;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .empty-policy {
@@ -329,7 +316,7 @@
 .policy-info span {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 700;
 }
 
@@ -374,7 +361,7 @@
   gap: 4px;
   font-size: 0.7rem;
   font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Montserrat', sans-serif;
   background: var(--card-bg);
   padding: 4px 8px;
   border-radius: 6px;
@@ -487,20 +474,6 @@
   flex-direction: column;
 }
 
-/* Scroll interno do modal */
-.policy-modal-content::-webkit-scrollbar {
-  width: 5px;
-}
-
-.policy-modal-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.policy-modal-content::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 10px;
-}
-
 .policy-modal-header {
   padding: 1.5rem;
   display: flex;
@@ -600,7 +573,7 @@
   background: rgba(0, 0, 0, 0.02);
   color: var(--text-main);
   outline: none;
-  font-family: inherit;
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.95rem;
   transition: 0.2s;
 }
@@ -683,7 +656,7 @@
 
   .policy-card {
     height: auto;
-    min-height: 400px;
+    min-height: 380px;
     max-height: none;
   }
 
