@@ -1,0 +1,65 @@
+Aqui está o seu esquema final e o código limpo.
+
+1. Esquema de Ligações Enxuto (ESP32 + NTC + DHT11)
+Você usará apenas o ESP32, o NTC da foto, o DHT11 azul e o resistor de 10kΩ.
+
+Sensor NTC 10k (Temperatura):
+
+Um fio no pino 3V3 do ESP32.
+
+O outro fio no pino D34 (GPIO 34) do ESP32.
+
+Uma perna do Resistor de 10kΩ no mesmo pino D34.
+
+A outra perna do Resistor de 10kΩ no pino GND do ESP32.
+
+Módulo DHT11 (Umidade):
+
+Pino S (Sinal) no pino D4 (GPIO 4) do ESP32.
+
+Pino VCC (Meio) no pino 3V3 do ESP32 (pode compartilhar com o NTC).
+
+Pino - (GND) no pino GND do ESP32.
+
+
+
+
+Aqui está o esquema de ligações final e exato para a sua bancada:
+
+🌡️ 1. Sensor de Temperatura (Termistor NTC 10K) + Resistor de 10KΩ
+Perna 1 do NTC: Ligue na trilha de 3.3V do ESP32.
+
+Perna 2 do NTC: Ligue no pino D34 (GPIO 34) do ESP32.  
+Desconhecido
+
+Resistor de 10KΩ: Ligue uma ponta na mesma linha da Perna 2 do NTC (conectada ao D34) e a outra ponta no GND do ESP32.
+
+💧 2. Sensor de Umidade (Módulo DHT11)
+Pino VCC (ou +): Ligue na trilha de 3.3V do ESP32.
+
+Pino GND (ou -): Ligue no GND do ESP32.
+
+Pino DATA (ou OUT / S): Ligue no pino D4 (GPIO 4) do ESP32.  
+Desconhecido
+
+🚦 3. Módulo Semáforo
+Pino GND: Ligue no GND do ESP32.
+
+Pino G (Verde): Ligue no pino D25 do ESP32.
+
+Pino Y (Amarelo): Ligue no pino D26 do ESP32.
+
+Pino R (Vermelho): Ligue no pino D27 do ESP32.
+
+⚡ 4. Alarme de Motor (LED Azul da Placa)
+Nenhuma fiação é necessária! Como configuramos o código para o pino 2, a própria placa vai acender a luzinha azul dela quando você disparar o comando de "Forçar Parada Abrupta" pelo painel na web.  
+Desconhecido
+
+💡 Como organizar a energia na Protoboard:
+Como você não tem nenhum componente de 5V (o relé saiu), todo o seu projeto roda em 3.3V.
+
+Puxe um fio do pino 3.3V do ESP para a linha contínua Vermelha (+) da protoboard.
+
+Puxe um fio do pino GND do ESP para a linha contínua Azul (-) da protoboard.
+
+Agora, conecte a energia do DHT11, do NTC e do Semáforo diretamente nessas linhas longas. Isso evita um emaranhado de fios em cima do chip!

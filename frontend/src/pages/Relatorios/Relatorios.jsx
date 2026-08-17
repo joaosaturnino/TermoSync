@@ -4,8 +4,9 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { 
   Zap, CheckCircle2, ShieldCheck, Thermometer, Clock, 
   FileText, AlertCircle, Loader2, Filter, Activity, 
-  ListOrdered, DownloadCloud, BarChart2, CheckSquare, Shield, WifiOff
+  ListOrdered, DownloadCloud, BarChart2, CheckSquare, Shield, WifiOff, FileCheck
 } from 'lucide-react';
+import jsPDF from 'jspdf'; // [NOVO] Importação do gerador de PDF
 
 import ptBR from 'date-fns/locale/pt-BR'; 
 registerLocale('pt', ptBR);
@@ -115,7 +116,6 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
     let leiturasValidasSLA = 0;
     let somaTemp = 0;
     
-    // Tratamento Robusto de Energia: Se o delta falhar, soma os valores do período
     const energiaFinal = leiturasParaProcessar[leiturasParaProcessar.length - 1]?.consumo_kwh || 0;
     const energiaInicial = leiturasParaProcessar[0]?.consumo_kwh || 0;
     let energiaGasta = energiaFinal - energiaInicial;
@@ -211,6 +211,103 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
     setTimeout(() => showToast('Planilha baixada com sucesso!', 'success'), 800);
   };
 
+  // ==========================================
+  // [NOVO] GERADOR DE LAUDO OFICIAL ANVISA / MAPA
+  // ==========================================
+  const gerarLaudoAnvisaOficial = async () => {
+    // Valida se o operador selecionou um equipamento específico
+    if (!equipamentoSelecionado) {
+      return showToast('Por favor, selecione um Equipamento específico no filtro acima para emitir o Laudo ANVISA.', 'warning');
+    }
+
+    showToast(`Buscando histórico oficial de 30 dias para ${equipamentoSelecionado.nome}...`, 'info');
+    
+    try {
+      const res = await api.get(`/relatorios/anvisa/${equipamentoSelecionado.id}`);
+      const dados = res.data;
+
+      if (!dados.success || !dados.historico_diario || dados.historico_diario.length === 0) {
+        return showToast('Não há dados suficientes nos últimos 30 dias para este ativo.', 'warning');
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      // Cabeçalho Oficial
+      doc.setFillColor(15, 23, 42); 
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(15);
+      doc.setFont("helvetica", "bold");
+      doc.text("TERMOSYNC ENTERPRISE - LAUDO METROLÓGICO", 105, 13, { align: "center" });
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Relatório Oficial de Temperaturas Diárias (Conformidade ANVISA / MAPA)", 105, 21, { align: "center" });
+
+      // Dados da Máquina
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+      doc.text(`Ativo Monitorado: ${dados.equipamento.nome}`, 15, 42);
+      doc.text(`Unidade / Filial: ${dados.equipamento.filial} | Setor: ${dados.equipamento.setor}`, 15, 49);
+      doc.text(`Limites Térmicos Configurados: Mín: ${equipamentoSelecionado.temp_min}°C | Máx: ${equipamentoSelecionado.temp_max}°C`, 15, 56);
+      doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 15, 63);
+
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, 68, 195, 68);
+
+      // Tabela de Dados (Cabeçalho)
+      let y = 78;
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, y - 5, 180, 8, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.text("Data de Registro", 20, y);
+      doc.text("Temperatura Mínima", 70, y);
+      doc.text("Temperatura Média", 120, y);
+      doc.text("Temperatura Máxima", 160, y);
+      
+      doc.setFont("helvetica", "normal");
+      y += 9;
+
+      // Linhas do Histórico Diário
+      dados.historico_diario.forEach((dia) => {
+        if (y > 275) {
+          doc.addPage();
+          y = 20;
+        }
+
+        const dataBr = new Date(dia.data_registro).toLocaleDateString('pt-BR');
+        const tMax = parseFloat(dia.temp_maxima);
+        const tMin = parseFloat(dia.temp_minima);
+        
+        // Alerta visual no PDF se estourou os limites normativos
+        const isViolacao = tMax > parseFloat(equipamentoSelecionado.temp_max) || tMin < parseFloat(equipamentoSelecionado.temp_min);
+        if (isViolacao) doc.setTextColor(220, 38, 38); 
+        else doc.setTextColor(50, 50, 50); 
+
+        doc.text(dataBr, 20, y);
+        doc.text(`${tMin.toFixed(1)} °C`, 70, y);
+        doc.text(`${parseFloat(dia.temp_media).toFixed(1)} °C`, 120, y);
+        doc.text(`${tMax.toFixed(1)} °C ${isViolacao ? '(*)' : ''}`, 160, y);
+
+        doc.setDrawColor(245, 245, 245);
+        doc.line(15, y + 2, 195, y + 2);
+        
+        y += 8;
+      });
+
+      // Rodapé oficial
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.text("Documento gerado digitalmente pela plataforma TermoSync. Válido para fiscalização sanitária.", 105, 287, { align: "center" });
+
+      doc.save(`Laudo_ANVISA_${equipamentoSelecionado.nome.replace(/\s+/g, '_')}.pdf`);
+      showToast('Laudo ANVISA gerado com sucesso!', 'success');
+
+    } catch (err) {
+      console.error(err);
+      showToast('Falha ao processar o PDF oficial.', 'error');
+    }
+  };
+
   const currentRangeHours = Math.round((dataFim - dataInicio) / (1000 * 60 * 60));
 
   return (
@@ -225,8 +322,8 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
           </div>
         </div>
         <div className="hero-actions">
-          <button className="btn-export pdf" onClick={() => showToast('A geração de PDF está em processamento no servidor.', 'info')} disabled={isLoading || isOffline}>
-            <FileText size={16} /> Relatório Oficial (PDF)
+          <button className="btn-export pdf" onClick={gerarLaudoAnvisaOficial} disabled={isLoading || isOffline || !equipamentoSelecionado} title={!equipamentoSelecionado ? "Selecione um equipamento específico no filtro abaixo para emitir o laudo" : "Emitir Laudo Oficial exigido pela ANVISA"}>
+            <FileCheck size={16} /> Laudo ANVISA (PDF)
           </button>
           <button className="btn-export csv" onClick={extrairPlanilhaCSV} disabled={isLoading || isOffline}>
             <DownloadCloud size={16} /> Exportar Planilha (CSV)
@@ -239,7 +336,7 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
           <div className="control-group">
             <label className="control-label"><Filter size={14}/> Equipamento Analisado</label>
             <select className="custom-select" value={equipamentoFiltro} onChange={(e) => setEquipamentoFiltro(e.target.value)} disabled={isLoading || isOffline}>
-              <option value="">Todos os Equipamentos / Visão Geral</option>
+              <option value="">Selecione um equipamento para habilitar o Laudo...</option>
               {equipamentosDaFilial?.map(eq => (
                 <option key={eq.id} value={eq.nome}>{eq.nome} - {eq.setor}</option>
               ))}

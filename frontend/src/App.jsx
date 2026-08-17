@@ -62,6 +62,9 @@ import ResumoExecutivo from './pages/ResumoExecutivo/ResumoExecutivo';
 import Suporte from './pages/Suporte/Suporte';
 import GestaoEnergetica from './pages/GestaoEnergetica/GestaoEnergetica';
 
+// [NOVIDADE] Tela do Portal Público de TV
+import PortalPublico from './pages/PortalPublico/PortalPublico';
+
 import { useSystemCore } from './hooks/useSystemCore';
 import { useSecurity } from './hooks/useSecurity';
 import { getApiUrl, getSocketUrl } from './config/api.js';
@@ -102,17 +105,6 @@ class ErrorBoundary extends Component {
   }
 }
 
-/**
- * Componente Root da aplicação
- *
- * Responsabilidades principais:
- * - Gerenciar estado de autenticação, sessão e roteamento interno (abas)
- * - Inicializar integrações (API axios, Socket.IO) e prover contexto de sistema
- * - Orquestrar carregamento de módulos/páginas e fornecer modal/notifications
- *
- * Observações:
- * - Não altera lógica; apenas documentação para facilitar manutenção.
- */
 export default function App() {
   const [authScreen, setAuthScreen] = useState('landing'); 
 
@@ -127,6 +119,9 @@ export default function App() {
   const [isDevAuthenticated, setIsDevAuthenticated] = useState(sessionStorage.getItem('devAuth') === 'true');
   const [abaAtiva, setAbaAtiva] = useState(sessionStorage.getItem('abaAtiva') || 'dashboard');
   
+  // [NOVIDADE] Estado para capturar e ativar a rota do Portal Público (TV)
+  const [publicFilial, setPublicFilial] = useState(null);
+
   const [socketInstance, setSocketInstance] = useState(null); 
   const [isDevBooting, setIsDevBooting] = useState(false);
   const [devBootData, setDevBootData] = useState(null);
@@ -176,9 +171,6 @@ export default function App() {
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const [toasts, setToasts] = useState([]);
 
-  // ===============================================
-  // ESTADOS GLOBAIS DE NOTIFICAÇÕES (BADGES & POP-UP)
-  // ===============================================
   const [badgeSaaS, setBadgeSaaS] = useState(0);
   const [badgeSuporte, setBadgeSuporte] = useState(0);
   const [popupAlerta, setPopupAlerta] = useState(null);
@@ -207,6 +199,20 @@ export default function App() {
   useEffect(() => { abaAtivaRef.current = abaAtiva; }, [abaAtiva]);
 
   const totalNaoLidas = Object.values(naoLidasPorContato).reduce((a, b) => a + (Number(b) || 0), 0);
+
+  // ============================================================================
+  // [NOVIDADE] INTERCEPTADOR DA URL PARA O PORTAL PÚBLICO
+  // Lê a URL e ativa o Portal TV antes do login ser solicitado
+  // ============================================================================
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/live/')) {
+      const filialRoute = path.replace('/live/', '');
+      if (filialRoute) {
+        setPublicFilial(decodeURIComponent(filialRoute));
+      }
+    }
+  }, []);
 
   const fazerLogout = useCallback(() => { 
     setToken(''); setUserId(''); 
@@ -469,9 +475,6 @@ export default function App() {
     return () => window.removeEventListener('forceToast', listenToasts);
   }, [showToast]);
 
-  // ============================================================================
-  // GERADORES DE ALARMES E TONS SONOROS (WEB AUDIO API)
-  // ============================================================================
   const tocarSomMensagem = useCallback(() => {
     if (!somAtivoRef.current || !isFeatureEnabledRef.current('enableAudioAlerts')) return;
     try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gainNode = ctx.createGain(); osc.connect(gainNode); gainNode.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(600, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1); gainNode.gain.setValueAtTime(0.15, ctx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2); osc.start(); osc.stop(ctx.currentTime + 0.2); } catch (e) { }
@@ -495,8 +498,8 @@ export default function App() {
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // Nota A5
-      osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.12); // Nota C#6
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.12);
       gainNode.gain.setValueAtTime(0.18, ctx.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
       osc.start();
@@ -556,9 +559,6 @@ export default function App() {
     try { const res = await api.get('/chat/historico'); const histFormatado = res.data.map(m => ({ ...m, data: new Date(m.data) })); setHistoricoChat(histFormatado); } catch (e) {} 
   }, [api, token, isOffline]);
 
-  // ============================================================================
-  // CARREGAMENTO DE BADGES EXTRAS & ALARMES SONOROS (FILTRO RIGOROSO POR PERFIL)
-  // ============================================================================
   const carregarBadgesSecundarios = useCallback(async () => {
     if (!token || isOffline) return;
     try {
@@ -587,7 +587,6 @@ export default function App() {
         let countSup = 0;
 
         if (roleAtual === 'DEV') {
-          // Para DEV: conta chamados ABERTOS ou EM ANÁLISE que AINDA NÃO têm resposta da engenharia
           countSup = resSuporte.data.filter(c => {
             const s = String(c.status || '').trim().toLowerCase();
             const concluidos = ['concluído', 'resolvido', 'fechado', 'respondido'];
@@ -596,7 +595,6 @@ export default function App() {
             return ['aberto', 'em análise', 'em atendimento', 'pendente'].includes(s);
           }).length;
         } else {
-          // Para USUÁRIO COMUM: O badge SÓ APARECE se houver resposta do desenvolvedor (status 'Respondido')
           countSup = resSuporte.data.filter(c => {
             const s = String(c.status || '').trim().toLowerCase();
             const temRespostaDev = Boolean(c.resposta && String(c.resposta).trim() !== '');
@@ -856,7 +854,6 @@ export default function App() {
     { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
     
-    // BADGE OCULTA NO DESENVOLVEDOR (DEV) E COM FILTRAGEM ESTREITA
     { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: userRole === 'DEV' ? 0 : (chamados?.filter(c => {
       const s = String(c.status || '').trim().toLowerCase();
       return !['concluído', 'fechado', 'cancelado', 'resolvido'].includes(s) && s !== '';
@@ -886,6 +883,13 @@ export default function App() {
 
   const NAVIGATION_ATIVA = NAVIGATION.filter(nav => !isModuloOculto(nav.id) && nav.roles.includes(userRole) && (nav.id !== 'chat' || isFeatureEnabled('enableChat')) && (!nav.devAuthRequired || isDevAuthenticated));
 
+  // ============================================================================
+  // RENDERIZAÇÃO DA ROTA PÚBLICA (PORTAL DE TV) ANTES DE QUALQUER LOGIN
+  // ============================================================================
+  if (publicFilial) {
+    return <PortalPublico filialUrl={publicFilial} />;
+  }
+
   if (isDevBooting) {
     return <DevBootScreen onComplete={completeDevBoot} />;
   }
@@ -899,7 +903,6 @@ export default function App() {
     );
   }
 
-  // === LÓGICA DE TELAS INICIAIS (LANDING > LOGIN / REGISTER) ===
   if (!token) {
     if (authScreen === 'landing') {
       return <LandingPage onNavigate={setAuthScreen} />;
@@ -1021,7 +1024,7 @@ export default function App() {
         
         <div className="content-area">
           <ErrorBoundary>
-            {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
+            {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard equipamentosDaFilial={equipamentosDaFilial} filialAtiva={filialAtiva} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
             {!isModuloOculto('assistente') && abaAtiva === 'assistente' && ( <AssistenteOperacao equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} onNavigate={(id) => setAbaAtiva(id)} showToast={showToast} /> )}
             {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && ( <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} /> )}
             {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && ( <CentralProcedimentos /> )}
@@ -1030,7 +1033,7 @@ export default function App() {
             {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && ( <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} /> )}
             {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && ( <ResumoExecutivo api={api} filialAtiva={filialAtiva} /> )}
             {!isModuloOculto('suporte') && abaAtiva === 'suporte' && ( <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} /> )}
-            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && ( <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} /> )}
+            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && ( <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} /> )}
             {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} /> )}
             {!isModuloOculto('kanban') && abaAtiva === 'kanban' && ( <Kanban chamados={chamados} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} /> )}
             {!isModuloOculto('metrologia') && abaAtiva === 'metrologia' && ( <Metrologia equipamentosDaFilial={equipamentosDaFilial} editarEquipamento={editarEquipamento} /> )}

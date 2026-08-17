@@ -572,13 +572,37 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
 
   const copyToClipboard = (loja, key) => { navigator.clipboard.writeText(key); setCopiedKey(loja); setTimeout(() => setCopiedKey(null), 2000); showToast('Chave copiada!', 'info'); };
   
+  // ==========================================================================
+  // ACESSO REMOTO (IMPERSONATE) COM ABERTURA EM NOVA ABA (TRUQUE DO LOCALSTORAGE)
+  // ==========================================================================
+  // ==========================================================================
+  // ACESSO REMOTO (IMPERSONATE) - SUBSTITUIÇÃO SEGURA NA MESMA GUIA
+  // ==========================================================================
   const loginAs = async (loja) => {
     addLog(`[AUTH] A solicitar token de Impersonate para ${loja}...`, 'warning');
     showToast(`A gerar acesso remoto...`, 'warning');
     try {
       const res = await api.post('/impersonate', { filialDestino: loja }); 
-      const url = new URL(window.location.href); url.searchParams.set('impersonateToken', res.data.token); url.searchParams.set('impersonateLoja', loja); window.open(url.toString(), '_blank');
-    } catch (err) { showToast('Erro ao criar sessão remota.', 'error'); }
+      if (res.data && res.data.token) {
+        
+        // 1. Sobrescreve toda a identidade no navegador de forma isolada
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('role', 'ADMIN');
+        localStorage.setItem('empresa', res.data.empresa);
+        localStorage.setItem('filial', 'Todas');
+        
+        // Limpa lixos de sessões anteriores
+        localStorage.removeItem('nome_gerente');
+        localStorage.removeItem('nome_coordenador');
+        localStorage.removeItem('nome_tecnico');
+        
+        // 2. Dá um "F5" forçado e joga para a raiz. O React vai nascer 100% como Cliente.
+        window.open('/', '_blank'); 
+      }
+    } catch (err) { 
+      showToast('Erro ao criar sessão remota.', 'error'); 
+      console.error("Erro no Impersonate:", err);
+    }
   };
 
   const lojasFiltradas = (filiaisDb || []).filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()));

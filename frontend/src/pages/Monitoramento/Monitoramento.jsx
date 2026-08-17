@@ -18,7 +18,7 @@ import './Monitoramento.css';
 export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFilial }) {
   const [setorFiltro, setSetorFiltro] = useState('');
   const [buscaNome, setBuscaNome] = useState('');
-  const [modoFoco, setModoFoco] = useState(false); // NOVO: Modo Foco para ocultar o que está OK
+  const [modoFoco, setModoFoco] = useState(false);
 
   // Filtro combinado: Setor + Nome + Modo Foco + Ordenação Inteligente
   const filtrados = useMemo(() => {
@@ -34,11 +34,14 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
       const max = isTemp ? parseFloat(eq.temp_max) : parseFloat(eq.umidade_max || 80);
       const val = isTemp ? parseFloat(eq.ultima_temp) : parseFloat(eq.ultima_umidade);
       const temDados = !isNaN(val);
+      
       const isFora = temDados && (val < min || val > max);
 
-      const isAlerta = !temDados || !eq.motor_ligado || isFora;
+      // REGRA DE OURO FRONTEND: Motor parado só é alerta se a temperatura estiver 10 GRAUS ACIMA do máximo
+      const isFalhaMecanica = !eq.motor_ligado && temDados && (val >= max + 10.0) && !eq.em_degelo;
+      const isAlerta = !temDados || isFalhaMecanica || isFora;
       
-      // Se o Modo Foco estiver ativo, só mostra quem tem problemas ou está em degelo
+      // Se o Modo Foco estiver ativo, só mostra quem tem problemas reais ou está em degelo
       if (modoFoco) return isAlerta || eq.em_degelo;
       return true;
     });
@@ -50,12 +53,14 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
         const max = isTemp ? parseFloat(eq.temp_max) : parseFloat(eq.umidade_max || 80);
         const val = isTemp ? parseFloat(eq.ultima_temp) : parseFloat(eq.ultima_umidade);
         const temDados = !isNaN(val);
+        
         const isFora = temDados && (val < min || val > max);
+        const isFalhaMecanica = !eq.motor_ligado && temDados && (val >= max + 10.0) && !eq.em_degelo;
 
-        if (!eq.motor_ligado || isFora) return 4; // Prioridade Máxima (Fogo!)
+        if (isFalhaMecanica || isFora) return 4; // Prioridade Máxima (Fogo!)
         if (!temDados) return 3; // Sem Sinal
-        if (eq.em_degelo) return 2; // Atenção
-        return 1; // Tudo OK
+        if (eq.em_degelo) return 2; // Atenção (Manutenção)
+        return 1; // Tudo OK (Mesmo com motor desligado descansando)
       };
       
       return getScore(b) - getScore(a);
@@ -64,21 +69,23 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
     return resultado;
   }, [equipamentosDaFilial, setorFiltro, buscaNome, modoFoco, isTemp]);
 
-  // Cálculo de KPIs para o topo da página (Manteve-se igual mas baseado nos equipamentos da filial inteira para não alterar os contadores)
+  // Cálculo de KPIs para o topo da página
   const kpis = useMemo(() => {
     const baseList = equipamentosDaFilial || [];
     let alertas = 0, degelo = 0, offline = 0, ok = 0;
 
     baseList.forEach(eq => {
-      const val = isTemp ? parseFloat(eq.ultima_temp) : parseFloat(eq.ultima_umidade);
       const min = isTemp ? parseFloat(eq.temp_min) : parseFloat(eq.umidade_min || 40);
       const max = isTemp ? parseFloat(eq.temp_max) : parseFloat(eq.umidade_max || 80);
+      const val = isTemp ? parseFloat(eq.ultima_temp) : parseFloat(eq.ultima_umidade);
       const temDados = !isNaN(val);
+      
       const isFora = temDados && (val < min || val > max);
+      const isFalhaMecanica = !eq.motor_ligado && temDados && (val >= max + 10.0) && !eq.em_degelo;
 
       if (!temDados) offline++;
       else if (eq.em_degelo) degelo++;
-      else if (!eq.motor_ligado || isFora) alertas++;
+      else if (isFalhaMecanica || isFora) alertas++;
       else ok++;
     });
 
@@ -103,7 +110,6 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
         
         <div className="action-group" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           
-          {/* NOVO BOTÃO: Modo Foco */}
           <button 
             className={`btn-focus-mode ${modoFoco ? 'active' : ''}`}
             onClick={() => setModoFoco(!modoFoco)}
@@ -193,6 +199,7 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
             const isAcima = temDados && val > max;
             const isAbaixo = temDados && val < min;
             const isFora = isAcima || isAbaixo;
+            const isFalhaMecanica = !eq.motor_ligado && temDados && (val >= max + 10.0) && !eq.em_degelo;
             
             // Definição de Status, Cores e Ícones
             let status = 'NORMAL';
@@ -204,12 +211,15 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
               status = 'OFFLINE'; statusCor = 'var(--warning)'; IconeStatus = WifiOff; statusLabel = 'Sem Comunicação';
             } else if (eq.em_degelo) {
               status = 'DEGELO'; statusCor = '#0ea5e9'; IconeStatus = Snowflake; statusLabel = 'Ciclo de Degelo';
-            } else if (!eq.motor_ligado) {
-              status = 'PARADO'; statusCor = 'var(--danger)'; IconeStatus = Power; statusLabel = 'Motor Parado';
+            } else if (isFalhaMecanica) {
+              status = 'PARADO'; statusCor = 'var(--danger)'; IconeStatus = Power; statusLabel = 'Motor Falhou';
             } else if (isAcima) {
               status = 'ALERTA'; statusCor = 'var(--danger)'; IconeStatus = ArrowUpRight; statusLabel = isTemp ? 'Alta Temperatura' : 'Alta Umidade';
             } else if (isAbaixo) {
               status = 'ALERTA'; statusCor = '#38bdf8'; IconeStatus = ArrowDownRight; statusLabel = isTemp ? 'Baixa Temperatura' : 'Baixa Umidade';
+            } else if (!eq.motor_ligado) {
+              // Se não há alertas e o motor está desligado, é apenas repouso do termostato!
+              statusLabel = 'Em Repouso (Ideal)';
             }
 
             // Cálculo Inteligente do Ponteiro (Com margem visual de 20% para fora dos limites)
@@ -275,6 +285,8 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
                   
                   {!temDados ? (
                     <span className="footer-alerta warning">AGUARDANDO SENSORES</span>
+                  ) : isFalhaMecanica ? (
+                    <span className="footer-alerta danger">FALHA CRÍTICA DO MOTOR</span>
                   ) : isAcima && !eq.em_degelo ? (
                     <span className="footer-alerta danger">ACIMA DO LIMITE</span>
                   ) : isAbaixo && !eq.em_degelo ? (
