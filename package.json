@@ -21,7 +21,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "openmobile": "^1.3.4"
+    "openmobile": "^1.3.4",
+    "vite": "^8.2.2"
   },
   "dependencies": {
     "dompurify": "^3.4.12",
