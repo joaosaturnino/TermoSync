@@ -816,6 +816,82 @@ module.exports = (app, io) => {
       }
     }
   });
+
+  // ============================================================================
+  // ROTAS DO RASPBERRY PI (NETWORK SCANNER PROBE VIA API)
+  // ============================================================================
+
+  // 1. FRONTEND: Dispara a ordem de varredura (Cria o Job)
+  app.post('/api/soc/scanner/iniciar', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+    const { filial, ip_range } = req.body;
+    
+    try {
+      await pool.execute('INSERT INTO scanner_jobs (filial, ip_range) VALUES (?, ?)', [filial, ip_range]);
+      res.json({ success: true, message: `Sonda ativada! Ordem enfileirada para a filial ${filial}` });
+    } catch(e) {
+      res.status(500).json({ error: 'Erro ao registrar ordem de varredura.' });
+    }
+  });
+
+  // 2. RASPBERRY PI: Pergunta se existe alguma ordem pendente (Polling)
+  app.get('/api/soc/scanner/jobs/:filial', verificarToken, async (req, res) => {
+    const { filial } = req.params;
+    try {
+      // Busca jobs pendentes direcionados a esta filial ou ordens globais ("Todas")
+      const [jobs] = await pool.execute(
+        'SELECT * FROM scanner_jobs WHERE (filial = ? OR filial = "Todas") AND status = "Pendente"', 
+        [filial]
+      );
+      res.json({ jobs });
+    } catch(e) {
+      res.status(500).json({ error: 'Erro ao buscar jobs.' });
+    }
+  });
+
+  // 3. RASPBERRY PI: Informa que terminou o trabalho e fecha o Job
+  app.post('/api/soc/scanner/jobs/:id/concluir', verificarToken, async (req, res) => {
+    try {
+      await pool.execute('UPDATE scanner_jobs SET status = "Concluido" WHERE id = ?', [req.params.id]);
+      res.json({ success: true });
+    } catch(e) {
+      res.status(500).json({ error: 'Erro ao concluir job.' });
+    }
+  });
+
+  // 4. RASPBERRY PI: Envia o relatório dos dispositivos encontrados na rede
+  app.post('/api/soc/scanner/resultado', verificarToken, async (req, res) => {
+    const relatorio = req.body;
+    try {
+      console.log(`🛡️ [SOC API] Relatório de Rede recebido da filial: ${relatorio.filial}`);
+      
+      for (const disp of relatorio.dispositivos) {
+        await pool.execute(
+          `INSERT INTO rede_scans (filial, ip_alvo, hostname, portas_abertas, status) 
+           VALUES (?, ?, ?, ?, 'Online')`,
+          [relatorio.filial, disp.ip, disp.hostname, JSON.stringify(disp.portas)]
+        );
+      }
+      
+      // Emite um socket para o frontend piscar a tela do SOC
+      if (io) io.emit('atualizacao_dados');
+      res.json({ success: true, message: 'Relatório armazenado com sucesso no MySQL.' });
+    } catch(e) {
+      res.status(500).json({ error: 'Erro ao salvar resultados da varredura.' });
+    }
+  });
+
+  // 5. FRONTEND: Lista os resultados encontrados para mostrar na tela
+  app.get('/api/soc/scanner/resultados', verificarToken, async (req, res) => {
+    if (req.userRole !== 'DEV') return res.status(403).json({ error: 'Acesso negado.' });
+    try {
+      const [rows] = await pool.execute('SELECT * FROM rede_scans ORDER BY data_scan DESC LIMIT 100');
+      res.json(rows);
+    } catch (e) {
+      res.status(500).json({ error: 'Erro ao buscar resultados.' });
+    }
+  });
+  
   // ============================================================================
   // NOVAS ROTAS DA FASE 1: PORTAL PÚBLICO E RELATÓRIO ANVISA
   // ============================================================================
