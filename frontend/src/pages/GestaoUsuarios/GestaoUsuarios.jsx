@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { 
-  Wrench, Edit, X, Save, ShieldAlert, Store, 
-  UserCircle, MapPin, Search, Shield, ShieldCheck, 
+import {
+  Wrench, Save, ShieldAlert, Store,
+  UserCircle, MapPin, Search, ShieldCheck,
   Lock, Briefcase, Eye, EyeOff, Users, Settings
 } from 'lucide-react';
 import './GestaoUsuarios.css';
@@ -64,6 +64,9 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
     carregarDependencias();
   }, [carregarUsuarios, carregarDependencias]);
 
+  /**
+   * Processa a interacao de abrir modal usuario e atualiza a interface conforme o resultado.
+   */
   const abrirModalUsuario = (tipoAcesso) => {
     let roleTarget = 'LOJA';
     if (tipoAcesso === 'TECNICO') roleTarget = 'MANUTENCAO';
@@ -74,6 +77,9 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
     setModalUsuario(true);
   };
 
+  /**
+   * Concentra a logica de salvar usuario para manter o restante do tela mais legivel.
+   */
   const salvarUsuario = async (e) => {
     e.preventDefault();
     try {
@@ -113,6 +119,9 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
     }
   };
 
+  /**
+   * Processa a interacao de pedir exclusao usuario e atualiza a interface conforme o resultado.
+   */
   const pedirExclusaoUsuario = (id, nome) => {
     setModalConfig({
       isOpen: true,
@@ -476,6 +485,9 @@ export default function GestaoUsuarios({ api, showToast, setModalConfig }) {
   );
 }
 
+/**
+ * Concentra a logica de globe2 para manter o restante do tela mais legivel.
+ */
 const Globe2 = ({ size }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"></circle>

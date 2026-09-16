@@ -85,6 +85,8 @@ CREATE TABLE `usuarios` (
   `id` int NOT NULL AUTO_INCREMENT,
   `usuario` varchar(50) NOT NULL,
   `senha` varchar(255) NOT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `telefone` varchar(50) DEFAULT NULL,
   `role` enum('ADMIN','MANUTENCAO','LOJA','DEV') DEFAULT 'LOJA',
   `filial` varchar(100) DEFAULT NULL,
   `nome_gerente` varchar(150) DEFAULT NULL,
@@ -92,6 +94,14 @@ CREATE TABLE `usuarios` (
   `nome_tecnico` varchar(150) DEFAULT NULL,
   `tecnico_id` int DEFAULT NULL,
   `empresa` varchar(150) DEFAULT NULL,
+  `mfa_secret` varchar(80) DEFAULT NULL,
+  `mfa_enabled` tinyint(1) DEFAULT '0',
+  `mfa_required` tinyint(1) DEFAULT '0',
+  `password_changed_at` datetime DEFAULT NULL,
+  `password_reset_code_hash` varchar(255) DEFAULT NULL,
+  `password_reset_expires_at` datetime DEFAULT NULL,
+  `password_reset_attempts` int DEFAULT '0',
+  `password_reset_requested_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `usuario` (`usuario`)
 );

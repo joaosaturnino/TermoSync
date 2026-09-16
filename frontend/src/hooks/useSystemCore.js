@@ -11,6 +11,13 @@ const DEFAULT_FEATURES = {
   readOnlyMode: false
 };
 
+/**
+ * Kernel de configuração local do SaaS.
+ *
+ * Este hook controla quais módulos/features aparecem para cada papel ou usuário,
+ * além do plano da filial. Ele persiste tudo no localStorage para refletir
+ * mudanças em tempo real entre abas do navegador.
+ */
 export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAbaAtiva) {
   
   // =========================================================================
@@ -39,9 +46,12 @@ export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAba
   // 2. OUVINTE DE SINCRONIZAÇÃO EM TEMPO REAL
   // =========================================================================
   useEffect(() => {
+    /**
+     * Expõe o hook handle Storage Change com estado e acoes compartilhadas pela aplicacao.
+     */
     const handleStorageChange = (e) => {
       if (e.key === 'termosync_sysconfig_saas' && e.newValue) {
-        try { setSysConfig(JSON.parse(e.newValue)); } catch (err) {}
+        try { setSysConfig(JSON.parse(e.newValue)); } catch (err) { logger.warn('Configuração SaaS inválida recebida do storage.', err); }
       }
       if (e.key === 'termosync_force_reload') window.location.reload(); 
     };
@@ -114,6 +124,8 @@ export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAba
   // 5. FUNÇÃO DE ATUALIZAÇÃO DO KERNEL
   // =========================================================================
   const updateSysConfig = useCallback((scopeType, target, category, key, value) => {
+    // Atualizações são feitas em cópia profunda para evitar mutação direta do
+    // estado React e manter o localStorage sincronizado com a UI.
     setSysConfig(prev => {
       try {
         const newConfig = JSON.parse(JSON.stringify(prev)); 
@@ -127,6 +139,10 @@ export function useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAba
            localStorage.setItem('termosync_sysconfig_saas', JSON.stringify(newConfig));
            localStorage.setItem('sysconfig_ping', Date.now().toString()); 
            return newConfig;
+        }
+
+        if (scopeType === 'ROLE' && target === 'DEV' && (category === 'modulosOcultos' || category === 'features')) {
+          return prev;
         }
 
         let targetRef;

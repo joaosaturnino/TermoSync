@@ -1,6 +1,9 @@
 const pool = require('./config/db');
 
 module.exports = (io) => {
+  if (io._baseSocketConfigured) return;
+  io._baseSocketConfigured = true;
+
   io.on('connection', (socket) => {
     socket.on('medir_latencia', (timestamp, callback) => { 
       if (typeof callback === 'function') callback(timestamp); 
@@ -27,4 +30,6 @@ module.exports = (io) => {
       }
     });
   });
+
+  io._chatListenerConfigured = true;
 };

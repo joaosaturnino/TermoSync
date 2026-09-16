@@ -3,6 +3,12 @@ import axios from 'axios';
 import { getApiUrl } from '../config/api';
 import logger from '../utils/logger';
 
+/**
+ * Valida a sessão atual contra o backend.
+ *
+ * O objetivo é não confiar apenas no sessionStorage: se o token foi revogado,
+ * expirou ou sumiu do banco, o hook limpa a sessão local e força logout.
+ */
 export function useSecurity(initialToken, onLogout) {
   const [authState, setAuthState] = useState({
     isAuthenticated: !!initialToken,
@@ -13,6 +19,7 @@ export function useSecurity(initialToken, onLogout) {
   });
 
   const forceLogout = useCallback(() => {
+    // Remove todos os dados sensíveis do navegador antes de atualizar a UI.
     const chavesAuth = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva'];
     chavesAuth.forEach(k => sessionStorage.removeItem(k)); // <-- Mudou para sessionStorage
     sessionStorage.clear();
@@ -23,7 +30,12 @@ export function useSecurity(initialToken, onLogout) {
   useEffect(() => {
     let isMounted = true;
 
+    /**
+     * Expõe o hook verify Session com estado e acoes compartilhadas pela aplicacao.
+     */
     const verifySession = async () => {
+      // A verificação usa /auth/verify para confirmar que o token ainda é aceito
+      // e que a sessão ativa não foi revogada pelo SOC/DEV.
       const currentToken = sessionStorage.getItem('token'); // <-- Mudou para sessionStorage
       
       if (!currentToken) {
@@ -47,19 +59,8 @@ export function useSecurity(initialToken, onLogout) {
           }
       } catch (error) {
         if (isMounted) {
-          if (error.response && error.response.status === 401) {
-            logger.error('[SECURITY] Acesso Negado. O Token expirou de verdade.');
-            forceLogout();
-          } else {
-            logger.warn('[SECURITY] Validação online falhou (Rede/CORS). Assumindo a sessão pelo Cache Local.');
-            setAuthState({
-              isAuthenticated: true,
-              isVerifying: false,
-              role: sessionStorage.getItem('userRole'),
-              token: currentToken,
-              user: { role: sessionStorage.getItem('userRole') }
-            });
-          }
+          logger.error('[SECURITY] Sessão não validada pelo servidor. Encerrando sessão local.', error);
+          forceLogout();
         }
       }
     };
@@ -69,7 +70,11 @@ export function useSecurity(initialToken, onLogout) {
     return () => { isMounted = false; };
   }, [forceLogout]);
 
+  /**
+   * Expõe o hook has Permission com estado e acoes compartilhadas pela aplicacao.
+   */
   const hasPermission = (allowedRoles) => {
+    // Helper simples para componentes que só precisam validar papel do usuário.
     if (!authState.isAuthenticated || !authState.role) return false;
     return allowedRoles.includes(authState.role);
   };

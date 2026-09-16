@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Thermometer, Snowflake, Power, AlertTriangle, CheckCircle2, Activity, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '../../config/api'; 
 import '../Monitoramento/Monitoramento.css';
 
+/**
+ * Renderiza a tela Portal Publico e concentra as regras de apresentacao desse modulo.
+ */
 export default function PortalPublico({ filialUrl }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(false);
 
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       const res = await axios.get(`${getApiUrl()}/public/live/${encodeURIComponent(filialUrl)}`);
       if (res.data && res.data.success) {
@@ -21,13 +24,16 @@ export default function PortalPublico({ filialUrl }) {
       console.error(err);
       setErro(true);
     }
-  };
+  }, [filialUrl]);
 
   useEffect(() => {
-    carregarDados();
+    const primeiraCarga = window.setTimeout(carregarDados, 0);
     const intervalo = setInterval(carregarDados, 10000);
-    return () => clearInterval(intervalo);
-  }, [filialUrl]);
+    return () => {
+      window.clearTimeout(primeiraCarga);
+      clearInterval(intervalo);
+    };
+  }, [carregarDados]);
 
   if (erro) {
     return (

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   User, Lock, AlertTriangle, WifiOff, Loader2, ArrowRight, 
   Eye, EyeOff, CheckCircle, ArrowLeft, ShieldCheck, Activity,
-  ShieldAlert, Key
+  ShieldAlert, Key, Mail, Smartphone
 } from 'lucide-react';
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import { getApiUrl } from '../../config/api.js';
@@ -18,7 +18,7 @@ import './Login.css';
  * - Autenticar usuário via `fazerLogin`
  * - Fornecer fluxo de recuperação de senha e mensagens de erro
  */
-export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro }) {
+export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro, mfaChallenge, concluirMfaLogin, cancelarMfa }) {
   const [isBooting, setIsBooting] = useState(true);
   const [bootLogs, setBootLogs] = useState([]);
   
@@ -27,13 +27,20 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockAtivo, setCapsLockAtivo] = useState(false);
   const [view, setView] = useState('login');
+  const [mfaCode, setMfaCode] = useState('');
   
   const [resetUser, setResetUser] = useState('');
+  const [resetStep, setResetStep] = useState('request');
+  const [resetChannel, setResetChannel] = useState('email');
+  const [resetDestination, setResetDestination] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const resetRequestInFlightRef = useRef(false);
 
   // Lógica do Boot Screen Inicial (SaaS Enterprise)
   useEffect(() => {
@@ -59,8 +66,21 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
     setResetError('');
     setSenha('');
     setCapsLockAtivo(false);
+    if (view !== 'reset') {
+      setResetStep('request');
+      setResetChannel('email');
+      setResetDestination('');
+      setResetCode('');
+      setResetMessage('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowNewPassword(false);
+    }
   }, [view]);
 
+  /**
+   * Concentra a logica de verificar caps lock para manter o restante do tela mais legivel.
+   */
   const verificarCapsLock = (e) => {
     if (e.getModifierState && e.getModifierState('CapsLock')) {
       setCapsLockAtivo(true);
@@ -69,6 +89,9 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
     }
   };
 
+  /**
+   * Processa a interacao de handle login submit e atualiza a interface conforme o resultado.
+   */
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     if (usuario && senha) {
@@ -76,29 +99,102 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
     }
   };
 
+  /**
+   * Concentra a logica de choose reset channel para manter o restante do tela mais legivel.
+   */
+  const chooseResetChannel = (channel) => {
+    setResetChannel(channel);
+    setResetDestination('');
+    setResetError('');
+  };
+
+  /**
+   * Processa a interacao de handle reset submit e atualiza a interface conforme o resultado.
+   */
   const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    if (resetRequestInFlightRef.current || isResetLoading) return;
+    setResetError('');
+
+    if (!resetUser) {
+      return setResetError('Informe o usuário para receber o código de recuperação.');
+    }
+    if (!resetDestination) {
+      return setResetError(resetChannel === 'sms' ? 'Informe o telefone que receberá o código.' : 'Informe o e-mail que receberá o código.');
+    }
+
+    resetRequestInFlightRef.current = true;
+    setIsResetLoading(true);
+    try {
+      const { data } = await axios.post(`${getApiUrl()}/auth/password-reset/request`, {
+        usuario: resetUser,
+        canal: resetChannel,
+        destino: resetDestination
+      });
+      setResetMessage(data?.message || 'Se o usuário existir, enviaremos um código de recuperação.');
+      setResetStep('confirm');
+    } catch (error) {
+      setResetError(error.response?.data?.error || 'Não foi possível gerar a recuperação agora.');
+    } finally {
+      resetRequestInFlightRef.current = false;
+      setIsResetLoading(false);
+    }
+  };
+
+  /**
+   * Processa a interacao de handle reset confirm submit e atualiza a interface conforme o resultado.
+   */
+  const handleResetConfirmSubmit = async (e) => {
     e.preventDefault();
     setResetError('');
 
-    if (!resetUser || !newPassword || !confirmPassword) {
-      return setResetError('Por favor, preencha todos os campos.');
+    if (!resetUser || !resetCode || !newPassword || !confirmPassword) {
+      return setResetError('Preencha usuário, código e nova senha.');
+    }
+    if (resetCode.length !== 6) {
+      return setResetError('O código precisa ter 6 dígitos.');
     }
     if (newPassword !== confirmPassword) {
       return setResetError('As senhas digitadas não coincidem.');
     }
-    if (newPassword.length < 6) {
-      return setResetError('A nova senha deve ter pelo menos 6 caracteres.');
-    }
 
     setIsResetLoading(true);
     try {
-      await axios.put(`${getApiUrl()}/usuarios/reset-senha`, { usuario: resetUser, novaSenha: newPassword });
+      await axios.post(`${getApiUrl()}/auth/password-reset/confirm`, {
+        usuario: resetUser,
+        codigo: resetCode,
+        novaSenha: newPassword
+      });
       setView('success');
     } catch (error) {
-      setResetError(error.response?.data?.error || 'Não foi possível redefinir a senha. Verifique o usuário.');
+      setResetError(error.response?.data?.error || 'Não foi possível redefinir a senha agora.');
     } finally {
       setIsResetLoading(false);
     }
+  };
+
+  /**
+   * Concentra a logica de reset recovery flow para manter o restante do tela mais legivel.
+   */
+  const resetRecoveryFlow = () => {
+    setView('login');
+    setResetUser('');
+    setResetStep('request');
+    setResetChannel('email');
+    setResetDestination('');
+    setResetCode('');
+    setResetMessage('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowNewPassword(false);
+  };
+
+  /**
+   * Processa a interacao de handle mfa submit e atualiza a interface conforme o resultado.
+   */
+  const handleMfaSubmit = (e) => {
+    e.preventDefault();
+    if (/^\d{6}$/.test(mfaCode) && concluirMfaLogin) concluirMfaLogin(mfaCode);
   };
 
   if (isBooting) {
@@ -153,7 +249,47 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
         </div>
 
         {/* --- VISTA: LOGIN PRINCIPAL --- */}
-        {view === 'login' && (
+        {mfaChallenge && (
+          <form onSubmit={handleMfaSubmit} className="login-form">
+            <h3 className="form-title stagger-1"><ShieldCheck size={20}/> Verificação em duas etapas</h3>
+            <p className="form-desc stagger-1">Digite o código de 6 dígitos do seu aplicativo autenticador.</p>
+
+            {loginErro && (
+              <div className="login-alert error stagger-2">
+                <ShieldAlert size={18} />
+                <span>{loginErro}</span>
+              </div>
+            )}
+
+            <div className="input-group stagger-2">
+              <label>Código MFA</label>
+              <div className="input-wrapper">
+                <ShieldCheck size={18} className="input-icon" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={isLoginLoading}
+                  autoComplete="one-time-code"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary w-100 login-btn stagger-4" disabled={isLoginLoading || mfaCode.length !== 6}>
+              {isLoginLoading ? <><Loader2 size={20} className="spinner" /> VALIDANDO...</> : <><Lock size={20} /> VALIDAR MFA</>}
+            </button>
+            <button type="button" className="btn-back stagger-4" onClick={() => { setMfaCode(''); cancelarMfa?.(); }}>
+              <ArrowLeft size={16} /> Voltar para o Login
+            </button>
+          </form>
+        )}
+
+        {!mfaChallenge && view === 'login' && (
           <form onSubmit={handleLoginSubmit} className="login-form">
             
             {loginErro && (
@@ -234,14 +370,25 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
 
         {/* --- VISTA: RECUPERAR SENHA --- */}
         {view === 'reset' && (
-          <form onSubmit={handleResetSubmit} className="login-form">
-            <h3 className="form-title stagger-1"><ShieldCheck size={20}/> Recuperar Senha</h3>
-            <p className="form-desc stagger-1">Insira seu usuário para definir uma nova senha de acesso seguro.</p>
+          <form onSubmit={resetStep === 'request' ? handleResetSubmit : handleResetConfirmSubmit} className={`login-form recovery-form recovery-form-${resetStep}`}>
+            <h3 className="form-title stagger-1"><ShieldCheck size={20}/> Recuperar Acesso</h3>
+            <p className="form-desc stagger-1">
+              {resetStep === 'request'
+                ? 'Informe seu usuário e escolha onde deseja receber o código temporário.'
+                : 'Digite o código recebido e escolha sua nova senha de acesso.'}
+            </p>
 
             {resetError && (
               <div className="login-alert error stagger-2">
                 <AlertTriangle size={18} />
                 <span>{resetError}</span>
+              </div>
+            )}
+
+            {resetMessage && (
+              <div className="login-alert success stagger-2">
+                <ShieldCheck size={18} />
+                <span>{resetMessage}</span>
               </div>
             )}
 
@@ -254,59 +401,148 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
                   placeholder="Seu usuário no sistema" 
                   value={resetUser}
                   onChange={(e) => setResetUser(e.target.value)}
-                  disabled={isResetLoading}
+                  disabled={isResetLoading || resetStep === 'confirm'}
+                  autoComplete="username"
                   required
                 />
               </div>
             </div>
 
-            <div className="input-group stagger-3">
-              <label>Nova Senha</label>
-              <div className="input-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input 
-                  type={showNewPassword ? "text" : "password"} 
-                  placeholder="Mínimo 6 caracteres" 
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={isResetLoading}
-                  required
-                />
-                <button 
-                  type="button" 
-                  className="btn-toggle-password" 
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  tabIndex="-1"
-                >
-                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            {resetStep === 'request' && (
+              <div className="input-group stagger-3">
+                <label>Receber código por</label>
+                <div className="reset-channel-options" role="radiogroup" aria-label="Canal de recuperação">
+                  <button
+                    type="button"
+                    className={`reset-channel-option ${resetChannel === 'email' ? 'active' : ''}`}
+                    onClick={() => chooseResetChannel('email')}
+                    aria-pressed={resetChannel === 'email'}
+                    disabled={isResetLoading}
+                  >
+                    <Mail size={18} />
+                    <span>E-mail</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`reset-channel-option ${resetChannel === 'sms' ? 'active' : ''}`}
+                    onClick={() => chooseResetChannel('sms')}
+                    aria-pressed={resetChannel === 'sms'}
+                    disabled={isResetLoading}
+                  >
+                    <Smartphone size={18} />
+                    <span>SMS</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="input-group stagger-3">
-              <label>Confirmar Nova Senha</label>
-              <div className="input-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input 
-                  type={showNewPassword ? "text" : "password"} 
-                  placeholder="Repita a senha" 
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isResetLoading}
-                  required
-                />
+            {resetStep === 'request' && (
+              <div className="input-group stagger-3">
+                <label>{resetChannel === 'sms' ? 'Telefone para receber' : 'E-mail para receber'}</label>
+                <div className="input-wrapper">
+                  {resetChannel === 'sms' ? (
+                    <Smartphone size={18} className="input-icon" />
+                  ) : (
+                    <Mail size={18} className="input-icon" />
+                  )}
+                  <input
+                    type={resetChannel === 'sms' ? 'tel' : 'email'}
+                    inputMode={resetChannel === 'sms' ? 'tel' : 'email'}
+                    placeholder={resetChannel === 'sms' ? '(00) 00000-0000' : 'email@empresa.com'}
+                    value={resetDestination}
+                    onChange={(e) => setResetDestination(e.target.value)}
+                    disabled={isResetLoading}
+                    autoComplete={resetChannel === 'sms' ? 'tel' : 'email'}
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {resetStep === 'confirm' && (
+              <>
+                <div className="input-group stagger-3">
+                  <label>Código de recuperação</label>
+                  <div className="input-wrapper">
+                    <ShieldCheck size={18} className="input-icon" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={resetCode}
+                      onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      disabled={isResetLoading}
+                      autoComplete="one-time-code"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group stagger-3">
+                  <label>Nova senha</label>
+                  <div className="input-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Digite sua nova senha"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={isResetLoading}
+                      autoComplete="new-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="btn-toggle-password"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      tabIndex="-1"
+                    >
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="input-group stagger-3">
+                  <label>Confirmar nova senha</label>
+                  <div className="input-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Repita a nova senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={isResetLoading}
+                      autoComplete="new-password"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <button 
               type="submit" 
               className="btn btn-primary w-100 login-btn stagger-4" 
-              disabled={isResetLoading || !resetUser || !newPassword || !confirmPassword}
+              disabled={isResetLoading || !resetUser || (resetStep === 'request' && !resetDestination) || (resetStep === 'confirm' && (!resetCode || !newPassword || !confirmPassword))}
             >
-              {isResetLoading ? <Loader2 size={20} className="spinner" /> : 'REDEFINIR SENHA'}
+              {isResetLoading ? (
+                <><Loader2 size={20} className="spinner" /> ENVIANDO...</>
+              ) : resetStep === 'request' ? (
+                <><ShieldCheck size={20} /> RECEBER CÓDIGO <ArrowRight size={18} /></>
+              ) : (
+                <><Lock size={20} /> ALTERAR SENHA <ArrowRight size={18} /></>
+              )}
             </button>
 
-            <button type="button" className="btn-back stagger-4" onClick={() => setView('login')}>
+            {resetStep === 'confirm' && (
+              <button type="button" className="btn-link reset-secondary-action stagger-4" onClick={() => { setResetStep('request'); setResetCode(''); setResetMessage(''); }}>
+                Solicitar novo código
+              </button>
+            )}
+
+            <button type="button" className="btn-back stagger-4" onClick={resetRecoveryFlow}>
               <ArrowLeft size={16} /> Voltar para o Login
             </button>
           </form>
@@ -320,13 +556,13 @@ export default function Login({ isOffline, isLoginLoading, fazerLogin, loginErro
             </div>
             <h2 className="stagger-2">Senha Atualizada!</h2>
             <p className="stagger-3">
-              Sua senha foi redefinida com sucesso. Você já pode acessar a plataforma com seus novos dados.
+              Sua senha foi redefinida com sucesso. Acesse a plataforma usando a nova senha escolhida.
             </p>
             
             <button 
               type="button" 
               className="btn btn-primary w-100 login-btn stagger-4" 
-              onClick={() => { setView('login'); setResetUser(''); setNewPassword(''); setConfirmPassword(''); }}
+              onClick={resetRecoveryFlow}
             >
               VOLTAR AO INÍCIO
             </button>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo } from 'react';
+import React, { useCallback, useDeferredValue, useMemo, useState, memo } from 'react';
 import { 
   Printer, Archive, MapPin, User, Wrench, CheckSquare, 
   CalendarCheck, Search, FileText, Trash2, AlertTriangle, 
@@ -6,10 +6,46 @@ import {
 } from 'lucide-react';
 import './HistoricoChamados.css';
 
+const INITIAL_VISIBLE_HISTORY = 60;
+const LOAD_MORE_HISTORY = 60;
+
+/**
+ * Normaliza normalize text para evitar divergencia de formato nas comparacoes.
+ */
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+/**
+ * Verifica a condicao is historico status e retorna um valor booleano.
+ */
+const isHistoricoStatus = (chamado) => {
+  // O histórico aceita variações de status para ser tolerante a registros antigos
+  // gravados com acento, sem acento ou marcados apenas como arquivados.
+  const statusStr = normalizeText(chamado?.status);
+  return statusStr.includes('conclu')
+    || statusStr.includes('fechad')
+    || chamado?.arquivado == 1
+    || chamado?.arquivado === true;
+};
+
+/**
+ * Busca ou monta os dados de get chamado time usados no fluxo atual.
+ */
+const getChamadoTime = (chamado) => {
+  const rawDate = chamado?.data_conclusao || chamado?.data_abertura;
+  const time = rawDate ? new Date(rawDate).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+};
+
 // ============================================================================
 // COMPONENTE OTIMIZADO (MEMO): Evita a re-renderização massiva da lista
 // ============================================================================
 const HistoricoCard = memo(({ c }) => {
+  // Card memoizado para manter scroll fluido quando há muitos laudos na lista.
   return (
     <div className="card historico-card">
       <div className="historico-header">
@@ -75,6 +111,8 @@ export default function HistoricoChamados({
 }) {
   const [tecnicoFiltroOS, setTecnicoFiltroOS] = useState('todos');
   const [busca, setBusca] = useState('');
+  const buscaDiferida = useDeferredValue(busca);
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_HISTORY);
   
   // Estados para o Modal de Exclusão (Restrito a DEV/ADMIN)
   const [modalExcluir, setModalExcluir] = useState(false);
@@ -87,23 +125,22 @@ export default function HistoricoChamados({
 
   // Filtro Seguro, Dinâmico e Tolerante a Erros de Digitação no Banco de Dados
   const chamadosHistoricoFiltrados = useMemo(() => {
+    // Filtro principal: aplica status histórico, filial, técnico e busca textual.
+    // A lista final é ordenada do laudo mais recente para o mais antigo.
     if (!chamados || chamados.length === 0) return [];
 
-    const termo = busca.toLowerCase().trim();
+    const termo = normalizeText(buscaDiferida);
+    const filialSelecionada = normalizeText(filialAtiva);
 
     let list = chamados.filter(c => {
         // 1. REGRA: Apenas mostrar ordens finalizadas/arquivadas no Histórico
         // Usamos includes() e toLowerCase() para evitar que falte o acento de "Concluído" no banco
-        const statusStr = String(c.status || '').toLowerCase();
-        const isHistorico = statusStr.includes('conclu') || statusStr.includes('fechad') || c.arquivado == 1 || c.arquivado === true;
-        
-        if (!isHistorico) return false;
+        if (!isHistoricoStatus(c)) return false;
 
         // 2. ISOLAMENTO DE DADOS (TENANCY) E FILIAL
         // Usamos trim() e toLowerCase() para evitar que um espaço no banco "Loja " esconda a OS
         if (filialAtiva && filialAtiva !== 'Todas') {
-            const filialChamado = String(c.filial || c.equipamento_filial || 'Loja Principal').trim().toLowerCase();
-            const filialSelecionada = String(filialAtiva).trim().toLowerCase();
+            const filialChamado = normalizeText(c.filial || c.equipamento_filial || 'Loja Principal');
             
             if (filialChamado !== filialSelecionada) return false;
         }
@@ -119,14 +156,15 @@ export default function HistoricoChamados({
 
         // 4. MOTOR DE PESQUISA (Busca Global nos campos)
         if (termo) {
-          const stringGlobal = `
-            ${c.equipamento_nome || ''} 
-            ${c.descricao || ''} 
-            ${c.nota_resolucao || ''} 
-            ${c.tecnico_responsavel || ''} 
-            ${c.solicitante_nome || ''} 
-            ${c.filial || ''}
-          `.toLowerCase();
+          const stringGlobal = normalizeText([
+            c.id,
+            c.equipamento_nome,
+            c.descricao,
+            c.nota_resolucao,
+            c.tecnico_responsavel,
+            c.solicitante_nome,
+            c.filial
+          ].join(' '));
           
           if (!stringGlobal.includes(termo)) return false;
         }
@@ -135,12 +173,30 @@ export default function HistoricoChamados({
     });
 
     // 5. Ordenação Padrão: Mais recente no topo
-    return list.sort((a, b) => {
-      const timeA = a.data_conclusao ? new Date(a.data_conclusao).getTime() : new Date(a.data_abertura).getTime();
-      const timeB = b.data_conclusao ? new Date(b.data_conclusao).getTime() : new Date(b.data_abertura).getTime();
-      return timeB - timeA;
-    });
-  }, [chamados, filialAtiva, userRole, nomeLogado, tecnicoFiltroOS, busca, isManutencao, isLoja]);
+    return list.sort((a, b) => getChamadoTime(b) - getChamadoTime(a));
+  }, [chamados, filialAtiva, nomeLogado, tecnicoFiltroOS, buscaDiferida, isManutencao, isLoja]);
+
+  const chamadosVisiveis = useMemo(
+    // Renderização incremental: mostra um bloco inicial e expande sob demanda.
+    () => chamadosHistoricoFiltrados.slice(0, visibleLimit),
+    [chamadosHistoricoFiltrados, visibleLimit]
+  );
+
+  const chamadosOcultos = Math.max(0, chamadosHistoricoFiltrados.length - chamadosVisiveis.length);
+
+  const handleSearchChange = useCallback((event) => {
+    setBusca(event.target.value);
+    setVisibleLimit(INITIAL_VISIBLE_HISTORY);
+  }, []);
+
+  const handleTecnicoChange = useCallback((event) => {
+    setTecnicoFiltroOS(event.target.value);
+    setVisibleLimit(INITIAL_VISIBLE_HISTORY);
+  }, []);
+
+  const handleShowMore = useCallback(() => {
+    setVisibleLimit(prev => prev + LOAD_MORE_HISTORY);
+  }, []);
 
   // KPIs Inteligentes
   const kpis = useMemo(() => {
@@ -198,7 +254,7 @@ export default function HistoricoChamados({
               type="text" 
               placeholder="Buscar máquina, laudo ou técnico..." 
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
 
@@ -207,7 +263,7 @@ export default function HistoricoChamados({
             <select
               className="select-input historico-filter-select"
               value={tecnicoFiltroOS}
-              onChange={e => setTecnicoFiltroOS(e.target.value)}
+              onChange={handleTecnicoChange}
               title="Filtrar por Técnico Responsável"
             >
               <option value="todos">Todos os Técnicos</option>
@@ -279,9 +335,14 @@ export default function HistoricoChamados({
       ) : (
         /* GRID DE CARTÕES DE AUDITORIA */
         <div className="grid-cards historico-grid stagger-3" style={{ marginTop: '1.5rem' }}>
-          {chamadosHistoricoFiltrados.map(c => (
+          {chamadosVisiveis.map(c => (
             <HistoricoCard key={c.id} c={c} />
           ))}
+          {chamadosOcultos > 0 && (
+            <button type="button" className="historico-show-more" onClick={handleShowMore}>
+              Mostrar mais {Math.min(LOAD_MORE_HISTORY, chamadosOcultos)} de {chamadosOcultos}
+            </button>
+          )}
         </div>
       )}
 

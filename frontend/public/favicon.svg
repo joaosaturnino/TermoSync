@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="TermoSync">
+  <rect width="128" height="128" rx="28" fill="#020617"/>
+  <path d="M40 72a24 24 0 1 0 48 0V34a24 24 0 0 0-48 0v38z" fill="#0f172a" stroke="#38bdf8" stroke-width="8"/>
+  <path d="M64 34v48" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="64" cy="86" r="18" fill="#ef4444"/>
+  <path d="M88 28l16-12M92 52h22M88 76l16 12" stroke="#10b981" stroke-width="8" stroke-linecap="round"/>
+</svg>

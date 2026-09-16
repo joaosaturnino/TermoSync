@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, Database, Server, GraduationCap, 
-  Code2, Github, Linkedin, Globe, Layers, Activity, 
+import {
+  ShieldCheck, Database, Server, GraduationCap,
+  Github, Linkedin, Globe, Layers, Activity,
   Fingerprint, Cpu, Network, Radio, TerminalSquare,
   ArrowRight, Wifi, Zap
 } from 'lucide-react';

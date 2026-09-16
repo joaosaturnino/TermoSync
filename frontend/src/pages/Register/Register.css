@@ -483,3 +483,32 @@
     font-size: 0.84rem;
   }
 }
+
+/* Correção mobile/auth: mantém os ícones dentro do campo, longe dos labels. */
+.register-viewport .register-input-wrapper {
+  position: relative;
+}
+
+.register-viewport .register-input-icon {
+  top: 50%;
+  left: 14px;
+  z-index: 2;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.register-viewport .register-input-wrapper input {
+  min-height: 46px;
+  padding-left: 44px !important;
+}
+
+@media (max-width: 640px) {
+  .register-viewport .register-input-icon {
+    left: 15px;
+  }
+
+  .register-viewport .register-input-wrapper input {
+    min-height: 48px;
+    padding-left: 46px !important;
+  }
+}

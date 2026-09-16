@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import {
-  Activity, AlertTriangle, ArrowRight, CheckCircle2, Clock3, Cpu, FileText,
+  Activity, AlertTriangle, ArrowRight, CheckCircle2, Clock3, Cpu,
   MessageSquare, ShieldCheck, Sparkles, Thermometer, Wrench, WifiOff,
   Terminal, Lock, Bot
 } from 'lucide-react';

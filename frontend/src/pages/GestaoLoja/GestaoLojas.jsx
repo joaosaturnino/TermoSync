@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { 
-  Store, Edit, X, Save, MapPin, Phone, UserCheck, Users, 
-  RefreshCw, Search, ShieldAlert, PlusCircle, 
+import {
+  Store, Edit, X, Save, MapPin, Phone, UserCheck, Users,
+  RefreshCw, Search, PlusCircle,
   Briefcase, ToggleLeft, ToggleRight, Building2, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import './GestaoLojas.css';

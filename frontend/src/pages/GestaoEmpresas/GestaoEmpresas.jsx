@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Building2, Edit, X, Save, Phone, Mail, PlusCircle, RefreshCw, 
-  Search, Briefcase, ToggleLeft, ToggleRight, 
-  ShieldAlert, ShieldCheck, Globe, Trash2, Calendar, Loader2, 
-  CheckCircle2, AlertOctagon, DownloadCloud, Activity
+import {
+  Building2, Edit, X, Save, Phone, Mail, PlusCircle, RefreshCw,
+  Search, Briefcase, ToggleLeft, ToggleRight,
+  ShieldAlert, Globe, Loader2,
+  DownloadCloud, Activity
 } from 'lucide-react';
 import './GestaoEmpresas.css';
 
@@ -18,7 +18,7 @@ import './GestaoEmpresas.css';
  * - `api`: instância HTTP para chamadas ao backend
  * - `showToast`, `setModalConfig`: utilitários de UI/modal
  */
-export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
+export default function GestaoEmpresas({ api, showToast, setModalConfig: _setModalConfig }) {
   const [empresas, setEmpresas] = useState([]);
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('Todas');
@@ -46,6 +46,9 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
       .substring(0, 18);
   };
 
+  /**
+   * Processa a interacao de fechar modal e atualiza a interface conforme o resultado.
+   */
   const fecharModal = () => {
     setModalClosing(true);
     setTimeout(() => { 
@@ -129,6 +132,9 @@ export default function GestaoEmpresas({ api, showToast, setModalConfig }) {
     };
   }, [empresas]);
 
+  /**
+   * Concentra a logica de exportar empresas csv para manter o restante do tela mais legivel.
+   */
   const exportarEmpresasCSV = () => {
     setIsExporting(true);
     setTimeout(() => {

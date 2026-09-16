@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
-import { 
-  Zap, CheckCircle2, ShieldCheck, Thermometer, Clock, 
-  FileText, AlertCircle, Loader2, Filter, Activity, 
+import {
+  Zap, CheckCircle2, ShieldCheck, Thermometer, Clock,
+  AlertCircle, Loader2, Filter, Activity,
   ListOrdered, DownloadCloud, BarChart2, CheckSquare, Shield, WifiOff, FileCheck
 } from 'lucide-react';
 import jsPDF from 'jspdf'; // [NOVO] Importação do gerador de PDF
@@ -180,6 +180,9 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
     return Math.abs(hash).toString(16).padStart(8, '0').toUpperCase();
   };
 
+  /**
+   * Atualiza set quick range mantendo o estado persistido em sincronia.
+   */
   const setQuickRange = (hours) => {
     const end = new Date();
     const start = new Date();
@@ -188,6 +191,9 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
     setDataFim(end);
   };
 
+  /**
+   * Extrai extrair planilha csv de uma entrada externa ou configuracao local.
+   */
   const extrairPlanilhaCSV = () => {
     if (tabelaReversa.length === 0) return showToast('Não há dados para exportar neste período.', 'error');
     
@@ -407,8 +413,8 @@ export default function Relatorios({ api, filialAtiva, showToast, isDarkMode, is
             <p style={{ fontSize: '0.85rem' }}>Não há dados de temperatura gravados neste período.</p>
           </div>
         ) : (
-          <div style={{ flex: 1, minHeight: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div style={{ flex: 1, minHeight: 340 }}>
+            <ResponsiveContainer width="100%" height={340}>
               <LineChart data={dadosGrafico} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} vertical={false} />
                 <XAxis dataKey="hora" stroke="#64748b" fontSize={11} tickMargin={10} minTickGap={30} />

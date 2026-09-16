@@ -2,9 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Zap, Leaf, Activity, DollarSign, CalendarDays, Loader2, Server, CheckCircle2, Clock } from 'lucide-react';
-import axios from 'axios';
 
-import ptBR from 'date-fns/locale/pt-BR'; 
+import ptBR from 'date-fns/locale/pt-BR';
 registerLocale('pt', ptBR);
 
 import 'react-datepicker/dist/react-datepicker.css';
@@ -39,6 +38,9 @@ export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMo
   // ==========================================
   // INTEGRAÇÃO COM A API (DADOS REAIS)
   // ==========================================
+  /**
+   * Carrega as leituras energéticas do período selecionado respeitando o modo offline.
+   */
   const buscarDadosEnergia = useCallback(async () => {
     if (!api || isOffline) return;
     setIsLoading(true);
@@ -66,6 +68,9 @@ export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMo
   // ==========================================
   // PROCESSAMENTO DE DADOS (ESG)
   // ==========================================
+  /**
+   * Consolida consumo, custo, carbono, séries diárias e ranking por equipamento.
+   */
   const { totalKw, custoEstimado, pegadaCarbono, consumoDiario, topConsumidores, picoDemanda } = useMemo(() => {
     
     let leituras = leiturasBrutas;
@@ -144,6 +149,9 @@ export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMo
 
   }, [leiturasBrutas, filialAtiva]);
 
+  /**
+   * Ajusta rapidamente o filtro de datas para os atalhos de período da interface.
+   */
   const setQuickRange = (days) => {
     const end = new Date();
     const start = new Date();
@@ -231,8 +239,8 @@ export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMo
               <p style={{ fontSize: '0.85rem' }}>Não há dados de medidores para este período.</p>
             </div>
           ) : (
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ flex: 1, minHeight: 300 }}>
+              <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={consumoDiario} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorKw" x1="0" y1="0" x2="0" y2="1">
@@ -269,8 +277,8 @@ export default function GestaoEnergetica({ api, filialAtiva, showToast, isDarkMo
               <p style={{ fontSize: '0.85rem' }}>Equipamentos inativos no período.</p>
             </div>
           ) : (
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ flex: 1, minHeight: 300 }}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={topConsumidores} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} horizontal={false} />
                   <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(val) => `${val}k`} />

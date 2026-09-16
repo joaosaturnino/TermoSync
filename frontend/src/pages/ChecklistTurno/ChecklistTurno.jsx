@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import logger from '../../utils/logger';
 import {
-  CheckCircle2, ClipboardList, ListChecks, RefreshCw, 
-  ShieldCheck, TimerReset, TrendingUp, Check, 
+  CheckCircle2, ListChecks, RefreshCw,
+  ShieldCheck, TimerReset, TrendingUp, Check,
   Plus, Trash2, X, Clock, Server, FileText, DownloadCloud
 } from 'lucide-react';
 import './ChecklistTurno.css';
-
-const STORAGE_KEY = 'termosync-checklist-turno-v3';
 
 const initialChecklistTemplate = [
   {
@@ -40,7 +38,7 @@ const rotinasPadrao = [
   { chave: 'pre-turno', titulo: 'Verificar funcionamento dos compressores principais' },
   { chave: 'pre-turno', titulo: 'Inspecionar possíveis vazamentos de fluidos refrigerantes' },
   { chave: 'pre-turno', titulo: 'Conferir iluminação interna e externa dos equipamentos' },
-  
+
   // OPERAÇÃO
   { chave: 'operacao', titulo: 'Monitorar alarmes críticos no painel NOC' },
   { chave: 'operacao', titulo: 'Validar ciclo de degelo da ilha de congelados' },
@@ -50,7 +48,7 @@ const rotinasPadrao = [
   { chave: 'operacao', titulo: 'Confirmar estabilidade do sinal dos sensores IoT' },
   { chave: 'operacao', titulo: 'Registrar variações térmicas drásticas durante horário de pico' },
   { chave: 'operacao', titulo: 'Inspecionar acúmulo de gelo excessivo nos evaporadores' },
-  
+
   // ENCERRAMENTO
   { chave: 'encerramento', titulo: 'Exportar relatório diário de eficiência e conformidade' },
   { chave: 'encerramento', titulo: 'Garantir rotina de purga de dados e backup diário' },
@@ -91,10 +89,10 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
   const roleFormatada = userRole.toUpperCase();
   const canManageTasks = ['ADMIN', 'MANUTENCAO', 'DEV'].includes(roleFormatada);
 
-  const emitToast = (msg, type) => {
+  const emitToast = useCallback((msg, type) => {
     if (showToast) showToast(msg, type);
     else logger.info(`[${type.toUpperCase()}] ${msg}`);
-  };
+  }, [showToast]);
 
   const buildSections = useCallback((rows = []) => {
     const newSections = initialChecklistTemplate.map((section) => ({ ...section, items: [] }));
@@ -120,11 +118,11 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
       const query = filialAtiva && filialAtiva !== 'Todas' ? `?tipo=checklist_turno&filial=${encodeURIComponent(filialAtiva)}` : '?tipo=checklist_turno';
       const res = await api.get(`/operacao/tarefas${query}`);
       const tarefasDB = res.data || [];
-      
+
       // AUTO-SEED: Se o banco estiver vazio e o usuário tiver permissão, injeta as mais de 20 tarefas padrão
       if (tarefasDB.length === 0 && canManageTasks && !isSyncing) {
          emitToast('Banco vazio. Injetando 21 rotinas padrão...', 'info');
-         await Promise.all(rotinasPadrao.map(rotina => 
+         await Promise.all(rotinasPadrao.map(rotina =>
            api.post('/operacao/tarefas', {
              tipo: 'checklist_turno', chave: rotina.chave, titulo: rotina.titulo,
              concluida: false, filial: filialAtiva === 'Todas' ? 'Matriz' : filialAtiva
@@ -140,7 +138,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
     } catch (e) {
       setIsSyncing(false);
     }
-  }, [api, filialAtiva, buildSections, canManageTasks, isSyncing]);
+  }, [api, filialAtiva, buildSections, canManageTasks, isSyncing, emitToast]);
 
   useEffect(() => {
     carregarTarefas();
@@ -162,9 +160,9 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
     if (!item?.id || !api) return;
 
     const nextChecked = !item.checked;
-    
-    setSections((current) => current.map((section, index) => 
-      index === sectionIndex ? { ...section, items: section.items.map((entry, innerIndex) => 
+
+    setSections((current) => current.map((section, index) =>
+      index === sectionIndex ? { ...section, items: section.items.map((entry, innerIndex) =>
         innerIndex === itemIndex ? { ...entry, checked: nextChecked, time: nextChecked ? new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '' } : entry
       )} : section
     ));
@@ -173,10 +171,13 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
       await api.put(`/operacao/tarefas/${item.id}`, { concluida: nextChecked });
     } catch (e) {
       emitToast('Falha ao sincronizar com o servidor.', 'error');
-      carregarTarefas(); 
+      carregarTarefas();
     }
   };
 
+  /**
+   * Processa a interacao de handle add task e atualiza a interface conforme o resultado.
+   */
   const handleAddTask = async (e, sectionId) => {
     e.preventDefault();
     if (!newTaskText.trim() || !api || !canManageTasks) return;
@@ -200,6 +201,9 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
     }
   };
 
+  /**
+   * Processa a interacao de handle delete item e atualiza a interface conforme o resultado.
+   */
   const handleDeleteItem = async (itemId) => {
     if (!api || !canManageTasks) return;
     try {
@@ -211,17 +215,20 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
     }
   };
 
+  /**
+   * Concentra a logica de reset checklist para manter o restante do tela mais legivel.
+   */
   const resetChecklist = async () => {
     if (!api) return;
     setIsResetting(true);
     emitToast('Iniciando purga e reset do turno diário...', 'info');
-    
+
     try {
       const checkedItems = sections.flatMap(s => s.items).filter(i => i.checked);
-      await Promise.all(checkedItems.map(item => 
+      await Promise.all(checkedItems.map(item =>
         api.put(`/operacao/tarefas/${item.id}`, { concluida: false })
       ));
-      
+
       emitToast('Turno reiniciado. Verificação diária zerada.', 'success');
       carregarTarefas();
     } catch (e) {
@@ -234,7 +241,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
   // --- RELATÓRIOS ---
   const exportarRelatorio = (tipo) => {
     emitToast(`Gerando relatório ${tipo}...`, 'info');
-    
+
     let csvContent = "Seção,Tarefa,Status,Hora_Conclusão\n";
     sections.forEach(sec => {
       sec.items.forEach(item => {
@@ -243,13 +250,13 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
     });
 
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob); 
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
     link.download = `Relatorio_Turno_${tipo}_${Date.now()}.csv`;
-    document.body.appendChild(link); 
-    link.click(); 
+    document.body.appendChild(link);
+    link.click();
     document.body.removeChild(link);
-    
+
     setTimeout(() => emitToast(`Relatório ${tipo} exportado com sucesso!`, 'success'), 800);
   };
 
@@ -262,8 +269,8 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
           </div>
           <h3>Checklist de Turno & Validação de Status</h3>
           <p>
-            {canManageTasks 
-              ? "Supervisione os nós críticos da operação. Como Administrador/Técnico, você pode cadastrar novas tarefas." 
+            {canManageTasks
+              ? "Supervisione os nós críticos da operação. Como Administrador/Técnico, você pode cadastrar novas tarefas."
               : "Realize a verificação diária das rotinas operacionais estabelecidas pela engenharia."}
           </p>
         </div>
@@ -300,7 +307,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
       <section className="checklist-sections">
         {sections.map((section, sectionIndex) => (
           <article key={section.id} className="checklist-section">
-            
+
             <div className="section-header">
               <div>
                 <h4>{section.title}</h4>
@@ -314,7 +321,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
 
             <ul className="checklist-items">
               {section.items.length === 0 && <li style={{color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '10px', fontStyle: 'italic'}}>Nenhuma rotina mapeada.</li>}
-              
+
               {section.items.map((item, itemIndex) => (
                 <li key={`${section.id}-${item.id}`} className={`checklist-item ${item.checked ? 'checked' : ''}`}>
                   <label className="checklist-label">
@@ -327,7 +334,7 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
                       {item.checked && item.time && <span className="item-time"><Clock size={10}/> Verificado às {item.time}</span>}
                     </div>
                   </label>
-                  
+
                   {/* Ação de Excluir aparece APENAS para Admin/Manutencao/Dev */}
                   {canManageTasks && (
                     <div className="task-actions">
@@ -343,11 +350,11 @@ export default function ChecklistTurno({ api, filialAtiva, showToast, userRole =
               <div className="add-task-container">
                 {addingTaskTo === section.id ? (
                   <form onSubmit={(e) => handleAddTask(e, section.id)} className="add-task-form">
-                     <input 
-                       autoFocus 
-                       value={newTaskText} 
-                       onChange={e => setNewTaskText(e.target.value)} 
-                       placeholder="Nova tarefa de verificação..." 
+                     <input
+                       autoFocus
+                       value={newTaskText}
+                       onChange={e => setNewTaskText(e.target.value)}
+                       placeholder="Nova tarefa de verificação..."
                        maxLength={80}
                      />
                      <div className="add-task-actions">

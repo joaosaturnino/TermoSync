@@ -8,6 +8,17 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  --mobile-gutter: clamp(0.65rem, 3.5vw, 1rem);
+  --mobile-touch: 44px;
+  --mobile-tab-height: 78px;
+  --ios-surface: color-mix(in srgb, var(--card-bg) 92%, var(--bg-color));
+  --ios-surface-strong: color-mix(in srgb, var(--card-bg) 96%, var(--bg-color));
+  --ios-separator: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.mobile-title-stack,
+.mobile-tab-bar {
+  display: none;
 }
 
 .mobile-app,
@@ -60,12 +71,30 @@
   overscroll-behavior-y: contain;
 }
 
+.termosync-mobile-webview,
+.termosync-mobile-webview body {
+  width: 100%;
+  max-width: 100%;
+}
+
+.termosync-mobile-webview #root {
+  width: 100%;
+  max-width: 100%;
+}
+
+.termosync-mobile-webview .app-container,
+.termosync-mobile-webview .main-content,
+.termosync-mobile-webview .content-area {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Configuração de servidor no login (mobile) */
 .server-config-panel {
   margin-bottom: 1rem;
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  border: 1px solid color-mix(in srgb, var(--secondary) 20%, transparent);
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.6);
+  background: color-mix(in srgb, var(--card-bg) 82%, transparent);
   overflow: hidden;
 }
 
@@ -78,7 +107,7 @@
   padding: 10px 14px;
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -87,7 +116,7 @@
 }
 
 .server-config-toggle:hover {
-  color: #38bdf8;
+  color: var(--secondary);
 }
 
 .server-config-body {
@@ -100,7 +129,7 @@
 .server-config-body label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -109,39 +138,888 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(2, 6, 23, 0.8);
-  color: #f8fafc;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card-bg) 92%, var(--bg-color));
+  color: var(--text-main);
   font-size: 0.85rem;
   font-family: 'Montserrat', sans-serif;
 }
 
 .server-config-body input:focus {
   outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--secondary) 20%, transparent);
 }
 
 .server-config-hint {
   font-size: 0.65rem;
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
 .server-config-current {
   font-size: 0.7rem;
-  color: #10b981;
+  color: var(--primary);
   font-family: 'Montserrat', sans-serif;
   word-break: break-all;
 }
 
 @media (max-width: 768px) {
+  html.mobile-app,
+  body.mobile-app,
+  html.native-app,
+  body.native-app,
+  html.termosync-mobile-webview,
+  body.termosync-mobile-webview {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-app #root,
+  .native-app #root,
+  .termosync-mobile-webview #root {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .mobile-app .app-container,
+  .native-app .app-container,
+  .termosync-mobile-webview .app-container {
+    width: 100%;
+    height: 100dvh;
+    max-width: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 15% 50%, color-mix(in srgb, var(--primary) 8%, transparent) 0%, transparent 40%),
+      radial-gradient(circle at 85% 30%, color-mix(in srgb, var(--secondary) 8%, transparent) 0%, transparent 40%),
+      var(--bg-color);
+  }
+
+  .mobile-app .main-content,
+  .native-app .main-content,
+  .termosync-mobile-webview .main-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: calc(70px + var(--safe-top));
+    padding-bottom: calc(var(--mobile-tab-height) + var(--safe-bottom) + 14px);
+    scroll-padding-top: calc(78px + var(--safe-top));
+    scroll-padding-bottom: calc(var(--mobile-tab-height) + var(--safe-bottom) + 20px);
+  }
+
+  .mobile-app .content-area,
+  .native-app .content-area,
+  .termosync-mobile-webview .content-area {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: calc(var(--mobile-gutter) + 2px) var(--mobile-gutter);
+    padding-left: max(var(--mobile-gutter), var(--safe-left));
+    padding-right: max(var(--mobile-gutter), var(--safe-right));
+    padding-bottom: max(calc(var(--mobile-gutter) + 12px), var(--safe-bottom));
+    margin: 0;
+    overflow-x: hidden;
+    background: transparent;
+  }
+
+  .mobile-app .header,
+  .native-app .header,
+  .termosync-mobile-webview .header {
+    position: fixed;
+    z-index: 850;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    top: 0;
+    border-radius: 0;
+    border-width: 0;
+    padding-left: max(var(--mobile-gutter), var(--safe-left));
+    padding-right: max(var(--mobile-gutter), var(--safe-right));
+    padding-top: max(0.78rem, var(--safe-top));
+    padding-bottom: 0.65rem;
+    flex-wrap: nowrap;
+    min-height: calc(70px + var(--safe-top));
+    background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+    border-bottom: 0.5px solid var(--ios-separator);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(30px) saturate(1.55);
+    -webkit-backdrop-filter: blur(30px) saturate(1.55);
+  }
+
+  .mobile-app .header-left,
+  .native-app .header-left,
+  .termosync-mobile-webview .header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mobile-title-stack {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .mobile-title-stack span {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: none;
+  }
+
+  .mobile-title-stack strong {
+    max-width: 48vw;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-app .header-actions,
+  .native-app .header-actions,
+  .termosync-mobile-webview .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .mobile-app .header-icon-group,
+  .native-app .header-icon-group,
+  .termosync-mobile-webview .header-icon-group {
+    gap: 6px !important;
+  }
+
+  .mobile-app .header-icon-group .mobile-hidden-action,
+  .native-app .header-icon-group .mobile-hidden-action,
+  .termosync-mobile-webview .header-icon-group .mobile-hidden-action {
+    display: none;
+  }
+
+  .mobile-app .btn-icon,
+  .native-app .btn-icon,
+  .termosync-mobile-webview .btn-icon {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 0.5px solid var(--ios-separator);
+    background: color-mix(in srgb, var(--card-bg) 82%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobile-app .btn-icon:active,
+  .native-app .btn-icon:active,
+  .termosync-mobile-webview .btn-icon:active {
+    transform: scale(0.94);
+  }
+
+  .mobile-tab-bar {
+    position: fixed;
+    z-index: 12000;
+    left: max(12px, calc(var(--safe-left) + 8px));
+    right: max(12px, calc(var(--safe-right) + 8px));
+    bottom: max(9px, calc(var(--safe-bottom) + 6px));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    min-height: var(--mobile-tab-height);
+    padding: 8px;
+    border: 0.5px solid var(--ios-separator);
+    border-radius: 28px;
+    background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+    box-shadow: var(--shadow-md), inset 0 1px 0 color-mix(in srgb, var(--secondary) 10%, transparent);
+    backdrop-filter: blur(34px) saturate(1.65);
+    -webkit-backdrop-filter: blur(34px) saturate(1.65);
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  .mobile-tab-bar::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: calc(-1 * max(7px, var(--safe-bottom) / 2));
+    width: 108px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 55%, var(--secondary));
+    transform: translateX(-50%);
+    opacity: 0.75;
+    pointer-events: none;
+  }
+
+  .mobile-tab-item {
+    position: relative;
+    display: inline-flex;
+    min-width: 0;
+    min-height: 62px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 0;
+    border-radius: 21px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    pointer-events: auto;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .mobile-tab-item span {
+    width: 100%;
+    overflow: hidden;
+    padding-inline: 2px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-tab-item svg {
+    flex-shrink: 0;
+    opacity: 0.88;
+  }
+
+  .mobile-tab-item.active {
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--primary) 28%, transparent);
+  }
+
+  .mobile-tab-item.active svg {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  .mobile-tab-item:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-tab-item small {
+    position: absolute;
+    top: 5px;
+    right: 14%;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 900;
+    line-height: 16px;
+  }
+
+  .mobile-app .sidebar,
+  .native-app .sidebar,
+  .termosync-mobile-webview .sidebar {
+    top: 0;
+    left: 0;
+    width: min(92vw, 340px) !important;
+    max-width: calc(100vw - max(12px, var(--safe-right))) !important;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    border-right: 0.5px solid var(--ios-separator);
+    border-radius: 0 32px 32px 0;
+    box-shadow: 24px 0 50px rgba(2, 6, 23, 0.44);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 210px),
+      linear-gradient(135deg, color-mix(in srgb, var(--secondary) 8%, transparent), transparent 55%),
+      color-mix(in srgb, var(--card-bg) 92%, var(--bg-color));
+    backdrop-filter: blur(34px) saturate(1.45);
+    -webkit-backdrop-filter: blur(34px) saturate(1.45);
+    overflow: hidden;
+  }
+
+  .mobile-app .sidebar.open,
+  .native-app .sidebar.open,
+  .termosync-mobile-webview .sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .mobile-app .sidebar.collapsed,
+  .native-app .sidebar.collapsed,
+  .termosync-mobile-webview .sidebar.collapsed {
+    width: min(92vw, 340px) !important;
+  }
+
+  .mobile-app .sidebar-header,
+  .native-app .sidebar-header,
+  .termosync-mobile-webview .sidebar-header {
+    min-height: 74px;
+    justify-content: space-between !important;
+    padding: 1rem 1.05rem 0.85rem !important;
+    border-bottom: 0.5px solid var(--ios-separator) !important;
+  }
+
+  .mobile-app .sidebar-header h2,
+  .native-app .sidebar-header h2,
+  .termosync-mobile-webview .sidebar-header h2 {
+    font-size: 1.28rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .mobile-app .mobile-close,
+  .native-app .mobile-close,
+  .termosync-mobile-webview .mobile-close {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    border: 0.5px solid var(--ios-separator);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-app .sidebar-user-section,
+  .native-app .sidebar-user-section,
+  .termosync-mobile-webview .sidebar-user-section {
+    padding: 0.9rem 0.95rem 0.65rem !important;
+  }
+
+  .mobile-app .ios-sidebar-profile-card,
+  .native-app .ios-sidebar-profile-card,
+  .termosync-mobile-webview .ios-sidebar-profile-card {
+    padding: 0.9rem !important;
+    border: 0.5px solid var(--ios-separator) !important;
+    border-radius: 22px !important;
+    background: color-mix(in srgb, var(--card-bg) 88%, transparent) !important;
+    box-shadow: var(--shadow-sm), inset 0 1px 0 color-mix(in srgb, var(--secondary) 9%, transparent) !important;
+  }
+
+  .mobile-app .ios-sidebar-avatar,
+  .native-app .ios-sidebar-avatar,
+  .termosync-mobile-webview .ios-sidebar-avatar {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-app .sidebar-context-section,
+  .native-app .sidebar-context-section,
+  .termosync-mobile-webview .sidebar-context-section {
+    padding: 0 0.95rem 0.75rem !important;
+  }
+
+  .mobile-app .ios-sidebar-context-card,
+  .native-app .ios-sidebar-context-card,
+  .termosync-mobile-webview .ios-sidebar-context-card {
+    padding: 0.78rem 0.85rem !important;
+    border: 0.5px solid var(--ios-separator) !important;
+    border-radius: 18px !important;
+    background: color-mix(in srgb, var(--card-bg) 84%, transparent) !important;
+  }
+
+  .mobile-app .ios-sidebar-context-card select,
+  .native-app .ios-sidebar-context-card select,
+  .termosync-mobile-webview .ios-sidebar-context-card select {
+    min-height: 42px;
+    border-radius: 13px !important;
+    background: color-mix(in srgb, var(--card-bg) 92%, var(--bg-color)) !important;
+    border: 0.5px solid var(--ios-separator) !important;
+    color: var(--text-main) !important;
+  }
+
+  .mobile-app .nav-item,
+  .native-app .nav-item,
+  .termosync-mobile-webview .nav-item {
+    width: 100% !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+    padding: 0.74rem 0.9rem !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    color: var(--text-main) !important;
+    text-transform: none;
+    transform: none !important;
+    max-width: 100%;
+  }
+
+  .mobile-app .nav-item + .nav-item,
+  .native-app .nav-item + .nav-item,
+  .termosync-mobile-webview .nav-item + .nav-item {
+    border-top: 0.5px solid var(--ios-separator) !important;
+  }
+
+  .mobile-app .nav-item svg,
+  .native-app .nav-item svg,
+  .termosync-mobile-webview .nav-item svg {
+    width: 20px;
+    height: 20px;
+    margin-right: 0.75rem !important;
+    opacity: 0.95 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .mobile-app .nav-item-text,
+  .native-app .nav-item-text,
+  .termosync-mobile-webview .nav-item-text {
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .mobile-app .nav-item.active,
+  .native-app .nav-item.active,
+  .termosync-mobile-webview .nav-item.active {
+    background: color-mix(in srgb, var(--primary) 14%, transparent) !important;
+    color: var(--primary) !important;
+  }
+
+  .mobile-app .nav-item.active::before,
+  .native-app .nav-item.active::before,
+  .termosync-mobile-webview .nav-item.active::before {
+    width: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .mobile-app .nav-item:active,
+  .native-app .nav-item:active,
+  .termosync-mobile-webview .nav-item:active {
+    background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+    transform: scale(0.985) !important;
+  }
+
+  .mobile-app .sidebar-nav,
+  .native-app .sidebar-nav,
+  .termosync-mobile-webview .sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    padding: 0 0.95rem calc(1rem + var(--safe-bottom)) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-app .nav-group,
+  .native-app .nav-group,
+  .termosync-mobile-webview .nav-group {
+    margin: 0 0 0.8rem !important;
+  }
+
+  .mobile-app .nav-group-label,
+  .native-app .nav-group-label,
+  .termosync-mobile-webview .nav-group-label {
+    margin: 0 0 0.35rem !important;
+    padding: 0.15rem 0.3rem 0.35rem !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+  }
+
+  .mobile-app .nav-group-label span,
+  .native-app .nav-group-label span,
+  .termosync-mobile-webview .nav-group-label span {
+    color: var(--text-muted) !important;
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .mobile-app .nav-group-items.expanded,
+  .native-app .nav-group-items.expanded,
+  .termosync-mobile-webview .nav-group-items.expanded {
+    gap: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0.35rem !important;
+    max-height: none !important;
+    border: 0.5px solid var(--ios-separator);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--card-bg) 86%, transparent);
+    box-shadow: var(--shadow-sm), inset 0 1px 0 color-mix(in srgb, var(--secondary) 7%, transparent);
+  }
+
+  .mobile-app .sidebar-footer,
+  .native-app .sidebar-footer,
+  .termosync-mobile-webview .sidebar-footer {
+    flex: 0 0 auto !important;
+    padding: 0.7rem 0.95rem max(0.9rem, var(--safe-bottom)) !important;
+    border-top: 0.5px solid var(--ios-separator);
+    background: color-mix(in srgb, var(--card-bg) 88%, transparent) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .mobile-app .sidebar-footer .btn-logout,
+  .native-app .sidebar-footer .btn-logout,
+  .termosync-mobile-webview .sidebar-footer .btn-logout {
+    min-height: 46px !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-app .overlay,
+  .native-app .overlay,
+  .termosync-mobile-webview .overlay {
+    background: rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
   .mobile-app .toast-container {
-    bottom: calc(10px + var(--safe-bottom));
+    bottom: calc(var(--mobile-tab-height) + var(--safe-bottom) + 18px);
   }
 
   .mobile-app .modal-content {
     max-height: calc(85vh - var(--safe-top) - var(--safe-bottom));
+  }
+
+  .mobile-app .card,
+  .mobile-app .summary-card,
+  .mobile-app .card-alert,
+  .mobile-app .chamado-card,
+  .mobile-app .content-card,
+  .mobile-app .glass-card,
+  .mobile-app .dev-card,
+  .mobile-app .cyber-panel,
+  .mobile-app .switch-panel,
+  .native-app .card,
+  .native-app .summary-card,
+  .native-app .card-alert,
+  .native-app .chamado-card,
+  .native-app .content-card,
+  .native-app .glass-card,
+  .native-app .dev-card,
+  .native-app .cyber-panel,
+  .native-app .switch-panel,
+  .termosync-mobile-webview .card,
+  .termosync-mobile-webview .summary-card,
+  .termosync-mobile-webview .card-alert,
+  .termosync-mobile-webview .chamado-card,
+  .termosync-mobile-webview .content-card,
+  .termosync-mobile-webview .glass-card,
+  .termosync-mobile-webview .dev-card,
+  .termosync-mobile-webview .cyber-panel,
+  .termosync-mobile-webview .switch-panel {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-radius: 20px;
+    border-width: 0.5px;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-app .card:hover,
+  .mobile-app .summary-card:hover,
+  .mobile-app .content-card:hover,
+  .mobile-app .glass-card:hover,
+  .native-app .card:hover,
+  .native-app .summary-card:hover,
+  .native-app .content-card:hover,
+  .native-app .glass-card:hover,
+  .termosync-mobile-webview .card:hover,
+  .termosync-mobile-webview .summary-card:hover,
+  .termosync-mobile-webview .content-card:hover,
+  .termosync-mobile-webview .glass-card:hover {
+    transform: none;
+  }
+
+  .mobile-app .btn,
+  .mobile-app .btn-outline,
+  .mobile-app .btn-primary,
+  .mobile-app .btn-danger,
+  .mobile-app .btn-danger-outline,
+  .native-app .btn,
+  .native-app .btn-outline,
+  .native-app .btn-primary,
+  .native-app .btn-danger,
+  .native-app .btn-danger-outline,
+  .termosync-mobile-webview .btn,
+  .termosync-mobile-webview .btn-outline,
+  .termosync-mobile-webview .btn-primary,
+  .termosync-mobile-webview .btn-danger,
+  .termosync-mobile-webview .btn-danger-outline {
+    border-radius: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .mobile-app input,
+  .mobile-app select,
+  .mobile-app textarea,
+  .native-app input,
+  .native-app select,
+  .native-app textarea,
+  .termosync-mobile-webview input,
+  .termosync-mobile-webview select,
+  .termosync-mobile-webview textarea {
+    border-radius: 14px;
+    appearance: none;
+  }
+
+  .mobile-app .dashboard-grid,
+  .mobile-app .summary-cards,
+  .mobile-app .grid-cards,
+  .mobile-app .cards-grid,
+  .mobile-app .main-grid,
+  .mobile-app .metrics-grid,
+  .mobile-app .stats-grid,
+  .mobile-app .operacao-grid,
+  .mobile-app .operations-grid,
+  .mobile-app .energia-grid,
+  .mobile-app .metrologia-grid,
+  .mobile-app .hardware-grid,
+  .mobile-app .tenant-grid,
+  .mobile-app .procedimentos-grid,
+  .mobile-app .chamados-layout,
+  .mobile-app .chamados-grid,
+  .mobile-app .kanban-board,
+  .mobile-app .kpi-grid,
+  .mobile-app .kpi-grid-modern,
+  .mobile-app .charts-grid,
+  .mobile-app .resumo-grid,
+  .mobile-app .executive-grid,
+  .mobile-app .dev-grid-main,
+  .mobile-app .noc-main-grid,
+  .mobile-app .switchboard-grid,
+  .mobile-app .bi-grid,
+  .native-app .dashboard-grid,
+  .native-app .summary-cards,
+  .native-app .grid-cards,
+  .native-app .cards-grid,
+  .native-app .main-grid,
+  .native-app .metrics-grid,
+  .native-app .stats-grid,
+  .native-app .operacao-grid,
+  .native-app .operations-grid,
+  .native-app .energia-grid,
+  .native-app .metrologia-grid,
+  .native-app .hardware-grid,
+  .native-app .tenant-grid,
+  .native-app .procedimentos-grid,
+  .native-app .chamados-layout,
+  .native-app .chamados-grid,
+  .native-app .kanban-board,
+  .native-app .kpi-grid,
+  .native-app .kpi-grid-modern,
+  .native-app .charts-grid,
+  .native-app .resumo-grid,
+  .native-app .executive-grid,
+  .native-app .dev-grid-main,
+  .native-app .noc-main-grid,
+  .native-app .switchboard-grid,
+  .native-app .bi-grid,
+  .termosync-mobile-webview .dashboard-grid,
+  .termosync-mobile-webview .summary-cards,
+  .termosync-mobile-webview .grid-cards,
+  .termosync-mobile-webview .cards-grid,
+  .termosync-mobile-webview .main-grid,
+  .termosync-mobile-webview .metrics-grid,
+  .termosync-mobile-webview .stats-grid,
+  .termosync-mobile-webview .operacao-grid,
+  .termosync-mobile-webview .operations-grid,
+  .termosync-mobile-webview .energia-grid,
+  .termosync-mobile-webview .metrologia-grid,
+  .termosync-mobile-webview .hardware-grid,
+  .termosync-mobile-webview .tenant-grid,
+  .termosync-mobile-webview .procedimentos-grid,
+  .termosync-mobile-webview .chamados-layout,
+  .termosync-mobile-webview .chamados-grid,
+  .termosync-mobile-webview .kanban-board,
+  .termosync-mobile-webview .kpi-grid,
+  .termosync-mobile-webview .kpi-grid-modern,
+  .termosync-mobile-webview .charts-grid,
+  .termosync-mobile-webview .resumo-grid,
+  .termosync-mobile-webview .executive-grid,
+  .termosync-mobile-webview .dev-grid-main,
+  .termosync-mobile-webview .noc-main-grid,
+  .termosync-mobile-webview .switchboard-grid,
+  .termosync-mobile-webview .bi-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-app [style*="grid-template-columns"],
+  .native-app [style*="grid-template-columns"],
+  .termosync-mobile-webview [style*="grid-template-columns"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .mobile-app [style*="min-width"],
+  .native-app [style*="min-width"],
+  .termosync-mobile-webview [style*="min-width"] {
+    min-width: 0 !important;
+  }
+
+  .mobile-app [style*="width:"],
+  .native-app [style*="width:"],
+  .termosync-mobile-webview [style*="width:"] {
+    max-width: 100% !important;
+  }
+
+  .mobile-app .table-responsive-wrapper,
+  .mobile-app .table-container-modern,
+  .mobile-app .table-wrapper,
+  .mobile-app .flex-table-container,
+  .mobile-app .command-results,
+  .native-app .table-responsive-wrapper,
+  .native-app .table-container-modern,
+  .native-app .table-wrapper,
+  .native-app .flex-table-container,
+  .native-app .command-results,
+  .termosync-mobile-webview .table-responsive-wrapper,
+  .termosync-mobile-webview .table-container-modern,
+  .termosync-mobile-webview .table-wrapper,
+  .termosync-mobile-webview .flex-table-container,
+  .termosync-mobile-webview .command-results {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-app table,
+  .native-app table,
+  .termosync-mobile-webview table {
+    width: max(100%, 640px) !important;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .mobile-app th,
+  .mobile-app td,
+  .native-app th,
+  .native-app td,
+  .termosync-mobile-webview th,
+  .termosync-mobile-webview td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .mobile-app button,
+  .mobile-app input,
+  .mobile-app select,
+  .mobile-app textarea,
+  .native-app button,
+  .native-app input,
+  .native-app select,
+  .native-app textarea,
+  .termosync-mobile-webview button,
+  .termosync-mobile-webview input,
+  .termosync-mobile-webview select,
+  .termosync-mobile-webview textarea {
+    max-width: 100%;
+    min-height: var(--mobile-touch);
+  }
+
+  .mobile-app .btn,
+  .mobile-app .btn-outline,
+  .mobile-app .btn-primary,
+  .mobile-app .btn-danger,
+  .mobile-app .btn-danger-outline,
+  .native-app .btn,
+  .native-app .btn-outline,
+  .native-app .btn-primary,
+  .native-app .btn-danger,
+  .native-app .btn-danger-outline,
+  .termosync-mobile-webview .btn,
+  .termosync-mobile-webview .btn-outline,
+  .termosync-mobile-webview .btn-primary,
+  .termosync-mobile-webview .btn-danger,
+  .termosync-mobile-webview .btn-danger-outline {
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .mobile-app .card h1,
+  .mobile-app .card h2,
+  .mobile-app .card h3,
+  .mobile-app .glass-card h1,
+  .mobile-app .glass-card h2,
+  .mobile-app .glass-card h3,
+  .native-app .card h1,
+  .native-app .card h2,
+  .native-app .card h3,
+  .native-app .glass-card h1,
+  .native-app .glass-card h2,
+  .native-app .glass-card h3,
+  .termosync-mobile-webview .card h1,
+  .termosync-mobile-webview .card h2,
+  .termosync-mobile-webview .card h3,
+  .termosync-mobile-webview .glass-card h1,
+  .termosync-mobile-webview .glass-card h2,
+  .termosync-mobile-webview .glass-card h3 {
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-app img,
+  .mobile-app svg,
+  .mobile-app canvas,
+  .mobile-app video,
+  .native-app img,
+  .native-app svg,
+  .native-app canvas,
+  .native-app video,
+  .termosync-mobile-webview img,
+  .termosync-mobile-webview svg,
+  .termosync-mobile-webview canvas,
+  .termosync-mobile-webview video {
+    max-width: 100%;
+  }
+
+  .mobile-app .dev-os-container:not(.noc-layout-original),
+  .native-app .dev-os-container:not(.noc-layout-original),
+  .termosync-mobile-webview .dev-os-container:not(.noc-layout-original) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border-radius: 0;
+  }
+
+  .mobile-app .dev-os-content,
+  .native-app .dev-os-content,
+  .termosync-mobile-webview .dev-os-content {
+    padding: var(--mobile-gutter) !important;
+    overflow: visible !important;
+  }
+
+  .mobile-app .dev-tela-scroll,
+  .native-app .dev-tela-scroll,
+  .termosync-mobile-webview .dev-tela-scroll {
+    gap: var(--mobile-gutter);
+    max-width: 100%;
+  }
+
+  .mobile-app .noc-hud-grid,
+  .native-app .noc-hud-grid,
+  .termosync-mobile-webview .noc-hud-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
@@ -157,6 +1035,694 @@
     padding: 1rem 0.75rem;
     justify-content: flex-start;
     padding-top: calc(1.5rem + var(--safe-top));
+  }
+
+  .mobile-app .noc-hud-grid,
+  .native-app .noc-hud-grid,
+  .termosync-mobile-webview .noc-hud-grid,
+  .mobile-app .summary-cards,
+  .native-app .summary-cards,
+  .termosync-mobile-webview .summary-cards,
+  .mobile-app .kpi-bar,
+  .native-app .kpi-bar,
+  .termosync-mobile-webview .kpi-bar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .mobile-app .page-title,
+  .native-app .page-title,
+  .termosync-mobile-webview .page-title {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .mobile-app .modal-content,
+  .native-app .modal-content,
+  .termosync-mobile-webview .modal-content,
+  .mobile-app .iam-modal-content,
+  .native-app .iam-modal-content,
+  .termosync-mobile-webview .iam-modal-content {
+    width: calc(100% - 1rem) !important;
+    max-width: calc(100% - 1rem) !important;
+    max-height: calc(90dvh - var(--safe-top) - var(--safe-bottom));
+    margin: 0.5rem !important;
+    overflow-y: auto;
+  }
+
+  .mobile-app .modal-actions,
+  .mobile-app .modal-actions-custom,
+  .mobile-app .modal-actions-chamados,
+  .mobile-app .modal-actions-historico,
+  .mobile-app .policy-modal-actions,
+  .mobile-app .iam-modal-footer,
+  .mobile-app .aprovacoes-modal-footer,
+  .mobile-app .bi-modal-footer,
+  .mobile-app .modern-modal-footer,
+  .native-app .modal-actions,
+  .native-app .modal-actions-custom,
+  .native-app .modal-actions-chamados,
+  .native-app .modal-actions-historico,
+  .native-app .policy-modal-actions,
+  .native-app .iam-modal-footer,
+  .native-app .aprovacoes-modal-footer,
+  .native-app .bi-modal-footer,
+  .native-app .modern-modal-footer,
+  .termosync-mobile-webview .modal-actions,
+  .termosync-mobile-webview .modal-actions-custom,
+  .termosync-mobile-webview .modal-actions-chamados,
+  .termosync-mobile-webview .modal-actions-historico,
+  .termosync-mobile-webview .policy-modal-actions,
+  .termosync-mobile-webview .iam-modal-footer,
+  .termosync-mobile-webview .aprovacoes-modal-footer,
+  .termosync-mobile-webview .bi-modal-footer,
+  .termosync-mobile-webview .modern-modal-footer {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(var(--mobile-touch), auto) !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-app .modal-actions .btn,
+  .mobile-app .modal-actions-custom .btn,
+  .mobile-app .modal-actions-chamados button,
+  .mobile-app .modal-actions-historico button,
+  .mobile-app .policy-modal-actions button,
+  .mobile-app .iam-modal-footer .btn,
+  .mobile-app .aprovacoes-modal-footer .btn,
+  .mobile-app .bi-modal-footer .btn,
+  .mobile-app .modern-modal-footer .btn,
+  .native-app .modal-actions .btn,
+  .native-app .modal-actions-custom .btn,
+  .native-app .modal-actions-chamados button,
+  .native-app .modal-actions-historico button,
+  .native-app .policy-modal-actions button,
+  .native-app .iam-modal-footer .btn,
+  .native-app .aprovacoes-modal-footer .btn,
+  .native-app .bi-modal-footer .btn,
+  .native-app .modern-modal-footer .btn,
+  .termosync-mobile-webview .modal-actions .btn,
+  .termosync-mobile-webview .modal-actions-custom .btn,
+  .termosync-mobile-webview .modal-actions-chamados button,
+  .termosync-mobile-webview .modal-actions-historico button,
+  .termosync-mobile-webview .policy-modal-actions button,
+  .termosync-mobile-webview .iam-modal-footer .btn,
+  .termosync-mobile-webview .aprovacoes-modal-footer .btn,
+  .termosync-mobile-webview .bi-modal-footer .btn,
+  .termosync-mobile-webview .modern-modal-footer .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: var(--mobile-touch) !important;
+    height: 100% !important;
+    justify-content: center !important;
+    padding: 0.7rem 0.85rem !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-app .modal-actions > button,
+  .mobile-app .modal-actions-custom > button,
+  .mobile-app .iam-modal-footer > button,
+  .mobile-app .aprovacoes-modal-footer > button,
+  .mobile-app .bi-modal-footer > button,
+  .mobile-app .modern-modal-footer > button,
+  .native-app .modal-actions > button,
+  .native-app .modal-actions-custom > button,
+  .native-app .iam-modal-footer > button,
+  .native-app .aprovacoes-modal-footer > button,
+  .native-app .bi-modal-footer > button,
+  .native-app .modern-modal-footer > button,
+  .termosync-mobile-webview .modal-actions > button,
+  .termosync-mobile-webview .modal-actions-custom > button,
+  .termosync-mobile-webview .iam-modal-footer > button,
+  .termosync-mobile-webview .aprovacoes-modal-footer > button,
+  .termosync-mobile-webview .bi-modal-footer > button,
+  .termosync-mobile-webview .modern-modal-footer > button {
+    display: inline-flex !important;
+    align-items: center !important;
+    align-self: stretch !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: var(--mobile-touch) !important;
+    height: 100% !important;
+    padding: 0.7rem 0.85rem !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-app .modal-actions,
+  .mobile-app .modal-actions-custom,
+  .mobile-app .modal-actions-chamados,
+  .mobile-app .modal-actions-historico,
+  .mobile-app .policy-modal-actions,
+  .mobile-app .iam-modal-footer,
+  .mobile-app .aprovacoes-modal-footer,
+  .mobile-app .bi-modal-footer,
+  .mobile-app .modern-modal-footer,
+  .native-app .modal-actions,
+  .native-app .modal-actions-custom,
+  .native-app .modal-actions-chamados,
+  .native-app .modal-actions-historico,
+  .native-app .policy-modal-actions,
+  .native-app .iam-modal-footer,
+  .native-app .aprovacoes-modal-footer,
+  .native-app .bi-modal-footer,
+  .native-app .modern-modal-footer,
+  .termosync-mobile-webview .modal-actions,
+  .termosync-mobile-webview .modal-actions-custom,
+  .termosync-mobile-webview .modal-actions-chamados,
+  .termosync-mobile-webview .modal-actions-historico,
+  .termosync-mobile-webview .policy-modal-actions,
+  .termosync-mobile-webview .iam-modal-footer,
+  .termosync-mobile-webview .aprovacoes-modal-footer,
+  .termosync-mobile-webview .bi-modal-footer,
+  .termosync-mobile-webview .modern-modal-footer {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .mobile-app .header,
+  .native-app .header,
+  .termosync-mobile-webview .header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .mobile-app .content-area,
+  .native-app .content-area,
+  .termosync-mobile-webview .content-area {
+    padding-top: 0.5rem;
+    padding-bottom: max(0.5rem, var(--safe-bottom));
+  }
+
+  .mobile-app .login-container,
+  .native-app .login-container,
+  .termosync-mobile-webview .login-container {
+    justify-content: flex-start;
+    padding-top: max(0.75rem, var(--safe-top));
+  }
+}
+
+/* Camada final de responsividade: neutraliza larguras fixas das telas antigas no mobile. */
+@media (max-width: 768px) {
+  .mobile-app *,
+  .mobile-app *::before,
+  .mobile-app *::after,
+  .native-app *,
+  .native-app *::before,
+  .native-app *::after,
+  .termosync-mobile-webview *,
+  .termosync-mobile-webview *::before,
+  .termosync-mobile-webview *::after {
+    box-sizing: border-box;
+  }
+
+  .mobile-app .content-area *,
+  .native-app .content-area *,
+  .termosync-mobile-webview .content-area * {
+    min-width: 0;
+  }
+
+  .mobile-app .content-area,
+  .native-app .content-area,
+  .termosync-mobile-webview .content-area {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+  }
+
+  .mobile-app .content-area > *,
+  .native-app .content-area > *,
+  .termosync-mobile-webview .content-area > *,
+  .mobile-app .content-area [class*="container"],
+  .native-app .content-area [class*="container"],
+  .termosync-mobile-webview .content-area [class*="container"],
+  .mobile-app .content-area [class*="page"],
+  .native-app .content-area [class*="page"],
+  .termosync-mobile-webview .content-area [class*="page"],
+  .mobile-app .content-area [class*="screen"],
+  .native-app .content-area [class*="screen"],
+  .termosync-mobile-webview .content-area [class*="screen"],
+  .mobile-app .content-area [class*="wrapper"],
+  .native-app .content-area [class*="wrapper"],
+  .termosync-mobile-webview .content-area [class*="wrapper"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-app .content-area [class*="header"],
+  .native-app .content-area [class*="header"],
+  .termosync-mobile-webview .content-area [class*="header"],
+  .mobile-app .content-area [class*="toolbar"],
+  .native-app .content-area [class*="toolbar"],
+  .termosync-mobile-webview .content-area [class*="toolbar"],
+  .mobile-app .content-area [class*="filters"],
+  .native-app .content-area [class*="filters"],
+  .termosync-mobile-webview .content-area [class*="filters"],
+  .mobile-app .content-area [class*="actions"],
+  .native-app .content-area [class*="actions"],
+  .termosync-mobile-webview .content-area [class*="actions"] {
+    max-width: 100%;
+    flex-wrap: wrap !important;
+    gap: 0.65rem !important;
+  }
+
+  .mobile-app .content-area [class*="header"] > *,
+  .native-app .content-area [class*="header"] > *,
+  .termosync-mobile-webview .content-area [class*="header"] > *,
+  .mobile-app .content-area [class*="filters"] > *,
+  .native-app .content-area [class*="filters"] > *,
+  .termosync-mobile-webview .content-area [class*="filters"] > * {
+    max-width: 100%;
+  }
+
+  .mobile-app .content-area [class*="grid"],
+  .native-app .content-area [class*="grid"],
+  .termosync-mobile-webview .content-area [class*="grid"],
+  .mobile-app .content-area [class*="cards"],
+  .native-app .content-area [class*="cards"],
+  .termosync-mobile-webview .content-area [class*="cards"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.85rem !important;
+  }
+
+  .mobile-app .content-area [class*="card"],
+  .native-app .content-area [class*="card"],
+  .termosync-mobile-webview .content-area [class*="card"],
+  .mobile-app .content-area [class*="panel"],
+  .native-app .content-area [class*="panel"],
+  .termosync-mobile-webview .content-area [class*="panel"],
+  .mobile-app .content-area [class*="section"],
+  .native-app .content-area [class*="section"],
+  .termosync-mobile-webview .content-area [class*="section"] {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-app .content-area input,
+  .mobile-app .content-area select,
+  .mobile-app .content-area textarea,
+  .native-app .content-area input,
+  .native-app .content-area select,
+  .native-app .content-area textarea,
+  .termosync-mobile-webview .content-area input,
+  .termosync-mobile-webview .content-area select,
+  .termosync-mobile-webview .content-area textarea {
+    width: 100%;
+    max-width: 100%;
+    min-height: var(--mobile-touch);
+  }
+
+  .mobile-app .content-area button,
+  .mobile-app .content-area .btn,
+  .native-app .content-area button,
+  .native-app .content-area .btn,
+  .termosync-mobile-webview .content-area button,
+  .termosync-mobile-webview .content-area .btn {
+    max-width: 100%;
+    min-height: var(--mobile-touch);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    touch-action: manipulation;
+  }
+
+  .mobile-app .content-area img,
+  .mobile-app .content-area canvas,
+  .mobile-app .content-area svg,
+  .mobile-app .content-area video,
+  .native-app .content-area img,
+  .native-app .content-area canvas,
+  .native-app .content-area svg,
+  .native-app .content-area video,
+  .termosync-mobile-webview .content-area img,
+  .termosync-mobile-webview .content-area canvas,
+  .termosync-mobile-webview .content-area svg,
+  .termosync-mobile-webview .content-area video {
+    max-width: 100%;
+  }
+
+  .mobile-app .content-area [class*="table"],
+  .mobile-app .content-area [class*="list"],
+  .native-app .content-area [class*="table"],
+  .native-app .content-area [class*="list"],
+  .termosync-mobile-webview .content-area [class*="table"],
+  .termosync-mobile-webview .content-area [class*="list"] {
+    max-width: 100%;
+  }
+
+  .mobile-app .content-area .table-container,
+  .mobile-app .content-area .table-wrapper,
+  .mobile-app .content-area .table-responsive-wrapper,
+  .mobile-app .content-area .table-container-modern,
+  .mobile-app .content-area .flex-table-container,
+  .mobile-app .content-area [class*="table-scroll"],
+  .native-app .content-area .table-container,
+  .native-app .content-area .table-wrapper,
+  .native-app .content-area .table-responsive-wrapper,
+  .native-app .content-area .table-container-modern,
+  .native-app .content-area .flex-table-container,
+  .native-app .content-area [class*="table-scroll"],
+  .termosync-mobile-webview .content-area .table-container,
+  .termosync-mobile-webview .content-area .table-wrapper,
+  .termosync-mobile-webview .content-area .table-responsive-wrapper,
+  .termosync-mobile-webview .content-area .table-container-modern,
+  .termosync-mobile-webview .content-area .flex-table-container,
+  .termosync-mobile-webview .content-area [class*="table-scroll"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .mobile-app .content-area table,
+  .native-app .content-area table,
+  .termosync-mobile-webview .content-area table {
+    width: max(100%, 640px) !important;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .mobile-app .content-area th,
+  .mobile-app .content-area td,
+  .native-app .content-area th,
+  .native-app .content-area td,
+  .termosync-mobile-webview .content-area th,
+  .termosync-mobile-webview .content-area td {
+    padding: 0.72rem 0.8rem !important;
+    font-size: clamp(0.72rem, 3vw, 0.84rem) !important;
+    line-height: 1.35;
+  }
+
+  .mobile-app .content-area th,
+  .native-app .content-area th,
+  .termosync-mobile-webview .content-area th {
+    letter-spacing: 0;
+  }
+
+  .mobile-app .content-area .flex-table-content,
+  .native-app .content-area .flex-table-content,
+  .termosync-mobile-webview .content-area .flex-table-content {
+    width: 100% !important;
+    min-width: min(760px, calc(100vw - 2rem)) !important;
+  }
+
+  .mobile-app .content-area .saas-table-header,
+  .native-app .content-area .saas-table-header,
+  .termosync-mobile-webview .content-area .saas-table-header {
+    min-width: 0 !important;
+    gap: 0.6rem !important;
+    padding: 0.75rem !important;
+    font-size: clamp(0.68rem, 2.8vw, 0.78rem) !important;
+  }
+
+  .mobile-app .kanban-board,
+  .native-app .kanban-board,
+  .termosync-mobile-webview .kanban-board {
+    display: flex !important;
+    grid-template-columns: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: calc(100dvh - 180px - var(--safe-top) - var(--safe-bottom)) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-app .kanban-column,
+  .native-app .kanban-column,
+  .termosync-mobile-webview .kanban-column {
+    width: clamp(280px, 84vw, 340px) !important;
+    min-width: clamp(280px, 84vw, 340px) !important;
+    max-width: clamp(280px, 84vw, 340px) !important;
+    flex: 0 0 clamp(280px, 84vw, 340px) !important;
+    scroll-snap-align: start;
+  }
+
+  .mobile-app .chat-container,
+  .mobile-app .chat-shell,
+  .mobile-app .chat-layout,
+  .native-app .chat-container,
+  .native-app .chat-shell,
+  .native-app .chat-layout,
+  .termosync-mobile-webview .chat-container,
+  .termosync-mobile-webview .chat-shell,
+  .termosync-mobile-webview .chat-layout {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100dvh - 86px - var(--mobile-tab-height) - var(--safe-top) - var(--safe-bottom)) !important;
+    max-height: calc(100dvh - 86px - var(--mobile-tab-height) - var(--safe-top) - var(--safe-bottom)) !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-app .chat-sidebar,
+  .native-app .chat-sidebar,
+  .termosync-mobile-webview .chat-sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-app .chat-messages,
+  .mobile-app .messages-list,
+  .native-app .chat-messages,
+  .native-app .messages-list,
+  .termosync-mobile-webview .chat-messages,
+  .termosync-mobile-webview .messages-list {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-app .modal-overlay,
+  .mobile-app .iam-modal-overlay,
+  .mobile-app .chat-modal-overlay,
+  .mobile-app .support-modal-overlay,
+  .mobile-app .chamados-fixed-overlay,
+  .mobile-app .historico-fixed-overlay,
+  .native-app .modal-overlay,
+  .native-app .iam-modal-overlay,
+  .native-app .chat-modal-overlay,
+  .native-app .support-modal-overlay,
+  .native-app .chamados-fixed-overlay,
+  .native-app .historico-fixed-overlay,
+  .termosync-mobile-webview .modal-overlay,
+  .termosync-mobile-webview .iam-modal-overlay,
+  .termosync-mobile-webview .chat-modal-overlay,
+  .termosync-mobile-webview .support-modal-overlay,
+  .termosync-mobile-webview .chamados-fixed-overlay,
+  .termosync-mobile-webview .historico-fixed-overlay {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: max(0.75rem, var(--safe-top)) var(--mobile-gutter) max(0.75rem, var(--safe-bottom)) !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-app .modal-content,
+  .mobile-app .policy-modal-content,
+  .mobile-app .iam-modal-content,
+  .mobile-app .chat-modal-content,
+  .mobile-app .support-modal-content,
+  .mobile-app .chamados-modal,
+  .mobile-app .historico-modal,
+  .native-app .modal-content,
+  .native-app .policy-modal-content,
+  .native-app .iam-modal-content,
+  .native-app .chat-modal-content,
+  .native-app .support-modal-content,
+  .native-app .chamados-modal,
+  .native-app .historico-modal,
+  .termosync-mobile-webview .modal-content,
+  .termosync-mobile-webview .policy-modal-content,
+  .termosync-mobile-webview .iam-modal-content,
+  .termosync-mobile-webview .chat-modal-content,
+  .termosync-mobile-webview .support-modal-content,
+  .termosync-mobile-webview .chamados-modal,
+  .termosync-mobile-webview .historico-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem) !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 430px) {
+  :root {
+    --mobile-gutter: clamp(0.55rem, 3vw, 0.85rem);
+  }
+
+  .mobile-app .content-area [class*="header"],
+  .native-app .content-area [class*="header"],
+  .termosync-mobile-webview .content-area [class*="header"],
+  .mobile-app .content-area [class*="toolbar"],
+  .native-app .content-area [class*="toolbar"],
+  .termosync-mobile-webview .content-area [class*="toolbar"],
+  .mobile-app .content-area [class*="filters"],
+  .native-app .content-area [class*="filters"],
+  .termosync-mobile-webview .content-area [class*="filters"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-app .content-area [class*="actions"] button,
+  .mobile-app .content-area [class*="actions"] .btn,
+  .native-app .content-area [class*="actions"] button,
+  .native-app .content-area [class*="actions"] .btn,
+  .termosync-mobile-webview .content-area [class*="actions"] button,
+  .termosync-mobile-webview .content-area [class*="actions"] .btn {
+    flex: 1 1 calc(50% - 0.35rem);
+  }
+}
+
+@media (max-width: 380px) {
+  :root {
+    --mobile-tab-height: 70px;
+  }
+
+  .mobile-app .mobile-tab-item,
+  .native-app .mobile-tab-item,
+  .termosync-mobile-webview .mobile-tab-item {
+    min-width: 0;
+    padding-inline: 0.25rem;
+  }
+
+  .mobile-app .mobile-tab-label,
+  .native-app .mobile-tab-label,
+  .termosync-mobile-webview .mobile-tab-label {
+    font-size: 0.62rem;
+  }
+}
+
+/* Mobile sem scrollbar visível: mantém rolagem por toque e evita cara de webview. */
+@media (max-width: 768px) {
+  .mobile-app,
+  .native-app,
+  .termosync-mobile-webview {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .mobile-app *,
+  .native-app *,
+  .termosync-mobile-webview * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .mobile-app::-webkit-scrollbar,
+  .mobile-app *::-webkit-scrollbar,
+  .native-app::-webkit-scrollbar,
+  .native-app *::-webkit-scrollbar,
+  .termosync-mobile-webview::-webkit-scrollbar,
+  .termosync-mobile-webview *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+    background: transparent !important;
+  }
+
+  .mobile-app .main-content,
+  .native-app .main-content,
+  .termosync-mobile-webview .main-content,
+  .mobile-app .content-area,
+  .native-app .content-area,
+  .termosync-mobile-webview .content-area,
+  .mobile-app .sidebar-nav,
+  .native-app .sidebar-nav,
+  .termosync-mobile-webview .sidebar-nav,
+  .mobile-app .modal-content,
+  .native-app .modal-content,
+  .termosync-mobile-webview .modal-content {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-app .main-content,
+  .native-app .main-content,
+  .termosync-mobile-webview .main-content {
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+  }
+
+  .mobile-pull-refresh {
+    position: fixed;
+    z-index: 11500;
+    top: calc(var(--safe-top) + 56px);
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 38px;
+    padding: 0.48rem 0.8rem;
+    border: 0.5px solid var(--ios-separator);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.72rem;
+    font-weight: 800;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.16s ease, background 0.16s ease;
+    backdrop-filter: blur(24px) saturate(1.45);
+    -webkit-backdrop-filter: blur(24px) saturate(1.45);
+  }
+
+  .mobile-pull-refresh svg {
+    color: var(--primary);
+    transition: transform 0.16s ease;
+  }
+
+  .mobile-pull-refresh.ready {
+    background: color-mix(in srgb, var(--primary) 14%, var(--card-bg));
+    color: var(--primary);
+  }
+
+  .mobile-pull-refresh.ready svg {
+    transform: rotate(180deg);
+  }
+
+  .mobile-pull-refresh.refreshing svg {
+    animation: spin 0.8s linear infinite;
+    transform: none;
+  }
+
+  .mobile-app .app-health-banner,
+  .native-app .app-health-banner,
+  .termosync-mobile-webview .app-health-banner {
+    align-items: stretch;
+    flex-direction: column;
+    margin: 0.65rem var(--mobile-gutter) 0;
+    padding: 0.82rem;
+    border-radius: 18px;
+  }
+
+  .mobile-app .app-health-banner .btn,
+  .native-app .app-health-banner .btn,
+  .termosync-mobile-webview .app-health-banner .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mobile-app .main-content.is-pulling-refresh .content-area,
+  .native-app .main-content.is-pulling-refresh .content-area,
+  .termosync-mobile-webview .main-content.is-pulling-refresh .content-area {
+    transition: transform 0.16s ease;
   }
 }
 

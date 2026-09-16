@@ -1,17 +1,21 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Send, Search, Phone, Paperclip, CheckCheck, Reply, Copy, ChevronDown, 
-  Smile, Mic, X, Trash2, User, MapPin, ArrowLeft, UploadCloud, Shield, Zap,
+import {
+  Send, Search, Paperclip, CheckCheck, Reply, ChevronDown,
+  X, Trash2, User, MapPin, ArrowLeft, UploadCloud, Shield, Zap,
   Terminal, Radio, Activity, Navigation, ShieldAlert, MessageCircle, Globe, Crosshair, Loader2,
-  Video, Camera, FileText, PhoneCall, PhoneOff, BrainCircuit, Pin, Lock, AlertTriangle, ShieldCheck
+  Camera, FileText, PhoneCall, PhoneOff, BrainCircuit, Pin, Lock, AlertTriangle, ShieldCheck
 } from 'lucide-react';
 import './Chat.css';
 import EmptyState from '../../components/EmptyState';
+import logger from '../../utils/logger';
+import { getApiUrl } from '../../config/api.js';
 
 // ============================================================================
 // NORMALIZADOR SEGURO PARA DADOS DO MYSQL E WEBSOCKETS
 // ============================================================================
 const normalizarMensagem = (m) => {
+  // Aceita payloads vindos tanto do MySQL quanto do Socket.io, que podem usar
+  // nomes de campos diferentes, e converte tudo para o formato único da UI.
   if (!m || typeof m !== 'object') return null;
   return {
     id: m.id || Date.now() + Math.random(),
@@ -24,6 +28,9 @@ const normalizarMensagem = (m) => {
   };
 };
 
+/**
+ * Formata formatar data segura para exibicao segura na interface.
+ */
 const formatarDataSegura = (dataStr) => {
   try {
     if (!dataStr) return '';
@@ -33,6 +40,9 @@ const formatarDataSegura = (dataStr) => {
   } catch (e) { return ''; }
 };
 
+/**
+ * Formata formatar hora segura para exibicao segura na interface.
+ */
 const formatarHoraSegura = (dataStr) => {
   try {
     if (!dataStr) return '';
@@ -42,25 +52,29 @@ const formatarHoraSegura = (dataStr) => {
   } catch (e) { return ''; }
 };
 
-export default function Chat({ 
+/**
+ * Renderiza a tela Chat e concentra as regras de apresentacao desse modulo.
+ */
+export default function Chat({
   api,
-  contatosDb = [], 
-  nomeLogado = 'Usuário', 
-  socket, 
-  userId, 
-  historicoChat: historicoChatProp, 
+  contatosDb = [],
+  nomeLogado = 'Usuário',
+  socket,
+  userId,
+  historicoChat: historicoChatProp,
   setHistoricoChat: setHistoricoChatProp,
-  contatoAtivo: contatoAtivoProp, 
-  setContatoAtivo: setContatoAtivoProp, 
-  naoLidasPorContato = {}, 
-  setNaoLidasPorContato
+  contatoAtivo: contatoAtivoProp,
+  setContatoAtivo: setContatoAtivoProp,
+  naoLidasPorContato = {},
+  setNaoLidasPorContato,
+  showToast
 }) {
   // Busca robusta pelo ID do usuário logado
   const currentUserId = useMemo(() => {
-    const id = userId || 
-               sessionStorage.getItem('userId') || 
-               sessionStorage.getItem('id') || 
-               localStorage.getItem('userId') || 
+    const id = userId ||
+               sessionStorage.getItem('userId') ||
+               sessionStorage.getItem('id') ||
+               localStorage.getItem('userId') ||
                localStorage.getItem('id') || '';
     return String(id);
   }, [userId]);
@@ -75,21 +89,23 @@ export default function Chat({
   // HISTÓRICO DE MENSAGENS (SEM CONCATENAÇÕES QUE DUPLICAM DADOS)
   // ============================================================================
   const [historicoChatLocal, setHistoricoChatLocal] = useState([]);
-  const historicoChatRaw = (historicoChatProp && historicoChatProp.length > 0) 
-    ? historicoChatProp 
+  const historicoChatRaw = (historicoChatProp && historicoChatProp.length > 0)
+    ? historicoChatProp
     : historicoChatLocal;
 
   const historicoChat = useMemo(() => {
+    // Garante que a renderização nunca receba mensagens quebradas ou nulas.
     return (historicoChatRaw || [])
       .map(normalizarMensagem)
       .filter(Boolean);
   }, [historicoChatRaw]);
 
   const setHistoricoChat = useCallback((updaterOrValue) => {
+    // Mantém compatibilidade entre estado local do Chat e estado global do App.
     setHistoricoChatLocal(prev => {
       const nextValue = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
       if (typeof setHistoricoChatProp === 'function') {
-        try { setHistoricoChatProp(nextValue); } catch (e) {}
+        try { setHistoricoChatProp(nextValue); } catch (error) { logger.warn('Falha ao sincronizar histórico externo do chat.', error); }
       }
       return nextValue;
     });
@@ -106,10 +122,15 @@ export default function Chat({
         }
       } else {
         const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
-        const res = await fetch('/api/chat/historico', {
+        const res = await fetch(`${getApiUrl()}/chat/historico`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            logger.warn('Histórico do chat retornou conteúdo não JSON.');
+            return;
+          }
           const data = await res.json();
           if (Array.isArray(data)) {
             const listaNorm = data.map(normalizarMensagem).filter(Boolean);
@@ -118,17 +139,21 @@ export default function Chat({
         }
       }
     } catch (err) {
-      console.error('❌ [ERRO CHAT] Falha ao carregar histórico:', err);
+      logger.warn('Falha ao carregar histórico do chat.', err);
     }
   }, [api, setHistoricoChat]);
 
   useEffect(() => {
-    carregarHistorico();
+    const timerId = window.setTimeout(carregarHistorico, 0);
+    return () => window.clearTimeout(timerId);
   }, [carregarHistorico]);
 
   // Escuta novas mensagens no WebSocket sem permitir duplicatas de ID
   useEffect(() => {
     if (!socket || typeof socket.on !== 'function') return;
+    /**
+     * Processa a interacao de handle nova mensagem e atualiza a interface conforme o resultado.
+     */
     const handleNovaMensagem = (msg) => {
       const msgNorm = normalizarMensagem(msg);
       if (!msgNorm) return;
@@ -148,37 +173,40 @@ export default function Chat({
   }, [socket, setHistoricoChat]);
 
   // Estados de interface
-  const [pesquisa, setPesquisa] = useState(''); 
-  const [mensagem, setMensagem] = useState(''); 
-  const [responderA, setResponderA] = useState(null); 
-  const [showScrollBottom, setShowScrollBottom] = useState(false); 
-  const [isTyping, setIsTyping] = useState(false); 
-  const [isHandshaking, setIsHandshaking] = useState(false); 
-  const [showCommands, setShowCommands] = useState(false); 
-  const [showAttachMenu, setShowAttachMenu] = useState(false); 
-  
+  const [pesquisa, setPesquisa] = useState('');
+  const [mensagem, setMensagem] = useState('');
+  const [responderA, setResponderA] = useState(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [isTyping] = useState(false);
+  const [isHandshaking, setIsHandshaking] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+
   const [isRecording, setIsRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0); 
-  const [activeCall, setActiveCall] = useState(null); 
-  const [showAgentModal, setShowAgentModal] = useState(false); 
-  const [previewImage, setPreviewImage] = useState(null); 
-  const [showSearchChat, setShowSearchChat] = useState(false); 
+  const [recordTime, setRecordTime] = useState(0);
+  const [activeCall, setActiveCall] = useState(null);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [showSearchChat, setShowSearchChat] = useState(false);
   const [searchChat, setSearchChat] = useState('');
-  const [isDragging, setIsDragging] = useState(false); 
+  const [isDragging, setIsDragging] = useState(false);
 
   const [transcribingIds, setTranscribingIds] = useState({});
   const [pinnedMessage, setPinnedMessage] = useState(null);
-  
+
   const [isConfidential, setIsConfidential] = useState(false);
   const [showEncryptionInfo, setShowEncryptionInfo] = useState(false);
 
   const roleLogada = sessionStorage.getItem('userRole') || 'LOJA';
   const papelLogado = sessionStorage.getItem('papelLogado') || '';
   const userFilial = sessionStorage.getItem('userFilial') || '';
-  
+
   const isDev = roleLogada === 'DEV';
   const isAdminOrDev = roleLogada === 'ADMIN' || isDev;
 
+  /**
+   * Busca ou monta os dados de get security clearance usados no fluxo atual.
+   */
   const getSecurityClearance = (role) => {
     if (role === 'DEV' || role === 'ADMIN') return <span title="Acesso Master" style={{color: '#ef4444'}}>[LVL-5]</span>;
     if (role === 'MANUTENCAO') return <span title="Equipe Técnica" style={{color: '#38bdf8'}}>[LVL-3]</span>;
@@ -186,7 +214,7 @@ export default function Chat({
   };
 
   const quickReplies = ["Estou na posição 📍", "Anomalia contida ✅", "Aguardando luz verde ⏳", "Solicito contato voz 📞", "Apoio necessário 🆘"];
-  
+
   const slashCommands = isAdminOrDev ? [
     { cmd: '/status', label: 'Solicitar Status (Auditoria)', icon: Activity, output: '[SYSTEM_REQ] Atualize o status operacional da intervenção de imediato.' },
     { cmd: '/loc', label: 'Ping Coordenadas GPS', icon: Navigation, output: '[SYSTEM_REQ] Transmita localização exata ou corredor de atuação no rack.' },
@@ -199,35 +227,44 @@ export default function Chat({
     { cmd: '/auditoria', label: 'Solicitar Revisão de Dados', icon: ShieldCheck, output: '📋 Solicito a revisão do histórico de temperatura para fins de auditoria sanitária.' }
   ];
 
-  const messagesEndRef = useRef(null); 
+  const messagesEndRef = useRef(null);
   const historyContainerRef = useRef(null);
-  const fileInputRef = useRef(null); 
-  const recordIntervalRef = useRef(null); 
-  const callIntervalRef = useRef(null); 
-  const mediaRecorderRef = useRef(null); 
+  const fileInputRef = useRef(null);
+  const recordIntervalRef = useRef(null);
+  const callIntervalRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const localMessageSeqRef = useRef(0);
 
-  const handleInputChange = (e) => { 
-    const val = e.target.value; 
-    setMensagem(val); 
-    if (val === '/') setShowCommands(true); 
-    else setShowCommands(false); 
+  /**
+   * Processa a interacao de handle input change e atualiza a interface conforme o resultado.
+   */
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setMensagem(val);
+    if (val === '/') setShowCommands(true);
+    else setShowCommands(false);
   };
-  
-  const executarComando = (cmdObj) => { 
-    dispararMensagem(cmdObj.output); 
-    setMensagem(''); 
-    setShowCommands(false); 
+
+  /**
+   * Executa executar comando coordenando as etapas principais desse fluxo.
+   */
+  const executarComando = (cmdObj) => {
+    dispararMensagem(cmdObj.output);
+    setMensagem('');
+    setShowCommands(false);
   };
 
   const contatosFiltrados = useMemo(() => {
+    // Aplica busca textual e regra de visibilidade por perfil/filial para evitar
+    // que usuários de loja vejam conversas fora do seu escopo.
     if (!contatosDb || !Array.isArray(contatosDb)) return [];
-    
-    let list = contatosDb.filter(c => 
-      c?.nome?.toLowerCase().includes(pesquisa.toLowerCase()) || 
+
+    let list = contatosDb.filter(c =>
+      c?.nome?.toLowerCase().includes(pesquisa.toLowerCase()) ||
       c?.cargo?.toLowerCase().includes(pesquisa.toLowerCase())
     );
-    
+
     list = list.filter(c => {
       if (roleLogada === 'DEV' || roleLogada === 'ADMIN' || roleLogada === 'MANUTENCAO') return true;
       if (roleLogada === 'LOJA') {
@@ -249,11 +286,11 @@ export default function Chat({
     return list.sort((a, b) => (roleOrder[a.role] || 5) - (roleOrder[b.role] || 5));
   }, [contatosDb, pesquisa, roleLogada, papelLogado, userFilial]);
 
-  const canalGlobal = { 
-    id: 'todos', 
-    nome: isDev ? 'NOC Global (Monitoramento Multi-Tenant)' : (isAdminOrDev ? 'Broadcast Corporativo (Empresa)' : 'Central de Suporte (Matriz)'), 
-    cargo: isDev ? 'Acesso Root a todas as Redes' : 'Avisos e Comunicados Gerais', 
-    isGroup: true 
+  const canalGlobal = {
+    id: 'todos',
+    nome: isDev ? 'NOC Global (Monitoramento Multi-Tenant)' : (isAdminOrDev ? 'Broadcast Corporativo (Empresa)' : 'Central de Suporte (Matriz)'),
+    cargo: isDev ? 'Acesso Root a todas as Redes' : 'Avisos e Comunicados Gerais',
+    isGroup: true
   };
 
   // ============================================================================
@@ -261,7 +298,7 @@ export default function Chat({
   // ============================================================================
   const mensagensExibidas = useMemo(() => {
     if (!contatoAtivo) return [];
-    
+
     let list = historicoChat.filter(m => {
       const remetente = String(m.remetenteId || '');
       const destino = String(m.destinoId || '');
@@ -278,27 +315,33 @@ export default function Chat({
 
       const enviadaPorMim = (remetente === currentUserId && destino === ativoId);
       const recebidaDoContato = (remetente === ativoId && (destino === currentUserId || destino === 'todos'));
-      
+
       return enviadaPorMim || recebidaDoContato;
     });
 
-    if (searchChat.trim()) { 
-      list = list.filter(m => String(m.texto || '').toLowerCase().includes(searchChat.toLowerCase())); 
+    if (searchChat.trim()) {
+      list = list.filter(m => String(m.texto || '').toLowerCase().includes(searchChat.toLowerCase()));
     }
     return list;
   }, [historicoChat, contatoAtivo, searchChat, currentUserId]);
 
-  useEffect(() => { 
-    if (!showSearchChat && messagesEndRef.current) { 
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' }); 
-    } 
-  }, [mensagensExibidas.length, isTyping, showSearchChat]); 
+  useEffect(() => {
+    if (!showSearchChat && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [mensagensExibidas.length, isTyping, showSearchChat]);
 
-  const handleScroll = (e) => { 
-    const { scrollTop, scrollHeight, clientHeight } = e.target; 
-    setShowScrollBottom((scrollHeight - scrollTop - clientHeight) > 150); 
+  /**
+   * Processa a interacao de handle scroll e atualiza a interface conforme o resultado.
+   */
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    setShowScrollBottom((scrollHeight - scrollTop - clientHeight) > 150);
   };
-  
+
+  /**
+   * Concentra a logica de scroll to bottom para manter o restante do tela mais legivel.
+   */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -306,199 +349,252 @@ export default function Chat({
   // Clique de Seleção no Contato
   const handleSelecionarContato = (contato) => {
     if (!contato) return;
-    
+
     setIsHandshaking(true);
-    setContatoSelecionado(contato); 
-    
+    setContatoSelecionado(contato);
+
     if (typeof setContatoAtivoProp === 'function') {
-      try { setContatoAtivoProp(contato); } catch (e) {}
+      try { setContatoAtivoProp(contato); } catch (error) { logger.warn('Falha ao sincronizar contato ativo externo.', error); }
     }
 
-    setResponderA(null); 
-    setShowCommands(false); 
-    setShowAttachMenu(false); 
-    setShowSearchChat(false); 
-    setSearchChat(''); 
-    setShowAgentModal(false); 
-    setPinnedMessage(null); 
+    setResponderA(null);
+    setShowCommands(false);
+    setShowAttachMenu(false);
+    setShowSearchChat(false);
+    setSearchChat('');
+    setShowAgentModal(false);
+    setPinnedMessage(null);
     setIsConfidential(false);
-    
+
     setTimeout(() => setIsHandshaking(false), 200);
-    
-    if (naoLidasPorContato?.[contato.id] && typeof setNaoLidasPorContato === 'function') { 
-      setNaoLidasPorContato(prev => { 
-        const next = { ...(prev || {}) }; 
-        delete next[contato.id]; 
-        return next; 
-      }); 
+
+    if (naoLidasPorContato?.[contato.id] && typeof setNaoLidasPorContato === 'function') {
+      setNaoLidasPorContato(prev => {
+        const next = { ...(prev || {}) };
+        delete next[contato.id];
+        return next;
+      });
     }
 
     carregarHistorico();
   };
 
+  /**
+   * Processa a interacao de fechar chat e atualiza a interface conforme o resultado.
+   */
   const fecharChat = (e) => {
     e?.stopPropagation();
     setContatoSelecionado(null);
     if (typeof setContatoAtivoProp === 'function') {
-      try { setContatoAtivoProp(null); } catch (err) {}
+      try { setContatoAtivoProp(null); } catch (error) { logger.warn('Falha ao limpar contato ativo externo.', error); }
     }
     setShowAgentModal(false);
   };
 
+  /**
+   * Concentra a logica de disparar mensagem para manter o restante do tela mais legivel.
+   */
   const dispararMensagem = (textoFinal) => {
     if (!textoFinal.trim() || !contatoAtivo) return;
-    
+
     let textoComSeguranca = textoFinal;
     if (isConfidential) textoComSeguranca = `[CONFIDENCIAL] ${textoFinal}`;
+    localMessageSeqRef.current += 1;
 
-    const payload = { 
-      id: Date.now(), 
-      remetenteId: currentUserId || userId, 
-      remetenteNome: nomeLogado || 'Colaborador', 
-      destinoId: contatoAtivo.id, 
-      texto: textoComSeguranca, 
-      data: new Date().toISOString(), 
-      tipo: 'sent' 
+    const payload = {
+      id: `local-${currentUserId || userId || 'anon'}-${localMessageSeqRef.current}`,
+      remetenteId: currentUserId || userId,
+      remetenteNome: nomeLogado || 'Colaborador',
+      destinoId: contatoAtivo.id,
+      texto: textoComSeguranca,
+      data: new Date().toISOString(),
+      tipo: 'sent'
     };
-    
+
     const msgNorm = normalizarMensagem(payload);
     setHistoricoChat(prev => {
       const lista = prev || [];
       if (lista.some(m => String(m.id) === String(msgNorm.id))) return lista;
       return [...lista, msgNorm];
-    }); 
-    
+    });
+
     if (socket && typeof socket.emit === 'function') {
-      socket.emit('enviar_mensagem_chat', payload); 
+      socket.emit('enviar_mensagem_chat', payload);
     }
   };
 
+  /**
+   * Envia enviar mensagem texto para o canal ou provedor configurado.
+   */
   const enviarMensagemTexto = (e) => {
     e?.preventDefault();
     if (!mensagem.trim() || mensagem === '/') return;
     let textoFinal = mensagem;
     if (responderA) textoFinal = `[REP:${responderA.texto}] ${mensagem}`;
-    dispararMensagem(textoFinal); 
-    setMensagem(''); 
-    setResponderA(null); 
+    dispararMensagem(textoFinal);
+    setMensagem('');
+    setResponderA(null);
     setIsConfidential(false);
   };
-  
+
+  /**
+   * Concentra a logica de process file para manter o restante do tela mais legivel.
+   */
   const processFile = (file) => {
-    if (!file) return; 
+    if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => { 
-      dispararMensagem(`[FILE:${file.name}|${file.type}]${reader.result}`); 
+    reader.onloadend = () => {
+      dispararMensagem(`[FILE:${file.name}|${file.type}]${reader.result}`);
     };
-    reader.readAsDataURL(file); 
+    reader.readAsDataURL(file);
     setShowAttachMenu(false);
   };
 
-  const handleFileChange = (e) => { 
-    processFile(e.target.files[0]); 
-    e.target.value = ''; 
-  };
-  
-  const handleDragOver = (e) => { 
-    e.preventDefault(); 
-    if (contatoAtivo && !(contatoAtivo.isGroup && !isAdminOrDev)) {
-      setIsDragging(true);
-    } 
-  };
-  
-  const handleDragLeave = (e) => { 
-    e.preventDefault(); 
-    setIsDragging(false); 
-  };
-  
-  const handleDrop = (e) => { 
-    e.preventDefault(); 
-    setIsDragging(false); 
-    if (!contatoAtivo || (contatoAtivo.isGroup && !isAdminOrDev)) return; 
-    processFile(e.dataTransfer.files[0]); 
-  };
-  
-  const enviarLocalizacao = () => { 
-    dispararMensagem(`[LOCATION] -23.5505, -46.6333`); 
-    setShowAttachMenu(false); 
+  /**
+   * Processa a interacao de handle file change e atualiza a interface conforme o resultado.
+   */
+  const handleFileChange = (e) => {
+    processFile(e.target.files[0]);
+    e.target.value = '';
   };
 
+  /**
+   * Processa a interacao de handle drag over e atualiza a interface conforme o resultado.
+   */
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (contatoAtivo && !(contatoAtivo.isGroup && !isAdminOrDev)) {
+      setIsDragging(true);
+    }
+  };
+
+  /**
+   * Processa a interacao de handle drag leave e atualiza a interface conforme o resultado.
+   */
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  /**
+   * Processa a interacao de handle drop e atualiza a interface conforme o resultado.
+   */
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (!contatoAtivo || (contatoAtivo.isGroup && !isAdminOrDev)) return;
+    processFile(e.dataTransfer.files[0]);
+  };
+
+  /**
+   * Envia enviar localizacao para o canal ou provedor configurado.
+   */
+  const enviarLocalizacao = () => {
+    dispararMensagem(`[LOCATION] -23.5505, -46.6333`);
+    setShowAttachMenu(false);
+  };
+
+  /**
+   * Concentra a logica de iniciar gravacao para manter o restante do tela mais legivel.
+   */
   const iniciarGravacao = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream); 
-      audioChunksRef.current = []; 
-      recorder.isCanceled = false; 
-      recorder.ondataavailable = e => { 
-        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); 
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.isCanceled = false;
+      recorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        if (recorder.isCanceled) { 
-          stream.getTracks().forEach(track => track.stop()); 
-          return; 
+        if (recorder.isCanceled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
         }
         const blob = new Blob(audioChunksRef.current, { type: 'audio/mp4' });
         const reader = new FileReader();
-        reader.onloadend = () => { 
-          dispararMensagem(`[AUDIO]${reader.result}`); 
+        reader.onloadend = () => {
+          dispararMensagem(`[AUDIO]${reader.result}`);
         };
-        reader.readAsDataURL(blob); 
+        reader.readAsDataURL(blob);
         stream.getTracks().forEach(track => track.stop());
       };
-      recorder.start(); 
-      mediaRecorderRef.current = recorder; 
-      setIsRecording(true); 
-      setRecordTime(0); 
-      setShowCommands(false); 
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordTime(0);
+      setShowCommands(false);
       setShowAttachMenu(false);
       recordIntervalRef.current = setInterval(() => setRecordTime(prev => prev + 1), 1000);
-    } catch (err) { 
-      alert('Permissão de microfone negada.'); 
+    } catch (err) {
+      logger.warn('Permissão de microfone negada.', err);
+      showToast?.('Permissão de microfone negada.', 'warning');
     }
   };
 
-  const pararEEnviarGravacao = () => { 
+  /**
+   * Concentra a logica de parar eenviar gravacao para manter o restante do tela mais legivel.
+   */
+  const pararEEnviarGravacao = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop(); 
+      mediaRecorderRef.current.stop();
     }
-    setIsRecording(false); 
-    clearInterval(recordIntervalRef.current); 
-  };
-  
-  const cancelarGravacao = () => { 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') { 
-      mediaRecorderRef.current.isCanceled = true; 
-      mediaRecorderRef.current.stop(); 
-    } 
-    setIsRecording(false); 
-    clearInterval(recordIntervalRef.current); 
+    setIsRecording(false);
+    clearInterval(recordIntervalRef.current);
   };
 
-  const iniciarChamada = () => { 
-    setActiveCall({ status: 'calling', time: 0 }); 
-    setTimeout(() => { 
-      setActiveCall({ status: 'connected', time: 0 }); 
-      callIntervalRef.current = setInterval(() => { 
-        setActiveCall(prev => prev ? { ...prev, time: prev.time + 1 } : null); 
-      }, 1000); 
-    }, 2500); 
-  };
-  
-  const encerrarChamada = () => { 
-    clearInterval(callIntervalRef.current); 
-    dispararMensagem(`[CALL_END] Chamada de voz encerrada (${Math.floor(activeCall.time / 60)}:${String(activeCall.time % 60).padStart(2, '0')})`); 
-    setActiveCall(null); 
+  /**
+   * Verifica a condicao cancelar gravacao e retorna um valor booleano.
+   */
+  const cancelarGravacao = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.isCanceled = true;
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    clearInterval(recordIntervalRef.current);
   };
 
-  const apagarMensagemLocal = (idParaApagar) => { 
+  /**
+   * Concentra a logica de iniciar chamada para manter o restante do tela mais legivel.
+   */
+  const iniciarChamada = () => {
+    setActiveCall({ status: 'calling', time: 0 });
+    setTimeout(() => {
+      setActiveCall({ status: 'connected', time: 0 });
+      callIntervalRef.current = setInterval(() => {
+        setActiveCall(prev => prev ? { ...prev, time: prev.time + 1 } : null);
+      }, 1000);
+    }, 2500);
+  };
+
+  /**
+   * Concentra a logica de encerrar chamada para manter o restante do tela mais legivel.
+   */
+  const encerrarChamada = () => {
+    clearInterval(callIntervalRef.current);
+    dispararMensagem(`[CALL_END] Chamada de voz encerrada (${Math.floor(activeCall.time / 60)}:${String(activeCall.time % 60).padStart(2, '0')})`);
+    setActiveCall(null);
+  };
+
+  /**
+   * Concentra a logica de apagar mensagem local para manter o restante do tela mais legivel.
+   */
+  const apagarMensagemLocal = (idParaApagar) => {
     setHistoricoChat(prev => (prev || []).filter(m => String(m.id) !== String(idParaApagar)));
   };
-  
-  const encaminharParaWhatsApp = (texto) => { 
-    const textoFormatado = encodeURIComponent(`*Alerta Tático TermoSync:*\n\n${String(texto || '').replace(/\[.*?\]\s*/, '')}`); 
-    window.open(`https://wa.me/?text=${textoFormatado}`, '_blank'); 
+
+  /**
+   * Concentra a logica de encaminhar para whats app para manter o restante do tela mais legivel.
+   */
+  const encaminharParaWhatsApp = (texto) => {
+    const textoFormatado = encodeURIComponent(`*Alerta Tático TermoSync:*\n\n${String(texto || '').replace(/\[.*?\]\s*/, '')}`);
+    window.open(`https://wa.me/?text=${textoFormatado}`, '_blank');
   };
 
+  /**
+   * Concentra a logica de transcrever audio para manter o restante do tela mais legivel.
+   */
   const transcreverAudio = (msgId) => {
     setTranscribingIds(prev => ({ ...prev, [msgId]: 'loading' }));
     setTimeout(() => {
@@ -508,17 +604,23 @@ export default function Chat({
     }, 2000);
   };
 
+  /**
+   * Concentra a logica de render bubble text para manter o restante do tela mais legivel.
+   */
   const renderBubbleText = (msg) => {
     try {
       let textoBruto = String(msg?.texto || '');
       if (!textoBruto) return '';
-      
+
       let isConfidentialMsg = false;
       if (textoBruto.startsWith('[CONFIDENCIAL] ')) {
         isConfidentialMsg = true;
         textoBruto = textoBruto.replace('[CONFIDENCIAL] ', '');
       }
 
+      /**
+       * Concentra a logica de wrap confidential para manter o restante do tela mais legivel.
+       */
       const wrapConfidential = (content) => {
         if (!isConfidentialMsg) return content;
         return (
@@ -531,23 +633,23 @@ export default function Chat({
         );
       };
 
-      if (textoBruto.startsWith('[CALL_END]')) { 
+      if (textoBruto.startsWith('[CALL_END]')) {
         return wrapConfidential(
           <div className="system-msg-bubble" style={{background: 'rgba(56, 189, 248, 0.1)', color: 'var(--chat-secondary)', borderColor: 'rgba(56, 189, 248, 0.3)'}}>
             <PhoneOff size={16} /> {textoBruto.replace('[CALL_END]', '')}
           </div>
-        ); 
+        );
       }
-      
-      if (textoBruto.startsWith('[LOCATION]')) { 
+
+      if (textoBruto.startsWith('[LOCATION]')) {
         return wrapConfidential(
           <div className="gps-location-bubble">
             <div className="gps-icon"><MapPin size={24} /></div>
             <div className="gps-details"><strong>Coordenadas Táticas</strong><span>{textoBruto.replace('[LOCATION]', '').trim()}</span></div>
           </div>
-        ); 
+        );
       }
-      
+
       if (textoBruto.startsWith('[SYSTEM_REQ]')) return wrapConfidential(textoBruto.replace('[SYSTEM_REQ]', ''));
       if (textoBruto.startsWith('[SYSTEM]')) return wrapConfidential(textoBruto.replace('[SYSTEM]', ''));
 
@@ -580,32 +682,32 @@ export default function Chat({
         const metaEnd = textoBruto.indexOf(']');
         if (metaEnd === -1) return wrapConfidential("Arquivo corrompido");
         const metaInfo = textoBruto.substring(6, metaEnd).split('|');
-        const fileName = metaInfo[0]; 
-        const fileType = metaInfo[1] || ''; 
+        const fileName = metaInfo[0];
+        const fileType = metaInfo[1] || '';
         const src = textoBruto.substring(metaEnd + 1);
 
-        if (fileType.startsWith('image/')) { 
+        if (fileType.startsWith('image/')) {
           return wrapConfidential(
             <div className="file-img-bubble">
               <img src={src} alt={fileName} className="chat-img-thumbnail" onClick={() => setPreviewImage(src)} />
               <span style={{fontSize: '0.75rem', fontWeight: 'bold'}}>{fileName}</span>
             </div>
-          ); 
-        } else { 
+          );
+        } else {
           return wrapConfidential(
             <a href={src} download={fileName} className="chat-file-attachment">
               <FileText size={20} color="var(--chat-primary)" />
               <span>{fileName}</span>
             </a>
-          ); 
+          );
         }
       }
 
       const repMatch = textoBruto.match(/\[REP:(.*?)\]\s*(.*)/);
       if (repMatch) {
         let repliedContent = repMatch[1];
-        if (repliedContent.startsWith('[AUDIO]')) repliedContent = '🎤 Transmissão de Rádio'; 
-        else if (repliedContent.startsWith('[FILE:')) repliedContent = '📎 Pacote de Dados'; 
+        if (repliedContent.startsWith('[AUDIO]')) repliedContent = '🎤 Transmissão de Rádio';
+        else if (repliedContent.startsWith('[FILE:')) repliedContent = '📎 Pacote de Dados';
         else if (repliedContent.startsWith('[LOCATION]')) repliedContent = '📍 Localização GPS';
         return wrapConfidential(
           <>
@@ -614,7 +716,7 @@ export default function Chat({
           </>
         );
       }
-      
+
       if (searchChat && textoBruto.toLowerCase().includes(searchChat.toLowerCase())) {
         const safeSearch = searchChat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const parts = textoBruto.split(new RegExp(`(${safeSearch})`, 'gi'));
@@ -629,13 +731,13 @@ export default function Chat({
 
   return (
     <div className={`chat-page-container ${contatoAtivo ? 'has-active-chat' : ''}`} onClick={() => { setShowCommands(false); setShowAttachMenu(false); setShowEncryptionInfo(false); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-      
+
       {isDragging && contatoAtivo && !(contatoAtivo.isGroup && !isAdminOrDev) && (
         <div className="chat-drag-overlay">
           <div className="drag-content"><UploadCloud size={64} /><h2>Transmitir Pacote</h2><p>Solte para fazer upload no canal de {contatoAtivo?.nome || 'Agente'}</p></div>
         </div>
       )}
-      
+
       {previewImage && (
         <div className="lightbox-overlay" onClick={() => setPreviewImage(null)} style={{position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           <button onClick={() => setPreviewImage(null)} style={{position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer'}}><X size={32} /></button>
@@ -658,7 +760,7 @@ export default function Chat({
             <input type="text" placeholder="Localizar Agente..." value={pesquisa} onChange={(e) => setPesquisa(e.target.value)} />
           </div>
         </div>
-        
+
         <div className="chat-contacts-list">
           {(!pesquisa || canalGlobal.nome.toLowerCase().includes(pesquisa.toLowerCase())) && (
             <div className={`chat-contact-item channel-global ${contatoAtivo?.id === 'todos' ? 'active' : ''}`} onClick={() => handleSelecionarContato(canalGlobal)}>
@@ -669,15 +771,15 @@ export default function Chat({
               </div>
             </div>
           )}
-          
+
           <div className="contacts-divider">Rede de Operadores {isDev && <span style={{marginLeft: 'auto', color: 'var(--chat-danger)', fontSize: '0.6rem'}}>*GOD MODE*</span>}</div>
-          
+
           {contatosFiltrados.length === 0 ? (
             <EmptyState title="Nenhum agente localizado" description={!isDev ? 'O seu acesso está restrito à rede da sua empresa.' : 'Nenhum agente corresponde à pesquisa.'} icon={User} />
           ) : (
-            contatosFiltrados.map(contato => { 
-              const qtdNaoLidas = naoLidasPorContato?.[contato.id] || 0; 
-              const isActive = contatoAtivo?.id === contato.id; 
+            contatosFiltrados.map(contato => {
+              const qtdNaoLidas = naoLidasPorContato?.[contato.id] || 0;
+              const isActive = contatoAtivo?.id === contato.id;
               return (
                 <div key={contato.id} className={`chat-contact-item ${isActive ? 'active' : ''} ${qtdNaoLidas > 0 && !isActive ? 'has-unread' : ''}`} onClick={() => handleSelecionarContato(contato)}>
                   <div className="contact-avatar-wrapper">
@@ -693,7 +795,7 @@ export default function Chat({
                   </div>
                   {qtdNaoLidas > 0 && !isActive && <div className="contact-unread-badge">{qtdNaoLidas > 9 ? '9+' : qtdNaoLidas}</div>}
                 </div>
-              ); 
+              );
             })
           )}
         </div>
@@ -716,7 +818,7 @@ export default function Chat({
                   <div className="chat-user-header-details"><h3>{contatoAtivo?.nome || 'Agente'}</h3>{isTyping && !contatoAtivo.isGroup ? <span className="chat-status-typing">Criptografando pacote...</span> : <span className="chat-status-online"><span className="chat-status-dot"></span> {contatoAtivo.isGroup ? 'Rede Unificada' : 'Conexão Segura Estabelecida'}</span>}</div>
                 </div>
               )}
-              
+
               <div className="chat-header-actions">
                 {!showSearchChat && <button className="chat-header-btn action-search-btn" onClick={() => setShowSearchChat(true)} title="Inspecionar Histórico (Auditoria)"><Search size={18} /></button>}
                 {!contatoAtivo.isGroup && (<><button className="chat-header-btn" onClick={iniciarChamada} title="Uplink de Áudio VoIP"><PhoneCall size={18} /></button><button className="chat-header-btn action-panel-btn" onClick={() => setShowAgentModal(true)} title="Perfil de Segurança do Colaborador"><Activity size={18} /></button></>)}
@@ -733,7 +835,7 @@ export default function Chat({
                 </div>
               )}
             </div>
-            
+
             {pinnedMessage && (
               <div className="pinned-message-banner" style={{ background: 'rgba(56, 189, 248, 0.1)', borderBottom: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px 15px', display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'white', cursor: 'pointer' }}>
                  <Pin size={16} color="var(--chat-secondary)" style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -753,14 +855,14 @@ export default function Chat({
               ) : (
                 <div className="chat-history" onScroll={handleScroll} ref={historyContainerRef} style={{ flex: 1, overflowY: 'auto' }}>
                   {mensagensExibidas.length === 0 && (<div className="chat-secure-empty-state"><Shield size={48} className="secure-icon pulse-soft" /><h4 style={{color: 'white', marginBottom: '10px', fontFamily: 'Montserrat'}}>CONEXÃO SEGURA ESTABELECIDA</h4><p style={{fontSize: '0.85rem', lineHeight: '1.5'}}>A comunicação ponto-a-ponto foi verificada.<br/>{isDev ? 'Modo de acesso Global ativo.' : 'O seu canal está isolado com a rede da sua empresa.'}</p></div>)}
-                  
+
                   {mensagensExibidas.map((msg, index) => {
                     const previousMsg = mensagensExibidas[index - 1];
                     const dataAtual = formatarDataSegura(msg.data);
                     const dataAnterior = previousMsg ? formatarDataSegura(previousMsg.data) : null;
                     const mostrarSeparadorData = !previousMsg || (dataAtual && dataAtual !== dataAnterior);
                     const mostrarHora = !previousMsg || (formatarHoraSegura(msg.data) !== formatarHoraSegura(previousMsg?.data)) || (msg.remetenteId !== previousMsg?.remetenteId);
-                    
+
                     const textoBruto = String(msg?.texto || '');
                     const isSystemMsg = textoBruto.includes('[SYSTEM_REQ]') || textoBruto.includes('[CALL_END]') || textoBruto.includes('[SYSTEM]');
                     const isConfidentialMsg = textoBruto.includes('[CONFIDENCIAL]');
@@ -815,9 +917,9 @@ export default function Chat({
                   <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                   <form className="chat-type-area" onSubmit={enviarMensagemTexto}>
                     <button type="button" className={`chat-btn-icon file-attach-btn ${showAttachMenu ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); setShowAttachMenu(!showAttachMenu); setShowCommands(false); setShowEncryptionInfo(false); }}><Paperclip size={20} /></button>
-                    
+
                     <button type="button" className={`chat-btn-icon confidential-btn ${isConfidential ? 'active' : ''}`} onClick={() => setIsConfidential(!isConfidential)} title="Modo de Auditoria Restrita"><Lock size={18} /></button>
-                    
+
                     <div className={`chat-input-wrapper ${isConfidential ? 'confidential-mode' : ''}`}>
                       <input type="text" placeholder={showCommands ? "Selecione o comando rápido..." : isConfidential ? "Mensagem com restrição de auditoria..." : "Digite a mensagem ou '/' para atalhos..."} value={mensagem} onChange={handleInputChange} onFocus={() => { setShowAttachMenu(false); setShowEncryptionInfo(false); }} autoFocus={window.innerWidth > 768} />
                     </div>
@@ -843,7 +945,7 @@ export default function Chat({
                  <div className="telemetry-item"><div className="t-icon-box primary"><div className="radar-icon-pulse"><Crosshair size={20} /><div className="radar-wave"></div></div></div><div className="t-data"><span className="t-label">Nível de Isolamento</span><span className="t-value">{isDev ? `Empresa: ${contatoAtivo.empresa || contatoAtivo.filial}` : 'Tenant Único'}</span></div></div>
                  <div className="telemetry-item"><div className="t-icon-box" style={{color:'var(--chat-muted)', borderColor: 'var(--chat-border)'}}><MapPin size={20}/></div><div className="t-data"><span className="t-label">Localização (Filial)</span><span className="t-value">{contatoAtivo.filial || 'Acesso Restrito'}</span></div></div>
               </div>
-              
+
               {isAdminOrDev && (
                 <div className="agent-tactical-protocols">
                   <h5 className="protocol-title">Ações Operacionais Restritas</h5>

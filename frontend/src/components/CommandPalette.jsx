@@ -17,6 +17,7 @@ export default function CommandPalette({
   setCmdSearch,
   commandInputRef,
   NAVIGATION_ATIVA,
+  globalSearchItems = [],
   setAbaAtiva,
   setGruposExpandidos
 }) {
@@ -48,6 +49,24 @@ export default function CommandPalette({
               <nav.icon size={18} className="cmd-item-icon"/> <span>Acessar <strong>{nav.label}</strong></span>
             </button>
           ))}
+
+          {globalSearchItems.length > 0 && (
+            <>
+              <div className="cmd-group">Busca Global</div>
+              {globalSearchItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <button key={`${item.type}-${item.title}-${index}`} className="cmd-item" onClick={() => {
+                    setAbaAtiva(item.target);
+                    setShowCommandPalette(false);
+                  }}>
+                    <Icon size={18} className="cmd-item-icon"/>
+                    <span><strong>{item.type}:</strong> {item.title}<small style={{ display: 'block', color: 'var(--text-muted)', marginTop: 2 }}>{item.detail}</small></span>
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
     </div>

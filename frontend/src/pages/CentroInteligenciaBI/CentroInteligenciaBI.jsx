@@ -6,13 +6,16 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, ShieldCheck, DollarSign, LineChart as ChartIcon, 
-  Briefcase, RefreshCw, AlertTriangle, CheckCircle2, 
+  Briefcase, RefreshCw, AlertTriangle, CheckCircle2,
   Building2, Server, Loader2, ArrowUpRight, Bot, Sparkles,
   Search, Download, Wrench, ShieldAlert, Cpu, Layers,
-  X, Send, Check
+  X, Send
 } from 'lucide-react';
 import './CentroInteligencia.css';
 
+/**
+ * Renderiza o painel executivo de BI com KPIs financeiros, risco IoT e ações rápidas.
+ */
 export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
   const [dataAnalytics, setDataAnalytics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,13 +34,18 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
   const textFill = isDarkMode ? '#cbd5e1' : '#475569';
   const gridStroke = isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
 
-  // Helper local de aviso sem alert nativo
+  /**
+   * Exibe uma notificação visual e também propaga o aviso para o toast global.
+   */
   const exibirAlertaUI = (titulo, mensagem, tipo = 'success') => {
     setNotificacaoBI({ titulo, mensagem, tipo });
     showToast?.(`${titulo}: ${mensagem}`, tipo);
     setTimeout(() => setNotificacaoBI(null), 5000);
   };
 
+  /**
+   * Busca os dados consolidados do BI e controla estados de carregamento/atualização.
+   */
   const fetchBIAnalytics = useCallback(async (silencioso = false) => {
     if (!api) return;
     try {
@@ -60,7 +68,9 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
     fetchBIAnalytics();
   }, [fetchBIAnalytics]);
 
-  // Insights Dinâmicos do Copilot AI
+  /**
+   * Gera um resumo executivo textual a partir dos KPIs e riscos carregados.
+   */
   const copilotInsight = useMemo(() => {
     if (!dataAnalytics) return '';
     const { kpis, analiseRisco } = dataAnalytics;
@@ -70,7 +80,9 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
     return `Margem operacional excelente em ${kpis.margem}%, com ARR anual projetado de R$ ${kpis.arr.toLocaleString('pt-BR')}. Identificamos ${qtdAlertaCritico} ativo(s) IoT com risco operacional elevado que requerem calibração metrológica ou atenção preventiva. O custo médio em nuvem está estimado em R$ ${custoUnitarioIoT} por nó de telemetria.`;
   }, [dataAnalytics]);
 
-  // Filtragem Instantânea para a Tabela Tática
+  /**
+   * Filtra os ativos por nome ou quantidade de alertas sem alterar a base original.
+   */
   const ativosFiltrados = useMemo(() => {
     if (!dataAnalytics) return [];
     const termo = buscaAtivo.trim().toLowerCase();
@@ -81,7 +93,9 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
     );
   }, [dataAnalytics, buscaAtivo]);
 
-  // Execução Real da Abertura da Ordem de Serviço no Modal
+  /**
+   * Cria uma ordem de serviço preventiva para o ativo selecionado no modal.
+   */
   const confirmarAberturaOS = async () => {
     if (!api || !modalOS) return;
     setEnviandoOS(true);
@@ -89,7 +103,7 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
       const prioridadeOS = modalOS.risco > 70 ? 'Crítica' : 'Alta';
       const descricaoOS = `Chamado automático gerado pelo módulo de Business Intelligence (Copilot AI).\n\n• Ativo IoT: ${modalOS.maquina}\n• Índice de Risco SLA: ${modalOS.risco}%\n• Status do Compressor: ${modalOS.statusMotor}\n• Alarmes NOC Pendentes: ${modalOS.alertas} alarme(s)\n\nIntervenção preventiva recomendada para evitar violação metrológica.`;
 
-      const res = await api.post('/chamados', {
+      await api.post('/chamados', {
         equipamento_id: modalOS.id || null,
         titulo: `[OS Preventiva BI] Risco Elevado (${modalOS.risco}%) em ${modalOS.maquina}`,
         descricao: descricaoOS,
@@ -115,7 +129,9 @@ export default function CentroInteligenciaBI({ api, isDarkMode, showToast }) {
     }
   };
 
-  // Exportação para CSV (Data Lake Executivo)
+  /**
+   * Gera e baixa um CSV de auditoria com o diagnóstico de risco dos ativos.
+   */
   const exportarDiagnosticoCSV = () => {
     if (!dataAnalytics) return;
     let csv = "ID,Ativo_IoT,Status_Compressor,Alertas_NOC,Grau_Risco_SLA\n";

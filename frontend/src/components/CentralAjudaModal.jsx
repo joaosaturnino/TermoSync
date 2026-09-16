@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Sparkles, X, Search, ChevronRight, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { BookOpen, Sparkles, X, Search } from 'lucide-react';
 
 /**
  * Modal de Ajuda / Central de Conhecimento
@@ -10,7 +10,7 @@ import { BookOpen, Sparkles, X, Search, ChevronRight, CheckCircle2, ShieldAlert 
  *
  * Props: `isOpen`, `onClose`, `api`, `isDarkMode`
  */
-export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode }) {
+export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode: _isDarkMode }) {
   const [aba, setAba] = useState('artigos'); // 'artigos' ou 'changelog'
   const [artigos, setArtigos] = useState([]);
   const [changelog, setChangelog] = useState([]);
@@ -18,16 +18,28 @@ export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode }) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setLoading(true);
-    
-    Promise.all([
-      api.get('/suporte/artigos').catch(() => ({ data: [] })),
-      api.get('/system/changelog').catch(() => ({ data: [] }))
-    ]).then(([resArtigos, resChangelog]) => {
-      setArtigos(Array.isArray(resArtigos.data) ? resArtigos.data : []);
-      setChangelog(Array.isArray(resChangelog.data) ? resChangelog.data : []);
-    }).finally(() => setLoading(false));
+    if (!isOpen) return undefined;
+    let active = true;
+
+    const timerId = window.setTimeout(() => {
+      setLoading(true);
+
+      Promise.all([
+        api.get('/suporte/artigos').catch(() => ({ data: [] })),
+        api.get('/system/changelog').catch(() => ({ data: [] }))
+      ]).then(([resArtigos, resChangelog]) => {
+        if (!active) return;
+        setArtigos(Array.isArray(resArtigos.data) ? resArtigos.data : []);
+        setChangelog(Array.isArray(resChangelog.data) ? resChangelog.data : []);
+      }).finally(() => {
+        if (active) setLoading(false);
+      });
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timerId);
+    };
   }, [isOpen, api]);
 
   if (!isOpen) return null;
@@ -113,7 +125,7 @@ export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode }) 
               {changelog.map(log => (
                 <div key={log.id} style={{ background: 'rgba(0,0,0,0.3)', borderLeft: '4px solid #10b981', padding: '14px', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 'bold', color: 'white', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>
+                    <span style={{ fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>
                       {log.version}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{new Date(log.date).toLocaleDateString()}</span>

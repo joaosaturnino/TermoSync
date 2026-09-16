@@ -20,6 +20,9 @@ export default function Register({ onNavigate, isOffline }) {
     empresa: '', cnpj: '', responsavel: '', email: '', telefone: ''
   });
 
+  /**
+   * Processa a interacao de handle submit e atualiza a interface conforme o resultado.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');

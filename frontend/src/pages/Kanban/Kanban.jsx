@@ -1,10 +1,119 @@
-import React, { useState, useMemo } from 'react';
+import React, { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { 
   Columns, Wrench, Clock, CheckCircle, ArrowRight, AlertTriangle, 
   Search, Calendar, MapPin, ActivitySquare, Server, Loader2, AlertOctagon
 } from 'lucide-react';
 import './Kanban.css';
 import logger from '../../utils/logger';
+
+const KANBAN_COLUMNS = [
+  { id: 'Aberto', title: 'Novos / Triagem', icon: AlertTriangle, color: '#ef4444' },
+  { id: 'Em Andamento', title: 'Intervenção (FSM)', icon: Wrench, color: '#f59e0b' },
+  { id: 'Aguardando Peça', title: 'Logística', icon: Clock, color: '#38bdf8' },
+  { id: 'Concluído', title: 'Auditoria Fechada', icon: CheckCircle, color: '#10b981' }
+];
+
+// Limites iniciais evitam renderizar centenas de cards ao abrir a tela.
+// O usuário pode expandir cada coluna com o botão "Mostrar mais".
+const INITIAL_VISIBLE_BY_COLUMN = {
+  Aberto: 50,
+  'Em Andamento': 50,
+  'Aguardando Peça': 50,
+  Concluído: 24
+};
+
+const LOAD_MORE_STEP = 40;
+
+/**
+ * Normaliza normalize text para evitar divergencia de formato nas comparacoes.
+ */
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+/**
+ * Busca ou monta os dados de get badge urgencia usados no fluxo atual.
+ */
+const getBadgeUrgencia = (urgencia) => {
+  if (!urgencia || urgencia === 'Pendente') return null;
+  const normalize = normalizeText(urgencia).replace(/\s+/g, '-');
+  return <span className={`ticket-urgency-badge ${normalize}`}>{urgencia}</span>;
+};
+
+const KanbanTicketCard = memo(function KanbanTicketCard({
+  ticket,
+  column,
+  columns,
+  isMoving,
+  isDragging,
+  movingTicketId,
+  onMove,
+  onDragStart,
+  onDragEnd
+}) {
+  // Card memoizado: só re-renderiza quando o chamado ou o estado de movimento muda.
+  return (
+    <div
+      className={`kanban-card ${isMoving ? 'is-moving' : ''} ${isDragging ? 'is-dragging' : ''}`}
+      style={{ '--ticket-color': column.color }}
+      draggable={!isMoving}
+      onDragStart={(event) => onDragStart(event, ticket.id)}
+      onDragEnd={onDragEnd}
+    >
+      <div className="kanban-card-header">
+        <div>
+          <div className="kanban-equip-name">{ticket.equipamento_nome || 'Sistema Core'}</div>
+          <div className="kanban-id">OS-{ticket.id}</div>
+        </div>
+        {getBadgeUrgencia(ticket.urgencia)}
+      </div>
+
+      <div className="ticket-meta">
+        <div className="ticket-meta-item" title="Local de Intervenção">
+          <MapPin size={14}/> {ticket.filial || 'Matriz'}
+        </div>
+        <div className="ticket-meta-item" title="Data de Abertura">
+          <Calendar size={14}/> {ticket.data_abertura ? new Date(ticket.data_abertura).toLocaleDateString('pt-PT') : '--'}
+        </div>
+      </div>
+
+      <p className="kanban-desc">{ticket.descricao || 'Nenhuma descrição fornecida pelo operador.'}</p>
+
+      <div className="ticket-footer">
+        <div className="ticket-assignee" title="Agente Responsável">
+          <div className="ticket-avatar" style={{ background: column.color, boxShadow: `0 0 10px ${column.color}60` }}>
+            {ticket.aberto_por ? ticket.aberto_por.charAt(0).toUpperCase() : <AlertOctagon size={12}/>}
+          </div>
+          <span>{ticket.aberto_por || 'Sistema Auto'}</span>
+        </div>
+
+        <div className="kanban-actions">
+          {isMoving ? (
+            <Loader2 size={22} color={column.color} className="spin" style={{marginRight: '5px'}} />
+          ) : (
+            columns.map(targetCol => {
+              if (targetCol.id === column.id) return null;
+              return (
+                <button
+                  key={targetCol.id}
+                  className="btn-kanban-move"
+                  onClick={() => onMove(ticket.id, targetCol.id)}
+                  title={`Mover para: ${targetCol.title}`}
+                  disabled={movingTicketId !== null}
+                >
+                  {targetCol.id === 'Concluído' ? <CheckCircle size={16} color="var(--success)"/> : <ArrowRight size={16}/>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 /**
  * Quadro Kanban para Gestão de Incidentes (ITSM)
@@ -22,6 +131,8 @@ import logger from '../../utils/logger';
  */
 export default function Kanban({ chamados, api, carregarChamados, showToast, isOffline }) {
   const [busca, setBusca] = useState('');
+  const buscaDiferida = useDeferredValue(busca);
+  const [visibleLimitByColumn, setVisibleLimitByColumn] = useState(INITIAL_VISIBLE_BY_COLUMN);
   
   // Controle UX: Bloqueio do card que está a atualizar na API
   const [movingTicketId, setMovingTicketId] = useState(null);
@@ -30,18 +141,10 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColId, setDragOverColId] = useState(null);
 
-  // Paleta de Cores e Colunas
-  const colunas = [
-    { id: 'Aberto', title: 'Novos / Triagem', icon: AlertTriangle, color: '#ef4444' }, // Vermelho
-    { id: 'Em Andamento', title: 'Intervenção (FSM)', icon: Wrench, color: '#f59e0b' }, // Amarelo
-    { id: 'Aguardando Peça', title: 'Logística', icon: Clock, color: '#38bdf8' }, // Azul
-    { id: 'Concluído', title: 'Auditoria Fechada', icon: CheckCircle, color: '#10b981' } // Verde
-  ];
-
   // =========================================================
   // COMUNICAÇÃO COM A API (Mover Cartão)
   // =========================================================
-  const moverChamado = async (id, novoStatus) => {
+  const moverChamado = useCallback(async (id, novoStatus) => {
     if (isOffline) return showToast('Control Plane Offline. Sem ligação à base de dados.', 'error');
     
     setMovingTicketId(id); 
@@ -56,79 +159,102 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
     } finally {
       setMovingTicketId(null); 
     }
-  };
+  }, [api, carregarChamados, isOffline, showToast]);
 
   // =========================================================
   // EVENTOS DE DRAG AND DROP (ARRASTAR E LARGAR)
   // =========================================================
-  const handleDragStart = (e, ticketId) => {
+  const handleDragStart = useCallback((e, ticketId) => {
     setDraggedTicketId(ticketId);
     // Armazena o ID no evento nativo para segurança entre navegadores
     e.dataTransfer.setData("ticketId", ticketId);
     e.dataTransfer.effectAllowed = "move";
-  };
+  }, []);
 
-  const handleDragOver = (e, colId) => {
+  const handleDragOver = useCallback((e, colId) => {
     e.preventDefault(); // Necessário para permitir o Drop no HTML5
-    if (dragOverColId !== colId) {
-      setDragOverColId(colId);
-    }
-  };
+    setDragOverColId(prev => prev === colId ? prev : colId);
+  }, []);
 
-  const handleDragLeave = (e) => {
+  const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     setDragOverColId(null);
-  };
+  }, []);
 
-  const handleDrop = async (e, targetColId) => {
+  const listaSeguraChamados = useMemo(() => chamados || [], [chamados]);
+
+  const chamadosPorId = useMemo(() => {
+    // Mapa por ID torna o drop O(1), evitando procurar no array inteiro ao soltar.
+    const porId = new Map();
+    listaSeguraChamados.forEach(chamado => porId.set(String(chamado.id), chamado));
+    return porId;
+  }, [listaSeguraChamados]);
+
+  const handleDrop = useCallback(async (e, targetColId) => {
     e.preventDefault();
     setDragOverColId(null);
     const droppedTicketId = e.dataTransfer.getData("ticketId") || draggedTicketId;
     
     if (droppedTicketId) {
-      const ticket = listaSeguraChamados.find(c => String(c.id) === String(droppedTicketId));
+      const ticket = chamadosPorId.get(String(droppedTicketId));
       // Move apenas se for deixado numa coluna diferente da atual
       if (ticket && ticket.status !== targetColId) {
         await moverChamado(ticket.id, targetColId);
       }
     }
     setDraggedTicketId(null);
-  };
+  }, [chamadosPorId, draggedTicketId, moverChamado]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedTicketId(null);
     setDragOverColId(null);
-  };
+  }, []);
 
   // =========================================================
   // MOTORES DE FILTRO E KPIs
   // =========================================================
-  const listaSeguraChamados = chamados || [];
+  const { chamadosAgrupados, kpis } = useMemo(() => {
+    // Agrupa, filtra e calcula KPIs em uma única passada para reduzir custo em
+    // bases com muitos chamados.
+    const buckets = Object.fromEntries(KANBAN_COLUMNS.map(col => [col.id, []]));
+    const termo = normalizeText(buscaDiferida);
+    const resumo = { total: 0, criticos: 0, resolvidos: 0 };
 
-  const chamadosFiltrados = useMemo(() => {
-    if (!busca.trim()) return listaSeguraChamados;
-    const termo = busca.toLowerCase();
-    return listaSeguraChamados.filter(c => 
-      c.equipamento_nome?.toLowerCase().includes(termo) ||
-      c.descricao?.toLowerCase().includes(termo) ||
-      String(c.id).includes(termo) ||
-      c.filial?.toLowerCase().includes(termo)
-    );
-  }, [listaSeguraChamados, busca]);
+    for (const chamado of listaSeguraChamados) {
+      if (!chamado || chamado.arquivado) continue;
 
-  const kpis = useMemo(() => {
-    const total = listaSeguraChamados.filter(c => !c.arquivado).length;
-    const criticos = listaSeguraChamados.filter(c => c.status === 'Aberto' && !c.arquivado).length;
-    const resolvidos = listaSeguraChamados.filter(c => c.status === 'Concluído' && !c.arquivado).length;
-    return { total, criticos, resolvidos };
-  }, [listaSeguraChamados]);
+      resumo.total += 1;
+      if (chamado.status === 'Aberto') resumo.criticos += 1;
+      if (chamado.status === 'Concluído') resumo.resolvidos += 1;
 
-  // Função para mapear o nível de urgência com estilos
-  const getBadgeUrgencia = (urgencia) => {
-    if (!urgencia || urgencia === 'Pendente') return null;
-    const normalize = urgencia.toLowerCase().replace('í', 'i').replace('é', 'e');
-    return <span className={`ticket-urgency-badge ${normalize}`}>{urgencia}</span>;
-  };
+      const colunaExiste = buckets[chamado.status];
+      if (!colunaExiste) continue;
+
+      if (termo) {
+        const textoBusca = normalizeText([
+          chamado.id,
+          chamado.equipamento_nome,
+          chamado.descricao,
+          chamado.filial,
+          chamado.aberto_por,
+          chamado.urgencia
+        ].join(' '));
+
+        if (!textoBusca.includes(termo)) continue;
+      }
+
+      buckets[chamado.status].push(chamado);
+    }
+
+    return { chamadosAgrupados: buckets, kpis: resumo };
+  }, [listaSeguraChamados, buscaDiferida]);
+
+  const handleShowMore = useCallback((colId) => {
+    setVisibleLimitByColumn(prev => ({
+      ...prev,
+      [colId]: (prev[colId] || LOAD_MORE_STEP) + LOAD_MORE_STEP
+    }));
+  }, []);
 
   return (
     <div className="kanban-wrapper">
@@ -188,9 +314,13 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
 
       {/* BOARD ITSM (KANBAN) */}
       <div className="kanban-board">
-        {colunas.map(col => {
-          const chamadosColuna = chamadosFiltrados.filter(c => c.status === col.id && !c.arquivado);
+        {KANBAN_COLUMNS.map(col => {
+          const chamadosColuna = chamadosAgrupados[col.id] || [];
+          const visibleLimit = visibleLimitByColumn[col.id] || LOAD_MORE_STEP;
+          const chamadosVisiveis = chamadosColuna.slice(0, visibleLimit);
+          const chamadosOcultos = Math.max(0, chamadosColuna.length - chamadosVisiveis.length);
           const isDragTarget = dragOverColId === col.id;
+          const ColumnIcon = col.icon;
           
           return (
             <div 
@@ -204,7 +334,7 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
               
               <div className="kanban-column-header">
                 <span className="kanban-column-title">
-                  <col.icon size={18} color={col.color}/> {col.title}
+                  <ColumnIcon size={18} color={col.color}/> {col.title}
                 </span>
                 <span className="kanban-badge">{chamadosColuna.length}</span>
               </div>
@@ -216,73 +346,32 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
                     <p style={{ margin: 0, opacity: 0.8, fontSize: '0.9rem', fontWeight: 'bold' }}>Arraste OS para aqui.</p>
                   </div>
                 ) : (
-                  chamadosColuna.map(c => {
-                    const isMoving = movingTicketId === c.id;
-                    const isDragging = draggedTicketId === c.id;
-                    
-                    return (
-                      <div 
-                        key={c.id} 
-                        className={`kanban-card ${isMoving ? 'is-moving' : ''} ${isDragging ? 'is-dragging' : ''}`} 
-                        style={{ '--ticket-color': col.color }}
-                        draggable={!isMoving}
-                        onDragStart={(e) => handleDragStart(e, c.id)}
+                  <>
+                    {chamadosVisiveis.map(c => (
+                      <KanbanTicketCard
+                        key={c.id}
+                        ticket={c}
+                        column={col}
+                        columns={KANBAN_COLUMNS}
+                        isMoving={movingTicketId === c.id}
+                        isDragging={draggedTicketId === c.id}
+                        movingTicketId={movingTicketId}
+                        onMove={moverChamado}
+                        onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
+                      />
+                    ))}
+
+                    {chamadosOcultos > 0 && (
+                      <button
+                        className="kanban-show-more"
+                        type="button"
+                        onClick={() => handleShowMore(col.id)}
                       >
-                        
-                        <div className="kanban-card-header">
-                          <div>
-                            <div className="kanban-equip-name">{c.equipamento_nome || 'Sistema Core'}</div>
-                            <div className="kanban-id">OS-{c.id}</div>
-                          </div>
-                          {getBadgeUrgencia(c.urgencia)}
-                        </div>
-
-                        <div className="ticket-meta">
-                          <div className="ticket-meta-item" title="Local de Intervenção">
-                            <MapPin size={14}/> {c.filial || 'Matriz'}
-                          </div>
-                          <div className="ticket-meta-item" title="Data de Abertura">
-                            <Calendar size={14}/> {c.data_abertura ? new Date(c.data_abertura).toLocaleDateString('pt-PT') : '--'}
-                          </div>
-                        </div>
-
-                        <p className="kanban-desc">{c.descricao || 'Nenhuma descrição fornecida pelo operador.'}</p>
-                        
-                        <div className="ticket-footer">
-                          <div className="ticket-assignee" title="Agente Responsável">
-                            <div className="ticket-avatar" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}60` }}>
-                              {c.aberto_por ? c.aberto_por.charAt(0).toUpperCase() : <AlertOctagon size={12}/>}
-                            </div>
-                            {c.aberto_por || 'Sistema Auto'}
-                          </div>
-
-                          <div className="kanban-actions">
-                            {/* Opcional: Manter os botões para acessibilidade ou dispositivos móveis sem rato */}
-                            {isMoving ? (
-                              <Loader2 size={22} color={col.color} className="spin" style={{marginRight: '5px'}} />
-                            ) : (
-                              colunas.map(targetCol => {
-                                if (targetCol.id === col.id) return null;
-                                return (
-                                  <button 
-                                    key={targetCol.id} 
-                                    className="btn-kanban-move"
-                                    onClick={() => moverChamado(c.id, targetCol.id)} 
-                                    title={`Mover para: ${targetCol.title}`}
-                                    disabled={movingTicketId !== null}
-                                  >
-                                    {targetCol.id === 'Concluído' ? <CheckCircle size={16} color="var(--success)"/> : <ArrowRight size={16}/>}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })
+                        Mostrar mais {Math.min(LOAD_MORE_STEP, chamadosOcultos)} de {chamadosOcultos}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 

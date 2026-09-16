@@ -1,0 +1,218 @@
+.account-security-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.account-security-loading {
+  min-height: 320px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.account-security-hero,
+.account-security-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.account-security-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.account-security-kicker {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.account-security-hero h2,
+.account-security-card h3 {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.account-security-hero p,
+.account-security-card span,
+.account-session-item span,
+.account-session-item small {
+  color: var(--text-muted);
+}
+
+.account-security-hero p {
+  margin: 0.25rem 0 0;
+}
+
+.account-security-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.account-security-card {
+  padding: 1rem;
+}
+
+.account-security-card.success {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+}
+
+.account-security-card.warning {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+}
+
+.account-security-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.account-security-card-head > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-security-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.account-security-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.account-security-form label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.account-security-form input {
+  width: 100%;
+}
+
+.account-security-full-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.account-security-secret {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.account-security-secret code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.account-security-sessions .account-security-card-head {
+  align-items: flex-start;
+}
+
+.account-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.account-session-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.account-session-item.current {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.account-session-item strong,
+.account-session-item span,
+.account-session-item small {
+  display: block;
+}
+
+.account-session-item strong {
+  color: var(--text-main);
+}
+
+.account-session-item small {
+  margin-top: 0.25rem;
+}
+
+.account-security-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-muted);
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .account-security-hero,
+  .account-security-card {
+    border-radius: 8px;
+  }
+
+  .account-security-hero,
+  .account-security-grid,
+  .account-session-item,
+  .account-security-card-head {
+    grid-template-columns: 1fr;
+  }
+
+  .account-security-hero {
+    align-items: stretch;
+  }
+
+  .account-security-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .account-security-card-head {
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .account-security-card-head .btn,
+  .account-session-item .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}

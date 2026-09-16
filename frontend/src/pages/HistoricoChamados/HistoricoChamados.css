@@ -179,10 +179,6 @@
   transition: transform 0.2s ease;
 }
 
-.kpi-box:hover {
-  transform: translateY(-2px);
-}
-
 .kpi-icon-wrap {
   width: 48px;
   height: 48px;
@@ -230,8 +226,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
-  will-change: transform;
   width: 100%;
+  align-items: stretch;
+  contain: layout;
 }
 
 .historico-card {
@@ -246,6 +243,9 @@
   position: relative;
   overflow: hidden;
   height: 100%;
+  contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 360px;
 }
 
 .dark-theme .historico-card {
@@ -263,15 +263,21 @@
   opacity: 0.5;
 }
 
-.historico-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.1);
-  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
-}
+@media (hover: hover) and (pointer: fine) {
+  .kpi-box:hover {
+    transform: translateY(-2px);
+  }
 
-.historico-card:hover::before {
-  background: var(--primary);
-  opacity: 1;
+  .historico-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.1);
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  .historico-card:hover::before {
+    background: var(--primary);
+    opacity: 1;
+  }
 }
 
 .historico-header {
@@ -483,6 +489,43 @@
   padding-top: 1.5rem;
 }
 
+.historico-show-more {
+  min-height: 48px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-main);
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 900;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .historico-show-more:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 8%, var(--card-bg));
+  }
+}
+
+.compact-ui .historico-kpis {
+  margin-bottom: 1rem;
+}
+
+.compact-ui .kpi-box {
+  padding: 0.9rem;
+}
+
+.compact-ui .historico-grid {
+  gap: 1rem;
+}
+
+.compact-ui .historico-card {
+  padding: 1rem;
+}
+
 /* =========================================
    RESPONSIVIDADE 100%
    ========================================= */
@@ -531,6 +574,7 @@
 
   .historico-card {
     padding: 1.25rem;
+    content-visibility: visible;
   }
 
   .historico-modal-box {

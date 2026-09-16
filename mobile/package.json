@@ -1,0 +1,25 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.23",
+    "expo-constants": "~57.0.18",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-webview": "13.16.1"
+  },
+  "scripts": {
+    "start": "expo start --offline --port 8090",
+    "tunnel": "expo start --tunnel --port 8090",
+    "android": "expo start --offline --android --port 8090",
+    "ios": "expo start --offline --ios --port 8090",
+    "web": "expo start --web",
+    "check": "expo install --check"
+  },
+  "private": true
+}

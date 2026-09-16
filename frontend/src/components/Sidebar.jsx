@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, UserCheck, Lock, ChevronDown, ChevronRight, LogOut, X, Pin } from 'lucide-react';
 import TermoSyncLogo from './TermoSyncLogo';
 
@@ -12,6 +12,7 @@ import TermoSyncLogo from './TermoSyncLogo';
  * Props: menu state, usuário, navegação e callbacks de interação
  */
 export default function Sidebar({
+  api,
   menuAberto,
   setMenuAberto,
   menuRecolhido,
@@ -37,18 +38,67 @@ export default function Sidebar({
     : getPlanoVisual();
 
   // ============================================================================
-  // LÓGICA DE FAVORITOS (PINOS) - Salva as preferências de acordo com a Role
+  // LÓGICA DE FAVORITOS (PINOS) - Salva as preferências por usuário e perfil
   // ============================================================================
+  const favoritosKey = useMemo(() => {
+    const usuarioSeguro = String(nomeLogado || 'usuario').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+    return `termosync_favoritos_${userRole}_${usuarioSeguro}`;
+  }, [nomeLogado, userRole]);
+
   const [favoritos, setFavoritos] = useState(() => {
-    const salvos = localStorage.getItem(`termosync_favoritos_${userRole}`);
+    const usuarioSeguro = String(nomeLogado || 'usuario').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+    const salvos = localStorage.getItem(`termosync_favoritos_${userRole}_${usuarioSeguro}`) || localStorage.getItem(`termosync_favoritos_${userRole}`);
     if (salvos) return JSON.parse(salvos);
     return ['dashboard', 'motores', 'chamados'];
   });
+  const [preferenciasCarregadas, setPreferenciasCarregadas] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem(`termosync_favoritos_${userRole}`, JSON.stringify(favoritos));
-  }, [favoritos, userRole]);
+    localStorage.setItem(favoritosKey, JSON.stringify(favoritos));
+  }, [favoritos, favoritosKey]);
 
+  useEffect(() => {
+    let cancelado = false;
+    setPreferenciasCarregadas(false);
+
+    /**
+     * Renderiza o componente carregar Favoritos e encapsula sua interacao visual reutilizavel.
+     */
+    const carregarFavoritos = async () => {
+      if (!api) {
+        setPreferenciasCarregadas(true);
+        return;
+      }
+
+      try {
+        const res = await api.get('/user/preferences/sidebar_favorites');
+        const value = typeof res.data?.value === 'string' ? JSON.parse(res.data.value) : res.data?.value;
+        if (!cancelado && Array.isArray(value) && value.length > 0) {
+          setFavoritos(value);
+          localStorage.setItem(favoritosKey, JSON.stringify(value));
+        }
+      } catch {
+        // Mantém fallback local quando o usuário estiver offline ou a base antiga ainda não tiver a tabela.
+      } finally {
+        if (!cancelado) setPreferenciasCarregadas(true);
+      }
+    };
+
+    carregarFavoritos();
+    return () => { cancelado = true; };
+  }, [api, favoritosKey]);
+
+  useEffect(() => {
+    if (!api || !preferenciasCarregadas) return;
+    const timeoutId = window.setTimeout(() => {
+      api.put('/user/preferences/sidebar_favorites', { value: favoritos }).catch(() => {});
+    }, 600);
+    return () => window.clearTimeout(timeoutId);
+  }, [api, favoritos, preferenciasCarregadas]);
+
+  /**
+   * Renderiza o componente toggle Favorito e encapsula sua interacao visual reutilizavel.
+   */
   const toggleFavorito = (e, id) => {
     e.stopPropagation(); 
     setFavoritos(prev => 
@@ -61,7 +111,7 @@ export default function Sidebar({
       {menuAberto && window.innerWidth <= 768 && <div className="overlay" onClick={() => setMenuAberto(false)}></div>}
       
       <aside className={`sidebar ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`}>
-        <div className="sidebar-header" style={{ padding: '1.5rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderBottom: 'none' }}>
+        <div className="sidebar-header ios-sidebar-header" style={{ padding: '1.5rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderBottom: 'none' }}>
           <TermoSyncLogo size={36} color="var(--secondary)" className="hide-on-collapse" />
           <h2 className="hide-on-collapse" style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, background: 'linear-gradient(90deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1px' }}>ThermoSync</h2>
           <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={20} /></button>
@@ -69,10 +119,10 @@ export default function Sidebar({
         
         {/* PERFIL DO USUÁRIO */}
         <div className="sidebar-user-section hide-on-collapse" style={{ padding: '0 1rem 1rem' }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+          <div className="ios-sidebar-profile-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
             <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: `radial-gradient(circle at 50% 50%, ${visualContext.cor} 0%, transparent 60%)`, opacity: isDevUser ? 0.15 : 0.05, pointerEvents: 'none' }}></div>
             
-            <div className="user-avatar" style={{ width: '42px', height: '42px', background: `color-mix(in srgb, ${visualContext.cor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${visualContext.cor} 30%, transparent)`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: visualContext.cor, fontWeight: '900', fontSize: '1.1rem', boxShadow: `0 0 15px color-mix(in srgb, ${visualContext.cor} 20%, transparent)`, flexShrink: 0, zIndex: 1 }}>
+            <div className="user-avatar ios-sidebar-avatar" style={{ width: '42px', height: '42px', background: `color-mix(in srgb, ${visualContext.cor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${visualContext.cor} 30%, transparent)`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: visualContext.cor, fontWeight: '900', fontSize: '1.1rem', boxShadow: `0 0 15px color-mix(in srgb, ${visualContext.cor} 20%, transparent)`, flexShrink: 0, zIndex: 1 }}>
               {nomeLogado ? nomeLogado.charAt(0).toUpperCase() : 'U'}
             </div>
             
@@ -91,7 +141,7 @@ export default function Sidebar({
 
         {/* SELETOR DE CONTEXTO (FILIAL) */}
         <div className="sidebar-context-section hide-on-collapse" style={{ padding: '0 1rem 0.5rem' }}>
-            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.6rem 0.8rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className="ios-sidebar-context-card" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.6rem 0.8rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '0.65rem', color: 'var(--secondary)', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.5px' }}>
                 {userRole !== 'LOJA' ? <><MapPin size={12}/> Rede Operacional</> : <><UserCheck size={12}/> Acesso Local</>}
               </div>

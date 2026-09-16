@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  Cpu, Zap, Flame, WifiOff, AlertOctagon, Terminal as TerminalIcon,
+  Cpu, Zap, Flame, WifiOff, Terminal as TerminalIcon,
   ShieldCheck, Siren, Sliders, Activity, Crosshair, Network, DoorOpen, ShieldAlert
 } from 'lucide-react';
 import './Simulador.css';
 
+/**
+ * Renderiza a tela Simulador e concentra as regras de apresentacao desse modulo.
+ */
 export default function Simulador({ api, equipamentos, showToast }) {
   const [targetMode, setTargetMode] = useState('SINGLE');
   const [eqId, setEqId] = useState('');
@@ -48,11 +51,17 @@ export default function Simulador({ api, equipamentos, showToast }) {
     return () => { isMounted = false; timeouts.forEach(clearTimeout); };
   }, []);
 
+  /**
+   * Concentra a logica de adicionar log para manter o restante do tela mais legivel.
+   */
   const adicionarLog = (payload, tipoLog = 'POST') => {
     const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
     setTerminalLogs(prev => [...prev, { time: timestamp, payload: typeof payload === 'string' ? payload : JSON.stringify(payload), tipoLog }]);
   };
 
+  /**
+   * Limpa limpar terminal para manter o estado consistente.
+   */
   const limparTerminal = () => setTerminalLogs([]);
 
   const { defcon, threatColor, threatLabel, slaDrop } = useMemo(() => {
@@ -73,6 +82,9 @@ export default function Simulador({ api, equipamentos, showToast }) {
     setIsEnviando(true);
     adicionarLog(`[INIT] Iniciando ataque tipo ${alerta} em modo ${targetMode}...`, 'SYS');
     
+    /**
+     * Concentra a logica de disparar para maquina para manter o restante do tela mais legivel.
+     */
     const dispararParaMaquina = async (idMaquina) => {
       // 1. Injeta no BD (Gêmeo Digital)
       const payload = {
@@ -139,7 +151,9 @@ export default function Simulador({ api, equipamentos, showToast }) {
         try {
           await api.post(`/hardware/${eq.id}/comando`, { acao: 'SISTEMA_NORMALIZADO', estado: 1 });
           adicionarLog(`[MQTT RECOVERY] Sistema restaurado no Nó ID: ${eq.id}.`, 'PATCH');
-        } catch (err) {}
+        } catch (err) {
+          adicionarLog(`[MQTT ERROR] Falha ao restaurar o Nó ID: ${eq.id}.`, 'SYS');
+        }
       }
 
       setTemp('5.0'); setUmidade('60'); setAlerta('NENHUM'); setWafActive(false); 
@@ -148,6 +162,9 @@ export default function Simulador({ api, equipamentos, showToast }) {
     setIsEnviando(false);
   };
 
+  /**
+   * Concentra a logica de aplicar cenario para manter o restante do tela mais legivel.
+   */
   const aplicarCenario = (tipo) => {
     let novaTemp = temp; let novaUmid = umidade; let novoAlerta = alerta;
     switch (tipo) {
@@ -161,6 +178,9 @@ export default function Simulador({ api, equipamentos, showToast }) {
     showToast(`Cenário [${tipo}] carregado no buffer tático. Pressione Executar Payload.`, 'info');
   };
 
+  /**
+   * Concentra a logica de aplicar defesa waf para manter o restante do tela mais legivel.
+   */
   const aplicarDefesaWAF = () => {
     setWafActive(true);
     adicionarLog("[WAF] Firewall de Aplicação Web Ativado. Bloqueando injeções externas.", "PATCH");

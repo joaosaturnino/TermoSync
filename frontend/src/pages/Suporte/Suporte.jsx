@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
-import { 
-  LifeBuoy, PlusCircle, Clock3, CheckCircle, AlertTriangle, 
-  MessageSquare, User, Building2, ShieldCheck, X, Send, 
-  FileText, History, CornerDownRight, Loader2, Filter, 
-  ChevronRight, Search, Sparkles, Terminal, BookOpen, 
-  BadgeCheck, Hourglass, Bot, Zap, ArrowRight, AlertOctagon,
-  HelpCircle, Server, Tag, Copy, Check, Play, CheckCheck
+import {
+  LifeBuoy, PlusCircle, Clock3, AlertTriangle,
+  MessageSquare, User, Building2, ShieldCheck, X, Send,
+  History, Loader2, Filter,
+  Search, Sparkles, Terminal, BookOpen,
+  BadgeCheck, Hourglass, Bot,
+  HelpCircle, Server, Copy, Check, Play, CheckCheck
 } from 'lucide-react';
 import './Suporte.css';
 import './SuporteTelas.css';
@@ -15,6 +15,9 @@ const STATUS_OPTIONS = ['Todos', 'Aberto', 'Em análise', 'Respondido', 'Conclu�
 const PRIORITY_OPTIONS = ['Todas', 'Baixa', 'Média', 'Alta', 'Crítica'];
 const CATEGORY_OPTIONS = ['Todas', 'Geral', 'Técnico', 'Financeiro', 'Sugestão'];
 
+/**
+ * Concentra a logica de status class para manter o restante do tela mais legivel.
+ */
 const statusClass = (status) => {
   const s = String(status || '').toLowerCase();
   if (s === 'concluído' || s === 'resolvido' || s === 'fechado') return 'status-concluido';
@@ -23,6 +26,9 @@ const statusClass = (status) => {
   return 'status-aberto';
 };
 
+/**
+ * Formata format date para exibicao segura na interface.
+ */
 const formatDate = (value) => {
   if (!value) return 'Data indisponível';
   const date = new Date(value);
@@ -30,6 +36,9 @@ const formatDate = (value) => {
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 };
 
+/**
+ * Busca ou monta os dados de get priority config usados no fluxo atual.
+ */
 const getPriorityConfig = (prioridade) => {
   const p = String(prioridade || 'Média').toLowerCase();
   if (p === 'crítica' || p === 'critica') {
@@ -44,12 +53,18 @@ const getPriorityConfig = (prioridade) => {
   return { color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)', border: '#eab308', slaHours: 24, label: 'Média (Padrão - SLA 24h)' };
 };
 
+/**
+ * Verifica a condicao is chamado recente e retorna um valor booleano.
+ */
 const isChamadoRecente = (dataCriacao) => {
   if (!dataCriacao) return false;
   const diffMinutos = (Date.now() - new Date(dataCriacao).getTime()) / (1000 * 60);
   return diffMinutos <= 120; 
 };
 
+/**
+ * Concentra a logica de calcular sla para manter o restante do tela mais legivel.
+ */
 const calcularSLA = (prioridade, dataCriacao, status) => {
   const s = String(status || '').toLowerCase();
   if (s === 'concluído' || s === 'resolvido' || s === 'fechado' || s === 'respondido') {
@@ -241,6 +256,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   useEffect(() => {
     if (!socket) return undefined;
     
+    /**
+     * Processa a interacao de handle novo chamado e atualiza a interface conforme o resultado.
+     */
     const handleNovoChamado = (novoTicket) => {
       // SÓ MOSTRA O BANNER SE QUEM ESTIVER NA TELA FOR TÉCNICO DEV (NOC)
       if (isDev && novoTicket && String(novoTicket.status || 'Aberto').toLowerCase() === 'aberto') {
@@ -250,6 +268,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
       carregarTicketsRef.current(true);
     };
 
+    /**
+     * Processa a interacao de handle update silencioso e atualiza a interface conforme o resultado.
+     */
     const handleUpdateSilencioso = () => {
       carregarTicketsRef.current(true);
     };
@@ -317,6 +338,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   }, [ticketsVisiveis, selecionado]);
 
   useEffect(() => {
+    /**
+     * Concentra a logica de carregar historico para manter o restante do tela mais legivel.
+     */
     const carregarHistorico = async () => {
       if (!api || isOffline || !selecionado?.id) { setHistorico([]); return; }
       try {
@@ -327,6 +351,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     carregarHistorico();
   }, [api, isOffline, selecionado?.id]);
 
+  /**
+   * Processa a interacao de handle criar chamado e atualiza a interface conforme o resultado.
+   */
   const handleCriarChamado = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast?.('Ação bloqueada. Sem rede.', 'error');
@@ -357,6 +384,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }
   };
 
+  /**
+   * Concentra a logica de salvar resposta dev para manter o restante do tela mais legivel.
+   */
   const salvarRespostaDev = async (statusOverride = null) => {
     if (!selecionado) return;
     if (isOffline) return showToast?.('Sem conexão com o servidor.', 'warning');
@@ -380,6 +410,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }
   };
 
+  /**
+   * Gera gerar resposta com ia com os dados necessarios para o proximo passo.
+   */
   const gerarRespostaComIA = () => {
     if (!selecionado) return;
     setIsGeneratingAI(true);
@@ -394,6 +427,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }, 1800);
   };
 
+  /**
+   * Processa a interacao de copiar protocolo e atualiza a interface conforme o resultado.
+   */
   const copiarProtocolo = (id) => {
     navigator.clipboard.writeText(`PROTOCOLO-#${id}`);
     setCopiadoId(true);

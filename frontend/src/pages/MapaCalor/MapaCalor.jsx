@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Map, MapPin, AlertTriangle, Snowflake, CheckCircle2, Crosshair, MousePointerClick, Trash2, UploadCloud, Image as ImageIcon, XSquare } from 'lucide-react';
 
+/**
+ * Renderiza a tela Mapa Calor e concentra as regras de apresentacao desse modulo.
+ */
 export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }) {
   const fileInputRef = useRef(null);
 
@@ -24,6 +27,9 @@ export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }
     localStorage.setItem('termosync_posicoes_mapa', JSON.stringify(posicoes));
   }, [posicoes]);
 
+  /**
+   * Concentra a logica de disparar toast para manter o restante do tela mais legivel.
+   */
   const dispararToast = (msg, tipo = 'info') => {
     window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg, type: tipo } }));
   };
@@ -51,12 +57,18 @@ export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }
     }
   };
 
+  /**
+   * Concentra a logica de remover planta para manter o restante do tela mais legivel.
+   */
   const removerPlanta = () => {
     setImagemPlanta(null);
     localStorage.removeItem('termosync_planta_img');
     dispararToast('Planta customizada removida.', 'warning');
   };
 
+  /**
+   * Processa a interacao de handle clique mapa e atualiza a interface conforme o resultado.
+   */
   const handleCliqueMapa = (e) => {
     if (!maquinaSelecionada) return; 
 
@@ -74,6 +86,9 @@ export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }
     setMaquinaSelecionada(null);
   };
 
+  /**
+   * Concentra a logica de remover do mapa para manter o restante do tela mais legivel.
+   */
   const removerDoMapa = (e, idEquipamento) => {
     e.stopPropagation(); 
     setPosicoes(prev => {
@@ -84,6 +99,9 @@ export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }
     if (String(maquinaSelecionada) === String(idEquipamento)) setMaquinaSelecionada(null);
   };
 
+  /**
+   * Busca ou monta os dados de get status equipamento usados no fluxo atual.
+   */
   const getStatusEquipamento = (eq) => {
     const temFalha = notificacoesDaFilial?.some(n => String(n.equipamento_id) === String(eq.id));
     if (temFalha) return { cor: '#ef4444', icone: <AlertTriangle size={18} color="white" />, estado: 'alerta', pulse: true };

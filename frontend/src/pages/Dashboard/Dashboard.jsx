@@ -11,7 +11,10 @@ import {
 import './Dashboard.css';
 import EmptyState from '../../components/EmptyState';
 
-export const getAlertConfig = (tipo_alerta) => {
+/**
+ * Busca ou monta os dados de get alert config usados no fluxo atual.
+ */
+const getAlertConfig = (tipo_alerta) => {
   const configs = {
     'REDE': { icon: Wifi, color: 'var(--warning)', action: 'Analisar Rede', critical: true },
     'DEGELO': { icon: Snowflake, color: 'var(--secondary)', action: 'Finalizar Degelo', critical: false },
@@ -36,6 +39,9 @@ const StatCard = memo(({ title, value, icon: Icon, iconBg, valClass = '', isPuls
   </div>
 ));
 
+/**
+ * Concentra a logica de custom tooltip para manter o restante do tela mais legivel.
+ */
 const CustomTooltip = ({ active, payload, isDarkMode }) => {
   if (active && payload && payload.length) {
     return (
@@ -48,13 +54,16 @@ const CustomTooltip = ({ active, payload, isDarkMode }) => {
   return null;
 };
 
+/**
+ * Concentra a logica de empty tooltip para manter o restante do tela mais legivel.
+ */
 const EmptyTooltip = () => (<div style={{ padding: '8px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>Aguardando telemetria...</div>);
 
 // [NOVIDADE] Gráfico Isolado. Ele causava a lentidão por recarregar a cada temperatura.
 const MemoizedDonut = memo(({ temDadosDonut, dadosDonutReativos, dadosPlaceholder, isDarkMode }) => {
   const DONUT_COLORS = { 'Ok': '#10b981', 'Degelo': '#38bdf8', 'Falha': '#ef4444' };
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height={260}>
       <PieChart>
         {temDadosDonut ? (
           <>
@@ -138,6 +147,9 @@ const PainelTVKiosk = memo(({ equipamentosDaFilial, filialAtiva, onClose }) => {
   }, [equipamentosDaFilial]);
 
   useEffect(() => {
+    /**
+     * Processa a interacao de handle esc e atualiza a interface conforme o resultado.
+     */
     const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
@@ -253,10 +265,16 @@ const PainelTVKiosk = memo(({ equipamentosDaFilial, filialAtiva, onClose }) => {
   );
 });
 
+/**
+ * Concentra a logica de chat drawer para manter o restante do tela mais legivel.
+ */
 const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat }) => {
   const [contatoSelecionado, setContatoSelecionado] = useState('');
   const [novaMensagem, setNovaMensagem] = useState(`[ALERTA CRÍTICO] A máquina ${notif.equipamento_nome || 'Desconhecida'} (${notif.filial || 'Matriz'}) registrou uma anomalia grave. Ocorrência: ${notif.mensagem}. Solicito verificação técnica imediata.`);
 
+  /**
+   * Processa a interacao de handle enviar e atualiza a interface conforme o resultado.
+   */
   const handleEnviar = (e) => {
     e.preventDefault();
     if (!contatoSelecionado) return showToast('Selecione um destinatário.', 'warning');
@@ -291,10 +309,10 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
  * Dashboard Principal
  * =====================================================================
  */
-export default function Dashboard({ 
-  qtdTotal, 
-  qtdDegelo, 
-  dadosDonutStatus = [], 
+export default function Dashboard({
+  qtdTotal,
+  qtdDegelo,
+  dadosDonutStatus: _dadosDonutStatus = [],
   notificacoesDaFilial = [], resolverTodasNotificacoes, isOffline, pedirNotaResolucao, isDarkMode,
   contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat,
   filialAtiva, equipamentosDaFilial 
@@ -307,20 +325,32 @@ export default function Dashboard({
   const [localAlertas, setLocalAlertas] = useState(notificacoesDaFilial || []);
 
   useEffect(() => {
-    setLocalAlertas(notificacoesDaFilial || []);
+    const frameId = window.requestAnimationFrame(() => {
+      setLocalAlertas(notificacoesDaFilial || []);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [notificacoesDaFilial]);
 
   useEffect(() => {
     if (!socket) return;
     
+    /**
+     * Processa a interacao de handle alerta removido e atualiza a interface conforme o resultado.
+     */
     const handleAlertaRemovido = (data) => {
       setLocalAlertas(prev => prev.filter(n => !(n.equipamento_id === data.equipamento_id && n.tipo_alerta === data.tipo_alerta)));
     };
 
+    /**
+     * Processa a interacao de handle alerta removido id e atualiza a interface conforme o resultado.
+     */
     const handleAlertaRemovidoId = (data) => {
       setLocalAlertas(prev => prev.filter(n => String(n.id) !== String(data.id)));
     };
 
+    /**
+     * Processa a interacao de handle alertas limpos e atualiza a interface conforme o resultado.
+     */
     const handleAlertasLimpos = () => {
       setLocalAlertas([]);
     };
@@ -383,6 +413,9 @@ export default function Dashboard({
     });
   }, [localAlertas, filtroRisco]);
 
+  /**
+   * Gera gerar snapshot pdf com os dados necessarios para o proximo passo.
+   */
   const gerarSnapshotPDF = () => {
     showToast('A compilar Snapshot Operacional...', 'info');
     const doc = new jsPDF();

@@ -1,0 +1,143 @@
+.health-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.health-hero,
+.health-detail-card,
+.health-status-card,
+.health-kpi-grid article {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.health-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.health-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.health-hero h2 {
+  margin: 0.35rem 0;
+  color: var(--text-main);
+  font-size: 1.55rem;
+}
+
+.health-hero p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.health-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.health-status-grid,
+.health-kpi-grid,
+.health-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.health-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-status-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.5rem;
+  border-left: 4px solid var(--text-muted);
+}
+
+.health-status-card.good { border-left-color: var(--success); }
+.health-status-card.warn { border-left-color: var(--warning); }
+.health-status-card.bad { border-left-color: var(--danger); }
+
+.health-status-icon {
+  color: var(--primary);
+}
+
+.health-status-card span,
+.health-kpi-grid span,
+.health-detail-card span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.health-status-card strong,
+.health-kpi-grid strong,
+.health-detail-card strong {
+  color: var(--text-main);
+}
+
+.health-kpi-grid article {
+  padding: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.health-kpi-grid svg {
+  color: var(--secondary);
+}
+
+.health-kpi-grid strong {
+  font-size: 1.55rem;
+}
+
+.health-detail-card {
+  padding: 1.1rem;
+}
+
+.health-detail-card h3 {
+  margin: 0 0 1rem;
+  color: var(--text-main);
+}
+
+.health-detail-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .health-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .health-status-grid,
+  .health-kpi-grid,
+  .health-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .health-status-grid,
+  .health-kpi-grid,
+  .health-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Server, Power, Lock, Terminal, ShieldAlert, Volume2, VolumeX, Palette, Monitor, Cpu } from 'lucide-react';
+import { Lock, Terminal, Volume2, VolumeX, Palette, Monitor } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
+/**
+ * Renderiza o terminal de boot administrativo e libera a área dev após autenticação root.
+ */
 const DevBootScreen = ({ onComplete }) => {
   const [bootStarted, setBootStarted] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -41,6 +44,9 @@ const DevBootScreen = ({ onComplete }) => {
 
   // Busca dados reais do hardware ao montar o terminal
   useEffect(() => {
+    /**
+     * Busca informações reais do host para personalizar o terminal de inicialização.
+     */
     const fetchHostInfo = async () => {
       try {
         const res = await axios.get(`${getApiUrl()}/system/host-info`);
@@ -48,7 +54,7 @@ const DevBootScreen = ({ onComplete }) => {
           setHostInfo(res.data);
         }
       } catch (err) {
-        console.warn('⚠️ [AVISO] Mantendo fallback de hardware genérico.');
+        console.warn('⚠️ [AVISO] Mantendo fallback de hardware genérico.', err.message);
       }
     };
     fetchHostInfo();
@@ -61,6 +67,9 @@ const DevBootScreen = ({ onComplete }) => {
   }, [logs, showInput]);
 
   useEffect(() => {
+    /**
+     * Atualiza o relógio exibido no rodapé do terminal.
+     */
     const updateClock = () => {
       setClockStr(new Date().toLocaleTimeString('pt-BR'));
     };
@@ -69,6 +78,9 @@ const DevBootScreen = ({ onComplete }) => {
     return () => clearInterval(interval);
   }, []);
 
+  /**
+   * Toca efeitos sonoros curtos do terminal quando áudio está habilitado.
+   */
   const playSound = useCallback((frequency, type, duration) => {
     if (!soundEnabled) return;
     try {
@@ -87,18 +99,32 @@ const DevBootScreen = ({ onComplete }) => {
       
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {}
+    } catch (error) {
+      console.debug('Áudio do terminal dev indisponível.', error);
+    }
   }, [soundEnabled]);
 
+  /**
+   * Emite o som de digitação usado durante a sequência de boot.
+   */
   const playTyping = useCallback(() => playSound(950, 'square', 0.025), [playSound]);
+  /**
+   * Emite a sequência sonora de autenticação bem-sucedida.
+   */
   const playSuccess = useCallback(() => { 
     playSound(523.25, 'square', 0.08); 
     setTimeout(() => playSound(659.25, 'square', 0.08), 80);
     setTimeout(() => playSound(783.99, 'square', 0.15), 160);
   }, [playSound]);
+  /**
+   * Emite o som de erro para credenciais inválidas ou falhas de validação.
+   */
   const playError = useCallback(() => playSound(130, 'sawtooth', 0.35), [playSound]);
 
   useEffect(() => {
+    /**
+     * Permite pular a animação inicial quando o terminal ainda não aceita entrada.
+     */
     const handleKeyDown = (e) => {
       if (!showInput && bootStarted && (e.key === 'Enter' || e.key === 'Escape')) {
         skipRef.current = true;
@@ -112,7 +138,13 @@ const DevBootScreen = ({ onComplete }) => {
     if (!bootStarted) return;
 
     let isMounted = true;
+    /**
+     * Aguarda o intervalo da animação ou zera o atraso quando o usuário pula o boot.
+     */
     const sleep = ms => new Promise(r => setTimeout(r, skipRef.current ? 0 : ms));
+    /**
+     * Gera identificadores visuais simulados para os shards exibidos no boot.
+     */
     const genHex = () => Math.random().toString(16).substring(2, 10).toUpperCase();
 
     // Textos reais da máquina host com fallbacks
@@ -121,6 +153,9 @@ const DevBootScreen = ({ onComplete }) => {
     const osType = hostInfo ? `${hostInfo.os.type} ${hostInfo.os.release} (${hostInfo.os.arch})` : 'Linux thermosync-core 6.8.0-sentinel x86_64';
     const hostName = hostInfo?.os?.hostname || 'thermosync';
 
+    /**
+     * Reproduz a sequência de inicialização e libera o prompt ao final.
+     */
     const runBootSequence = async () => {
       const sequence = [
         { text: `ThermoSync Sentinel OS [Host: ${hostName}]`, delay: 50, color: '#e2e8f0', isBold: true },
@@ -169,7 +204,7 @@ const DevBootScreen = ({ onComplete }) => {
 
     runBootSequence();
     return () => { isMounted = false; };
-  }, [bootStarted, playSound, playTyping, themeColor, hostInfo]);
+  }, [bootStarted, playSound, playTyping, themeColor, hostInfo, asciiLogo]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -188,6 +223,9 @@ const DevBootScreen = ({ onComplete }) => {
     }
   }, [showInput, isProcessing, countdown]);
 
+  /**
+   * Navega pelo histórico de comandos usando as setas do teclado.
+   */
   const handleInputKeyDown = (e) => {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -209,6 +247,9 @@ const DevBootScreen = ({ onComplete }) => {
     }
   };
 
+  /**
+   * Processa comandos públicos do terminal e valida a credencial master no backend.
+   */
   const handleAuth = async (e) => {
     e.preventDefault();
     if (!passcode.trim() || isProcessing || countdown > 0) return;
@@ -333,6 +374,7 @@ const DevBootScreen = ({ onComplete }) => {
       }
     } catch (error) {
       playError();
+      console.warn('[ROOT BOOT] Falha de autenticação:', error.response?.data?.error || error.message);
       const nextAttempts = attempts + 1;
       setBlockedAttempts(nextAttempts);
       

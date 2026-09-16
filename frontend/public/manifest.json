@@ -1,20 +1,24 @@
 {
-  "name": "TermoSync NOC",
   "short_name": "TermoSync",
-  "description": "Sistema de Monitoramento de Refrigeração — Centro de Operações IoT",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#020617",
-  "theme_color": "#020617",
-  "lang": "pt-PT",
+  "name": "TermoSync Enterprise Edge",
+  "description": "Monitoramento Avançado de Câmaras Frias",
   "icons": [
     {
       "src": "/favicon.svg",
-      "sizes": "any",
       "type": "image/svg+xml",
+      "sizes": "any",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
     }
   ],
-  "categories": ["business", "productivity", "utilities"]
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#020617",
+  "background_color": "#020617",
+  "orientation": "portrait"
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Thermometer, Droplets, Power, Snowflake, AlertOctagon, MapPin, Gauge, ShieldAlert, CheckCircle2, WifiOff, Search, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
+import { Thermometer, Droplets, Power, Snowflake, MapPin, Gauge, ShieldAlert, CheckCircle2, WifiOff, Search, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import './Monitoramento.css';
 
 /**
@@ -48,6 +48,9 @@ export default function Monitoramento({ isTemp, listaSetores, equipamentosDaFili
 
     // 3. Ordenação Inteligente: Alertas Críticos > Offline > Degelo > Normal
     resultado.sort((a, b) => {
+      /**
+       * Busca ou monta os dados de get score usados no fluxo atual.
+       */
       const getScore = (eq) => {
         const min = isTemp ? parseFloat(eq.temp_min) : parseFloat(eq.umidade_min || 40);
         const max = isTemp ? parseFloat(eq.temp_max) : parseFloat(eq.umidade_max || 80);

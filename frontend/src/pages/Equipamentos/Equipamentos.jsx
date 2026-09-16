@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  PlusCircle, ShieldCheck, AlertTriangle, ClipboardCheck, Edit, X, 
-  Thermometer, Droplets, PackageSearch, Settings, MapPin, 
-  Server, Search, Activity, Zap, Trash2, QrCode, History, FileText,
+import React, { useState, useMemo } from 'react';
+import {
+  PlusCircle, ShieldCheck, AlertTriangle, ClipboardCheck, Edit, X,
+  Thermometer, Droplets, PackageSearch, Settings, MapPin,
+  Server, Search, Zap, Trash2, QrCode, History,
   Lock, Shield
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -46,6 +46,9 @@ export default function Equipamentos({
   
   const [modalHistorico, setModalHistorico] = useState(null);
 
+  /**
+   * Concentra a logica de aplicar norma anvisa para manter o restante do tela mais legivel.
+   */
   const aplicarNormaANVISA = (tipoSelecionado) => {
     if (!tipoSelecionado) return showToast('Selecione um Tipo de Refrigeração na seção acima primeiro.', 'warning');
     
@@ -64,6 +67,9 @@ export default function Equipamentos({
       tMin = 2; tMax = 8; uMin = 50; uMax = 85; iDeg = 12; dDeg = 30;
     }
 
+    /**
+     * Verifica a condicao has valid val e retorna um valor booleano.
+     */
     const hasValidVal = (val) => val !== undefined && val !== null && val !== '';
 
     if (tipoEncontrado) {
@@ -79,6 +85,9 @@ export default function Equipamentos({
     showToast(`Padrão ANVISA/RDC aplicado para: ${tipoSelecionado}`, 'success');
   };
 
+  /**
+   * Concentra a logica de salvar novo equipamento para manter o restante do tela mais legivel.
+   */
   const salvarNovoEquipamento = async (e) => {
     e.preventDefault(); 
     if (!canEdit) return showToast('Acesso negado. Modo de leitura ativo para o seu perfil.', 'error');
@@ -94,6 +103,9 @@ export default function Equipamentos({
     } catch (e) { showToast('Ocorreu um erro ao gravar a máquina.', 'error'); }
   };
 
+  /**
+   * Gera gerar etiqueta qr com os dados necessarios para o proximo passo.
+   */
   const gerarEtiquetaQR = (eq) => {
     showToast(`A gerar Etiqueta Inteligente para ${eq.nome}...`, 'info');
     try {
@@ -142,8 +154,6 @@ export default function Equipamentos({
     );
   }, [equipamentosFiltradosLista, buscaAtivo]);
 
-  if (!equipamentosFiltradosLista) return <Loader message="Carregando inventário de equipamentos..." />;
-
   const kpis = useMemo(() => {
     if (!ativosExibidos) return { total: 0, riscoCalib: 0, offlines: 0, degelo: 0 };
     let riscoCalib = 0; let offlines = 0; let degelo = 0;
@@ -157,6 +167,8 @@ export default function Equipamentos({
 
     return { total: ativosExibidos.length, riscoCalib, offlines, degelo };
   }, [ativosExibidos]);
+
+  if (!equipamentosFiltradosLista) return <Loader message="Carregando inventário de equipamentos..." />;
 
   return (
     <div className="anim-fade-in stagger-1">

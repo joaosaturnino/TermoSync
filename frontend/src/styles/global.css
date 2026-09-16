@@ -110,6 +110,71 @@ body {
   color: var(--info);
 }
 
+.app-health-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.9rem 1.5rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.app-health-banner.offline {
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--card-bg));
+}
+
+.app-health-banner.degraded {
+  border-color: color-mix(in srgb, var(--warning) 36%, var(--border));
+  background: color-mix(in srgb, var(--warning) 9%, var(--card-bg));
+}
+
+.app-health-banner-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.app-health-banner-main > svg {
+  flex: 0 0 auto;
+  color: var(--warning);
+}
+
+.app-health-banner.offline .app-health-banner-main > svg {
+  color: var(--danger);
+}
+
+.app-health-banner-main strong,
+.app-health-banner-main span {
+  display: block;
+}
+
+.app-health-banner-main strong {
+  color: var(--text-main);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.app-health-banner-main span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.app-health-banner .btn {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.75rem;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -366,5 +431,16 @@ body {
 
   100% {
     background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

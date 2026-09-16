@@ -1,17 +1,16 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
-import { 
-  Printer, MessageSquarePlus, CheckCircle, Wrench, Save, 
-  MapPin, User, Clock, CheckSquare, Archive, 
-  Search, AlertTriangle, Loader2, Info, Shield
+import {
+  Printer, MessageSquarePlus, CheckCircle, Wrench, Save,
+  MapPin, User, Clock, CheckSquare, Archive,
+  Search, Loader2, Info, Shield, MessageSquare, RotateCcw, Paperclip, Signature
 } from 'lucide-react';
 import './Chamados.css';
-import Loader from '../../components/Loader';
 import EmptyState from '../../components/EmptyState';
 
 // ============================================================================
 // COMPONENTE OTIMIZADO (MEMO): Evita a re-renderização massiva da lista
 // ============================================================================
-const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, isSelected, onToggleSelection, userRole }) => {
+const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, onDetalhes, isSelected, onToggleSelection }) => {
   // Tolerância a acentos e espaços vazios originados do banco de dados
   const statusSeguro = String(c.status || '').trim().toLowerCase();
   const isConcluido = statusSeguro === 'concluído' || statusSeguro === 'concluido' || statusSeguro === 'fechado';
@@ -72,13 +71,23 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, isSelected, on
 
       <div className="chamado-footer">
         {isConcluido ? (
-          <button className="btn btn-outline w-100" onClick={() => onArquivar(c.id)} disabled={isOffline} style={{borderColor: 'var(--border)', color: 'var(--text-muted)'}}>
-            <Archive size={16} style={{marginRight: '6px'}}/> Mover para o Arquivo Histórico
-          </button>
+          <div className="chamado-footer-actions">
+            <button className="btn btn-outline" onClick={() => onDetalhes(c)} disabled={isOffline}>
+              <MessageSquare size={16} /> Detalhes
+            </button>
+            <button className="btn btn-outline" onClick={() => onArquivar(c.id)} disabled={isOffline} style={{borderColor: 'var(--border)', color: 'var(--text-muted)'}}>
+              <Archive size={16} /> Arquivar
+            </button>
+          </div>
         ) : (
-          <button className="btn btn-primary w-100" onClick={() => onResolver(c.id, c)} disabled={isOffline}>
-            <CheckSquare size={16} style={{marginRight: '6px'}}/> Registrar Intervenção Técnica
-          </button>
+          <div className="chamado-footer-actions">
+            <button className="btn btn-outline" onClick={() => onDetalhes(c)} disabled={isOffline}>
+              <MessageSquare size={16} /> Detalhes
+            </button>
+            <button className="btn btn-primary" onClick={() => onResolver(c.id, c)} disabled={isOffline}>
+              <CheckSquare size={16} /> Intervenção
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -96,9 +105,9 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, isSelected, on
  * - Abrir novas ordens, atribuir técnicos e registrar resolução
  * - Suportar seleção em lote para relatórios/impressão
  */
-export default function Chamados({ 
-  userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb = [], 
-  api, carregarChamados, showToast, isOffline, gerarLoteOS 
+export default function Chamados({
+  userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb: _tecnicosDb = [],
+  api, carregarChamados, showToast, isOffline, gerarLoteOS
 }) {
   
   const [busca, setBusca] = useState('');
@@ -115,11 +124,16 @@ export default function Chamados({
   const [modalArquivarTodos, setModalArquivarTodos] = useState(false);
   const [chamadoResolvendo, setChamadoResolvendo] = useState(null);
   const [notaResolucao, setNotaResolucao] = useState('');
+  const [assinarLaudo, setAssinarLaudo] = useState(true);
+  const [chamadoDetalhes, setChamadoDetalhes] = useState(null);
+  const [comentarios, setComentarios] = useState([]);
+  const [comentarioForm, setComentarioForm] = useState({ mensagem: '', anexo_url: '', motivo_reabertura: '' });
+  const [arquivoAnexo, setArquivoAnexo] = useState(null);
+  const [loadingComentarios, setLoadingComentarios] = useState(false);
 
   const [selecionadosIds, setSelecionadosIds] = useState(new Set());
 
   // Perfis de Segurança
-  const isDevOrAdmin = userRole === 'DEV' || userRole === 'ADMIN';
   const isLoja = userRole === 'LOJA';
 
   // CARREGA OS EQUIPAMENTOS PARA ABERTURA DE OS (Seguro por Filial)
@@ -226,6 +240,9 @@ export default function Chamados({
     });
   }, []);
 
+  /**
+   * Processa a interacao de toggle selecionar todos e atualiza a interface conforme o resultado.
+   */
   const toggleSelecionarTodos = () => {
     if (selecionadosIds.size === chamadosFiltrados.length && chamadosFiltrados.length > 0) {
       setSelecionadosIds(new Set()); 
@@ -234,6 +251,9 @@ export default function Chamados({
     }
   };
 
+  /**
+   * Processa a interacao de handle gerar lote exato e atualiza a interface conforme o resultado.
+   */
   const handleGerarLoteExato = () => {
     if (selecionadosIds.size > 0) {
       const loteCustomizado = chamadosFiltrados.filter(c => selecionadosIds.has(c.id));
@@ -272,18 +292,101 @@ export default function Chamados({
   };
 
   // GERENCIAMENTO DE ESTADOS DO CHAMADO
-  const handleResolverClick = useCallback((id, c) => { setChamadoResolvendo(c); setNotaResolucao(''); }, []);
+  const handleResolverClick = useCallback((id, c) => { setChamadoResolvendo(c); setNotaResolucao(''); setAssinarLaudo(true); }, []);
+
+  const carregarComentarios = useCallback(async (chamado) => {
+    if (!api || !chamado) return;
+    setLoadingComentarios(true);
+    try {
+      const res = await api.get(`/chamados/${chamado.id}/comentarios`);
+      setComentarios(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      showToast('Não foi possível carregar o histórico da OS.', 'warning');
+      setComentarios([]);
+    } finally {
+      setLoadingComentarios(false);
+    }
+  }, [api, showToast]);
+
+  const abrirDetalhes = useCallback((chamado) => {
+    setChamadoDetalhes(chamado);
+    setComentarioForm({ mensagem: '', anexo_url: '', motivo_reabertura: '' });
+    setArquivoAnexo(null);
+    carregarComentarios(chamado);
+  }, [carregarComentarios]);
   
+  /**
+   * Processa a interacao de confirmar resolucao e atualiza a interface conforme o resultado.
+   */
   const confirmarResolucao = async () => {
     if (isOffline || !chamadoResolvendo) return;
     setIsProcessing(true);
     try {
-      await api.put(`/chamados/${chamadoResolvendo.id}`, { status: 'Concluído', nota_resolucao: notaResolucao });
+      const assinatura = assinarLaudo
+        ? `\n\nAssinado digitalmente por ${nomeLogado || 'Usuário'} em ${new Date().toLocaleString('pt-BR')} | OS-${chamadoResolvendo.id}`
+        : '';
+      await api.put(`/chamados/${chamadoResolvendo.id}`, { status: 'Concluído', nota_resolucao: `${notaResolucao}${assinatura}` });
       await carregarChamados();
       showToast('Intervenção técnica finalizada com sucesso.', 'success');
       setChamadoResolvendo(null);
     } catch (error) { showToast('Falha ao concluir a OS.', 'error'); } 
     finally { setIsProcessing(false); }
+  };
+
+  /**
+   * Envia enviar comentario para o canal ou provedor configurado.
+   */
+  const enviarComentario = async () => {
+    if (!chamadoDetalhes || isOffline) return;
+    if (!comentarioForm.mensagem.trim() && !comentarioForm.anexo_url.trim() && !arquivoAnexo) return showToast('Informe um comentário, link ou arquivo de anexo.', 'warning');
+    setIsProcessing(true);
+    try {
+      if (arquivoAnexo) {
+        const formData = new FormData();
+        formData.append('arquivo', arquivoAnexo);
+        formData.append('mensagem', comentarioForm.mensagem || `Anexo enviado: ${arquivoAnexo.name}`);
+        await api.post(`/chamados/${chamadoDetalhes.id}/anexos`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      if ((!arquivoAnexo && comentarioForm.mensagem.trim()) || comentarioForm.anexo_url.trim()) {
+        await api.post(`/chamados/${chamadoDetalhes.id}/comentarios`, {
+          mensagem: comentarioForm.mensagem,
+          anexo_url: comentarioForm.anexo_url
+        });
+      }
+
+      setComentarioForm(prev => ({ ...prev, mensagem: '', anexo_url: '' }));
+      setArquivoAnexo(null);
+      await carregarComentarios(chamadoDetalhes);
+      showToast('Atualização adicionada à OS.', 'success');
+    } catch (error) {
+      showToast(error.userMessage || 'Falha ao adicionar comentário.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Concentra a logica de reabrir chamado para manter o restante do tela mais legivel.
+   */
+  const reabrirChamado = async () => {
+    if (!chamadoDetalhes || isOffline) return;
+    if (!comentarioForm.motivo_reabertura.trim()) return showToast('Informe o motivo da reabertura.', 'warning');
+    setIsProcessing(true);
+    try {
+      await api.put(`/chamados/${chamadoDetalhes.id}/reabrir`, { motivo: comentarioForm.motivo_reabertura });
+      await carregarChamados();
+      await carregarComentarios(chamadoDetalhes);
+      setComentarioForm(prev => ({ ...prev, motivo_reabertura: '' }));
+      showToast('OS reaberta com sucesso.', 'success');
+      setFiltroStatus('Aberto');
+    } catch (error) {
+      showToast(error.userMessage || 'Falha ao reabrir OS.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleArquivar = useCallback(async (id) => {
@@ -297,6 +400,9 @@ export default function Chamados({
     finally { setIsProcessing(false); }
   }, [api, carregarChamados, isOffline, showToast]);
 
+  /**
+   * Processa a interacao de confirmar arquivar todos e atualiza a interface conforme o resultado.
+   */
   const confirmarArquivarTodos = async () => {
     if (isOffline) return showToast('Ação bloqueada no modo offline.', 'warning');
     setIsProcessing(true);
@@ -459,13 +565,13 @@ export default function Chamados({
           <EmptyState title={busca ? 'Nenhum resultado' : 'Painel Limpo'} description={busca ? 'Nenhum resultado corresponde à sua pesquisa.' : `Nenhuma Ordem de Serviço encontrada na categoria "${filtroStatus}".`} icon={CheckCircle} />
         ) : (
           chamadosFiltrados.map(c => (
-            <ChamadoCard 
-              key={c.id} 
-              c={c} 
-              userRole={userRole}
-              isOffline={isOffline} 
+            <ChamadoCard
+              key={c.id}
+              c={c}
+              isOffline={isOffline}
               onResolver={handleResolverClick} 
               onArquivar={handleArquivar} 
+              onDetalhes={abrirDetalhes}
               isSelected={selecionadosIds.has(c.id)}
               onToggleSelection={toggleSelecaoChamado}
             />
@@ -491,13 +597,83 @@ export default function Chamados({
                 rows={5}
                 autoFocus
               ></textarea>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', display: 'inline-block' }}><Info size={12} style={{display:'inline', marginBottom:'-2px'}}/> Este laudo será imutável e assinado digitalmente após a confirmação.</span>
+              <label className="chamado-signature-toggle">
+                <input type="checkbox" checked={assinarLaudo} onChange={(event) => setAssinarLaudo(event.target.checked)} />
+                <span><Signature size={14} /> Assinar laudo digitalmente</span>
+              </label>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', display: 'inline-block' }}><Info size={12} style={{display:'inline', marginBottom:'-2px'}}/> A assinatura registra responsável, data e OS no próprio laudo.</span>
             </div>
             
             <div className="modal-actions-chamados">
               <button className="btn btn-outline" onClick={() => setChamadoResolvendo(null)} disabled={isProcessing}>Cancelar</button>
               <button className="btn btn-primary" onClick={confirmarResolucao} disabled={isProcessing || isOffline || !notaResolucao.trim()}>
                 {isProcessing ? <Loader2 className="spinner" size={18} /> : <Save size={18} />} Finalizar e Registrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE DETALHES, COMENTÁRIOS, ANEXOS E REABERTURA */}
+      {chamadoDetalhes && (
+        <div className="chamados-fixed-overlay anim-fade-in">
+          <div className="chamados-modal-box chamados-modal-wide">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', margin: '0 0 1rem 0' }}>
+              <MessageSquare size={24} /> Detalhes da OS-{chamadoDetalhes.id}
+            </h3>
+
+            <div className="chamado-detail-summary">
+              <strong>{chamadoDetalhes.equipamento_nome || 'Equipamento não informado'}</strong>
+              <span>{chamadoDetalhes.status} • {chamadoDetalhes.urgencia || 'Sem urgência'} • {chamadoDetalhes.filial || chamadoDetalhes.equipamento_filial || 'Filial não informada'}</span>
+              <p>{chamadoDetalhes.descricao || 'Sem descrição registrada.'}</p>
+            </div>
+
+            <div className="chamado-comments-list">
+              {loadingComentarios ? (
+                <div className="chamado-comment-empty"><Loader2 className="spinner" size={18} /> Carregando histórico...</div>
+              ) : comentarios.length === 0 ? (
+                <div className="chamado-comment-empty">Nenhum comentário interno registrado nesta OS.</div>
+              ) : comentarios.map(item => (
+                <article className={`chamado-comment-item ${String(item.tipo || '').toLowerCase()}`} key={item.id}>
+                  <div>
+                    <strong>{item.autor}</strong>
+                    <span>{item.tipo} • {new Date(item.criado_em).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <p>{item.mensagem}</p>
+                  {item.anexo_url && <a href={item.anexo_url} target="_blank" rel="noopener noreferrer"><Paperclip size={14} /> Abrir anexo</a>}
+                </article>
+              ))}
+            </div>
+
+            <div className="form-group-chamados" style={{ marginTop: '1rem' }}>
+              <label>Comentário interno</label>
+              <textarea className="textarea-chamado" rows={3} value={comentarioForm.mensagem} onChange={e => setComentarioForm(prev => ({ ...prev, mensagem: e.target.value }))} placeholder="Registre uma atualização, orientação ou pendência desta OS..." />
+            </div>
+            <div className="form-group-chamados">
+              <label>Link de anexo / evidência</label>
+              <input className="chamados-input" value={comentarioForm.anexo_url} onChange={e => setComentarioForm(prev => ({ ...prev, anexo_url: e.target.value }))} placeholder="https://..." />
+            </div>
+            <div className="form-group-chamados">
+              <label>Arquivo de anexo</label>
+              <input className="chamados-input chamado-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={e => setArquivoAnexo(e.target.files?.[0] || null)} />
+              {arquivoAnexo && <span className="chamado-file-hint"><Paperclip size={13} /> {arquivoAnexo.name}</span>}
+            </div>
+
+            <div className="chamado-reopen-box">
+              <label>Reabrir OS concluída</label>
+              <div>
+                <input className="chamados-input" value={comentarioForm.motivo_reabertura} onChange={e => setComentarioForm(prev => ({ ...prev, motivo_reabertura: e.target.value }))} placeholder="Motivo da reabertura..." />
+                <button className="btn btn-outline" onClick={reabrirChamado} disabled={isProcessing || isOffline}>
+                  <RotateCcw size={16} /> Reabrir
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-actions-chamados">
+              <button className="btn btn-outline" onClick={() => { setChamadoDetalhes(null); setArquivoAnexo(null); }} disabled={isProcessing}>Fechar</button>
+              <button className="btn btn-primary" onClick={enviarComentario} disabled={isProcessing || isOffline}>
+                {isProcessing ? <Loader2 className="spinner" size={18} /> : <MessageSquarePlus size={18} />}
+                Adicionar atualização
               </button>
             </div>
           </div>

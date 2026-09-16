@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  PlusCircle, Edit, X, Thermometer, Droplets, 
-  Snowflake, ShieldCheck, Sliders, Save, Search, 
+import {
+  Edit, Thermometer, Droplets,
+  Snowflake, ShieldCheck, Sliders, Save, Search,
   LayoutGrid, PackageOpen, Zap, AlertTriangle, Trash2,
   Lock, Shield
 } from 'lucide-react';
@@ -74,6 +74,9 @@ export default function ParametrosGlobais({
     });
   };
 
+  /**
+   * Concentra a logica de salvar parametro para manter o restante do tela mais legivel.
+   */
   const salvarParametro = async (e) => {
     e.preventDefault();
     if (!canEdit) {
@@ -115,6 +118,9 @@ export default function ParametrosGlobais({
     }
   };
 
+  /**
+   * Processa a interacao de pedir exclusao parametro e atualiza a interface conforme o resultado.
+   */
   const pedirExclusaoParametro = (id, nome, entidade) => {
     if (!canEdit) return showToast('Ação bloqueada. As políticas são protegidas contra exclusão.', 'error');
 

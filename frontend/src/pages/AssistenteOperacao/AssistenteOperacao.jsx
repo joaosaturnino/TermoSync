@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
-  ClipboardCheck, AlertTriangle, CheckCircle2, Clock3, MessageSquare,
-  ShieldCheck, Sparkles, Thermometer, Wrench, ShieldAlert, ThermometerSnowflake,
+  ClipboardCheck, CheckCircle2, MessageSquare,
+  ShieldCheck, Sparkles, Wrench, ShieldAlert, ThermometerSnowflake,
   Cpu, Activity, ArrowRight, Zap, Target, Lock
 } from 'lucide-react';
 import './AssistenteOperacao.css';

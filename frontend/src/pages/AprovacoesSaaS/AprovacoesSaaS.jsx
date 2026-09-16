@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  CheckCircle, Clock, Building2, Mail, Loader2, 
-  Send, Search, Server, Terminal, 
-  Copy, Check, Eye, X, Zap, PlusCircle, Link, RefreshCw, AlertCircle 
+  CheckCircle, Clock, Building2, Mail, Loader2,
+  Send, Search, Server, Terminal,
+  Copy, Check, Eye, X, Zap, PlusCircle, Link, RefreshCw
 } from 'lucide-react';
 import '../Suporte/SuporteTelas.css';
 import './AprovacoesSaaS.css';
@@ -57,6 +57,9 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
     if (!isOffline) carregarPendentes();
     
     if (socket) {
+      /**
+       * Processa a interacao de handler e atualiza a interface conforme o resultado.
+       */
       const handler = () => carregarPendentes(true);
       socket.on('novo_pre_cadastro', handler);
       return () => socket.off('novo_pre_cadastro', handler);
@@ -83,9 +86,13 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
     setAcaoProcessando(id);
     
     try {
-      await api.post(`/pre-cadastros/${id}/aprovar`);
+      const response = await api.post(`/pre-cadastros/${id}/aprovar`);
       setPendentes(prev => prev.filter(p => p.id !== id));
-      showToast?.(`<b>Empresa Aprovada!</b><br/>E-mail de boas-vindas e credenciais enviado para <strong>${email}</strong>.`, 'success');
+      if (response.data?.emailSent === false) {
+        showToast?.(`<b>Empresa Aprovada!</b><br/>SMTP não configurado. Usuário: <strong>${response.data.usuario}</strong> | Senha provisória: <strong>${response.data.senhaProvisoria}</strong>.`, 'warning');
+      } else {
+        showToast?.(`<b>Empresa Aprovada!</b><br/>E-mail de boas-vindas e credenciais enviado para <strong>${email}</strong>.`, 'success');
+      }
       if (modalInspecao?.id === id) setModalInspecao(null);
     } catch (err) {
       showToast?.("Falha ao aprovar a empresa e notificar o cliente.", "error");
@@ -135,6 +142,9 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
     }
   };
 
+  /**
+   * Processa a interacao de copiar dado e atualiza a interface conforme o resultado.
+   */
   const copiarDado = (e, texto, chave) => {
     e.stopPropagation();
     navigator.clipboard.writeText(texto);
@@ -143,6 +153,9 @@ export default function AprovacoesSaaS({ showToast, isOffline, api, socket }) {
     setTimeout(() => setCopiado(''), 2000);
   };
 
+  /**
+   * Processa a interacao de copiar link onboarding e atualiza a interface conforme o resultado.
+   */
   const copiarLinkOnboarding = () => {
     const url = `${window.location.origin}/?mode=register`;
     navigator.clipboard.writeText(url);

@@ -5,10 +5,11 @@
  * ============================================================================
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const axios = require('axios');
-const API_URL = 'http://127.0.0.1:3000/api';
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3001/api';
 const LOGIN_SIMULADOR = { usuario: 'dev_root', senha: 'rootdev' };
+const IOT_INGEST_TOKEN = process.env.IOT_INGEST_TOKEN || '';
 
 const INTERVALO_TELEMETRIA = 2000; 
 
@@ -26,6 +27,13 @@ let historicoTemperaturas = {};
 let historicoUmidades = {}; 
 let tickCount = 0;
 let historicoFinanceiroGerado = false;
+
+/**
+ * Busca ou monta os dados de get iot headers usados no fluxo atual.
+ */
+function getIotHeaders() {
+  return IOT_INGEST_TOKEN ? { 'x-iot-token': IOT_INGEST_TOKEN } : {};
+}
 
 console.log(`${COLORS.magenta}${COLORS.bold}
 =========================================================
@@ -187,8 +195,12 @@ async function simularMaquina(eq) {
     await axios.post(`${API_URL}/leituras`, { 
         equipamento_id: eq.id, temperatura: tempAtual.toFixed(2), umidade: umidAtual.toFixed(2), 
         consumo_kwh: consumoKwh.toFixed(2), alerta_forcado: alertaForcado, motor_ligado: motorLigado, em_degelo: emDegelo
-    }, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
-  } catch (e) {}
+    }, { headers: getIotHeaders() });
+  } catch (e) {
+    if (e.response?.status === 401) {
+      console.log(`${COLORS.red}  ↳ [IOT AUTH] Token de ingestão inválido/ausente. Verifique IOT_INGEST_TOKEN no backend/.env.${COLORS.reset}`);
+    }
+  }
 }
 
 // 5. MÓDULO FINOPS AVANÇADO
@@ -289,6 +301,9 @@ async function executarSimulacao() {
   } catch (error) { if (error.response?.status === 401) tokenAtivo = ''; }
 }
 
+/**
+ * Concentra a logica de iniciar loop seguro para manter o restante do modulo mais legivel.
+ */
 async function iniciarLoopSeguro() {
   await executarSimulacao();
   setTimeout(iniciarLoopSeguro, tokenAtivo ? INTERVALO_TELEMETRIA : 60000);

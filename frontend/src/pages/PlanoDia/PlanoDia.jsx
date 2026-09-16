@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  CalendarDays, CheckCircle2, ClipboardList, Clock3, 
-  Sparkles, Target, Users, Check, Trash2, Plus, 
-  X, Server, FileText, DownloadCloud, RefreshCw, Wand2, Clock
+  CalendarDays, CheckCircle2, ClipboardList, Clock3,
+  Target, Users, Check, Trash2, Plus,
+  X, Server, FileText, DownloadCloud, RefreshCw, Clock
 } from 'lucide-react';
 import './PlanoDia.css';
 
@@ -44,8 +44,6 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
   const [tasks, setTasks] = useState([]);
   const [isSyncing, setIsSyncing] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskText, setNewTaskText] = useState('');
   const [newTaskTime, setNewTaskTime] = useState('');
@@ -54,10 +52,10 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
   const roleFormatada = (userRole || 'LOJA').toUpperCase();
   const canManageTasks = ['ADMIN', 'MANUTENCAO', 'DEV'].includes(roleFormatada);
 
-  const emitToast = (msg, type) => {
+  const emitToast = useCallback((msg, type) => {
     if (showToast) showToast(msg, type);
     else logger.info(`[${type.toUpperCase()}] ${msg}`);
-  };
+  }, [showToast]);
 
   const carregarTarefas = useCallback(async () => {
     if (!api) return;
@@ -65,11 +63,11 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
       const query = filialAtiva && filialAtiva !== 'Todas' ? `?tipo=plano_dia&filial=${encodeURIComponent(filialAtiva)}` : '?tipo=plano_dia';
       const res = await api.get(`/operacao/tarefas${query}`);
       const tarefasDB = res.data || [];
-      
+
       // AUTO-SEED: Injeção das Metas Padrão
       if (tarefasDB.length === 0 && canManageTasks && !isSyncing) {
          emitToast('A construir estrutura do Plano do Dia...', 'info');
-         await Promise.all(metasPadrao.map(meta => 
+         await Promise.all(metasPadrao.map(meta =>
            api.post('/operacao/tarefas', {
              tipo: 'plano_dia', chave: meta.chave, titulo: meta.titulo,
              descricao: meta.horario, // Usamos o campo descrição p/ guardar a hora estipulada
@@ -85,7 +83,7 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
     } catch (e) {
       setIsSyncing(false);
     }
-  }, [api, filialAtiva, canManageTasks, isSyncing]);
+  }, [api, filialAtiva, canManageTasks, isSyncing, emitToast]);
 
   useEffect(() => {
     carregarTarefas();
@@ -103,9 +101,9 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
     if (!task || !api) return;
 
     const nextChecked = !task.concluida;
-    
+
     // UI Otimista
-    setTasks(current => current.map(t => 
+    setTasks(current => current.map(t =>
       t.id === id ? { ...t, concluida: nextChecked, horario: nextChecked ? new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : null } : t
     ));
 
@@ -113,10 +111,13 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
       await api.put(`/operacao/tarefas/${id}`, { concluida: nextChecked });
     } catch (e) {
       emitToast('Falha ao sincronizar com o servidor.', 'error');
-      carregarTarefas(); 
+      carregarTarefas();
     }
   };
 
+  /**
+   * Processa a interacao de handle add task e atualiza a interface conforme o resultado.
+   */
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTaskText.trim() || !api || !canManageTasks) return;
@@ -140,6 +141,9 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
     }
   };
 
+  /**
+   * Processa a interacao de handle delete item e atualiza a interface conforme o resultado.
+   */
   const handleDeleteItem = async (itemId) => {
     if (!api || !canManageTasks) return;
     try {
@@ -151,17 +155,20 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
     }
   };
 
+  /**
+   * Concentra a logica de reset plano para manter o restante do tela mais legivel.
+   */
   const resetPlano = async () => {
     if (!api) return;
     setIsResetting(true);
     emitToast('Iniciando ciclo diário...', 'info');
-    
+
     try {
       const checkedItems = tasks.filter(i => i.concluida);
-      await Promise.all(checkedItems.map(item => 
+      await Promise.all(checkedItems.map(item =>
         api.put(`/operacao/tarefas/${item.id}`, { concluida: false })
       ));
-      
+
       emitToast('Cronograma diário resetado com sucesso.', 'success');
       carregarTarefas();
     } catch (e) {
@@ -174,18 +181,18 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
   // --- RELATÓRIOS ---
   const exportarRelatorio = (tipo) => {
     emitToast(`Extraindo cronograma ${tipo}...`, 'info');
-    
+
     let csvContent = "Horário Previsto,Meta/Atividade,Status,Hora de Conclusão\n";
     tasks.forEach(item => {
       csvContent += `"${item.descricao || '--'}","${item.titulo}","${item.concluida ? 'Concluído' : 'Pendente'}","${item.horario || 'N/A'}"\n`;
     });
 
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob); 
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
     link.download = `PlanoOperacional_${tipo}_${Date.now()}.csv`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    
+
     setTimeout(() => emitToast(`Cronograma ${tipo} exportado!`, 'success'), 800);
   };
 
@@ -198,8 +205,8 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
           </div>
           <h3>Plano do Dia & Gestão de Metas</h3>
           <p>
-            {canManageTasks 
-              ? "Estruture as prioridades. Como Administrador/Técnico, você pode adicionar novas metas para as lojas." 
+            {canManageTasks
+              ? "Estruture as prioridades. Como Administrador/Técnico, você pode adicionar novas metas para as lojas."
               : "Acompanhe e valide o cronograma estabelecido para garantir a eficiência das operações diárias."}
           </p>
         </div>
@@ -232,10 +239,10 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
 
       <section className="tasks-plano">
         {tasks.length === 0 && <div style={{color: '#64748b', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem', fontStyle: 'italic'}}>Nenhuma meta operacional definida para hoje.</div>}
-        
+
         {tasks.map(task => (
           <article key={task.id} className={`task-plano ${task.concluida ? 'done' : ''}`}>
-            
+
             <label className="task-label-plano">
               <input type="checkbox" checked={Boolean(task.concluida)} onChange={() => toggleTask(task.id)} />
               <div className="custom-checkbox">
@@ -244,18 +251,18 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
               <div className="item-content">
                 <h4>{task.titulo}</h4>
                 <p>
-                  <Clock size={12}/> 
-                  Meta: {task.descricao || '--:--'} 
+                  <Clock size={12}/>
+                  Meta: {task.descricao || '--:--'}
                   {task.concluida && task.horario && <span style={{color: '#10b981', marginLeft: '6px', fontWeight: 'bold'}}>• Validação às {task.horario}</span>}
                 </p>
               </div>
             </label>
-            
+
             <div className="task-actions-group">
               <div className="task-status-plano">
                 {task.concluida ? <CheckCircle2 size={18} /> : <ClipboardList size={18} />}
               </div>
-              
+
               {canManageTasks && (
                 <div className="task-actions">
                   <button type="button" className="btn-icon-tiny" onClick={() => handleDeleteItem(task.id)} title="Remover Meta">
@@ -273,18 +280,18 @@ export default function PlanoDia({ api, filialAtiva, showToast, userRole = 'LOJA
           <div className="add-task-container">
             {isAdding ? (
               <form onSubmit={handleAddTask} className="add-task-form">
-                 <input 
+                 <input
                    type="time"
-                   value={newTaskTime} 
-                   onChange={e => setNewTaskTime(e.target.value)} 
+                   value={newTaskTime}
+                   onChange={e => setNewTaskTime(e.target.value)}
                    required
                  />
-                 <input 
+                 <input
                    type="text"
-                   autoFocus 
-                   value={newTaskText} 
-                   onChange={e => setNewTaskText(e.target.value)} 
-                   placeholder="Ex: Verificar relatório de energia semanal..." 
+                   autoFocus
+                   value={newTaskText}
+                   onChange={e => setNewTaskText(e.target.value)}
+                   placeholder="Ex: Verificar relatório de energia semanal..."
                    maxLength={100}
                    required
                  />

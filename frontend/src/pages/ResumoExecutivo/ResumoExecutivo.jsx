@@ -39,6 +39,9 @@ export default function ResumoExecutivo({ api, filialAtiva }) {
   const [isSyncing, setIsSyncing] = useState(true);
 
   useEffect(() => {
+    /**
+     * Concentra a logica de carregar resumo para manter o restante do tela mais legivel.
+     */
     const carregarResumo = async () => {
       if (!api) return;
       try {

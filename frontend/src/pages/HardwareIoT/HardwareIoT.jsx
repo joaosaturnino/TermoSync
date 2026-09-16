@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Cpu, Activity, RefreshCw, Server, Power, Search, MapPin, 
-  Loader2, Zap, ServerCrash, TerminalSquare 
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Cpu, RefreshCw, Server, Power, Search, MapPin,
+  Loader2, Zap, ServerCrash, TerminalSquare
 } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '../../config/api.js';
 import './HardwareIoT.css';
 
+/**
+ * Concentra a logica de wifi bars para manter o restante do tela mais legivel.
+ */
 const WifiBars = ({ dbm, isOffline }) => {
   let signalLevel = 'signal-offline';
   if (!isOffline) {
@@ -26,27 +29,30 @@ const WifiBars = ({ dbm, isOffline }) => {
   );
 };
 
-export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
+/**
+ * Renderiza a tela Hardware Io T e concentra as regras de apresentacao desse modulo.
+ */
+export default function HardwareIoT({ equipamentos: _equipamentos, showToast, isOffline }) {
   const [hwNodes, setHwNodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState({ id: null, type: null });
 
-  const carregarHardware = async (isManual = false) => {
+  const carregarHardware = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
       const token = sessionStorage.getItem('token');
       const resposta = await axios.get(`${getApiUrl()}/hardware`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       const agora = new Date().getTime();
-      
+
       const formatado = resposta.data.map(eq => {
         const tempoDesdeUltimoSinal = eq.ultima_comunicacao ? (agora - new Date(eq.ultima_comunicacao).getTime()) : 999999999;
         const isNodeOffline = tempoDesdeUltimoSinal > 180000;
-        
+
         return {
           ...eq,
           mac: eq.mac || '00:00:00:00:00:00',
@@ -57,9 +63,10 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
           isNodeOffline
         };
       });
-      
+
       setHwNodes(formatado);
     } catch (error) {
+      console.warn('[HARDWARE] Falha ao carregar frota IoT:', error.message);
       showToast('Erro de sincronização com os clusters Edge.', 'error');
     } finally {
       setLoading(false);
@@ -68,23 +75,23 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
         showToast('Varredura de sub-rede concluída.', 'success');
       }
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     if (!isOffline) {
       carregarHardware();
-      const interval = setInterval(carregarHardware, 10000); 
+      const interval = setInterval(carregarHardware, 10000);
       return () => clearInterval(interval);
     } else {
       setLoading(false);
     }
-  }, [isOffline]);
+  }, [isOffline, carregarHardware]);
 
   const nodesFiltrados = useMemo(() => {
     if (!busca.trim()) return hwNodes;
     const termo = busca.toLowerCase();
-    return hwNodes.filter(n => 
-      n.nome?.toLowerCase().includes(termo) || 
+    return hwNodes.filter(n =>
+      n.nome?.toLowerCase().includes(termo) ||
       n.ip?.toLowerCase().includes(termo) ||
       n.mac?.toLowerCase().includes(termo)
     );
@@ -102,15 +109,15 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
   // ============================================================================
   const executarAcaoNoHardware = async (idNode, nome, tipo) => {
     if (isOffline) return showToast('Control Plane Offline. Canal MQTT inacessível.', 'error');
-    
+
     setActionLoading({ id: idNode, type: tipo });
     showToast(`Estabelecendo handshake TCP com ${nome}...`, 'info');
-    
+
     try {
       const token = sessionStorage.getItem('token');
-      
+
       await axios.post(`${getApiUrl()}/hardware/${idNode}/comando`, {
-        acao: tipo, 
+        acao: tipo,
         estado: 1
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -158,12 +165,12 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
           <div style={{color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '12px', borderRadius: '12px'}}><Cpu size={28}/></div>
           <div className="kpi-text-box"><span className="kpi-value-modern">{kpis.total}</span><span className="kpi-label-modern">Nós End-Point</span></div>
         </div>
-        
+
         <div className="kpi-card-modern success">
           <div style={{color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '12px'}}><Zap size={28}/></div>
           <div className="kpi-text-box"><span className="kpi-value-modern">{kpis.online}</span><span className="kpi-label-modern">Telemetria Ativa</span></div>
         </div>
-        
+
         <div className="kpi-card-modern danger">
           <div style={{color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '12px'}}><ServerCrash size={28}/></div>
           <div className="kpi-text-box"><span className="kpi-value-modern">{kpis.offline}</span><span className="kpi-label-modern">Sinal Interrompido</span></div>
@@ -178,7 +185,7 @@ export default function HardwareIoT({ equipamentos, showToast, isOffline }) {
           </div>
         ) : nodesFiltrados.map(node => (
           <div key={node.id} className={`iot-node-card ${node.isNodeOffline ? 'card-offline' : 'card-online'}`}>
-            
+
             {actionLoading.id === node.id && (
               <div className="node-overlay-loading">
                 <Loader2 size={36} className="spin" />

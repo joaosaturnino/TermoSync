@@ -6,18 +6,18 @@
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:simulador": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run simulador --prefix backend\"",
+    "check": "node --check backend/routes/api.js && node --check backend/server.js && node --check backend/config/db.js && npm run lint --prefix frontend && npm run build --prefix frontend",
+    "check:env": "node scripts/check-production-env.js",
+    "smoke": "node scripts/smoke-test.js",
+    "predeploy": "npm run check:env && npm run check",
     "openmobile": "node ./node_modules/openmobile/ip.js",
-    "mobile:install": "npm install --prefix mobile && npm install --prefix frontend",
-    "mobile:build": "npm run build:mobile --prefix frontend",
-    "mobile:sync": "npm run sync --prefix mobile",
-    "mobile:sync:android": "npm run sync:android --prefix mobile",
-    "mobile:sync:ios": "npm run sync:ios --prefix mobile",
-    "mobile:open:android": "npm run open:android --prefix mobile",
-    "mobile:open:ios": "npm run open:ios --prefix mobile",
-    "mobile:run:android": "npm run run:android --prefix mobile",
-    "mobile:run:ios": "npm run run:ios --prefix mobile",
-    "mobile:add:android": "npm run add:android --prefix mobile",
-    "mobile:add:ios": "npm run add:ios --prefix mobile"
+    "mobile:install": "npm install --prefix mobile",
+    "mobile:start": "npm run start --prefix mobile",
+    "mobile:tunnel": "npm run tunnel --prefix mobile",
+    "mobile:android": "npm run android --prefix mobile",
+    "mobile:ios": "npm run ios --prefix mobile",
+    "mobile:web": "npm run web --prefix mobile",
+    "mobile:check": "npm run check --prefix mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
@@ -25,9 +25,13 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
-    "dompurify": "^3.4.12",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
-    "openmobile": "^1.3.4",
-    "whatsapp-web.js": "^1.34.6"
+    "express": "^5.2.1",
+    "mqtt": "^5.15.2",
+    "multer": "^2.3.0",
+    "mysql2": "^3.24.2",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.34.7"
   }
 }
