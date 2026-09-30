@@ -1,3 +1,10 @@
+/**
+ * Módulo: frontend/src/pages/Kanban/Kanban.jsx
+ * Responsabilidade: Implementa a tela Kanban, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
+import { TimerReset, UserRoundX } from 'lucide-react';
 import React, { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { 
   Columns, Wrench, Clock, CheckCircle, ArrowRight, AlertTriangle, 
@@ -7,14 +14,12 @@ import './Kanban.css';
 import logger from '../../utils/logger';
 
 const KANBAN_COLUMNS = [
-  { id: 'Aberto', title: 'Novos / Triagem', icon: AlertTriangle, color: '#ef4444' },
-  { id: 'Em Andamento', title: 'Intervenção (FSM)', icon: Wrench, color: '#f59e0b' },
-  { id: 'Aguardando Peça', title: 'Logística', icon: Clock, color: '#38bdf8' },
-  { id: 'Concluído', title: 'Auditoria Fechada', icon: CheckCircle, color: '#10b981' }
+  { id: 'Aberto', title: 'Novos / Triagem', icon: AlertTriangle, color: 'var(--danger)' },
+  { id: 'Em Andamento', title: 'Intervenção (FSM)', icon: Wrench, color: 'var(--warning)' },
+  { id: 'Aguardando Peça', title: 'Logística', icon: Clock, color: 'var(--info)' },
+  { id: 'Concluído', title: 'Auditoria Fechada', icon: CheckCircle, color: 'var(--success)' }
 ];
 
-// Limites iniciais evitam renderizar centenas de cards ao abrir a tela.
-// O usuário pode expandir cada coluna com o botão "Mostrar mais".
 const INITIAL_VISIBLE_BY_COLUMN = {
   Aberto: 50,
   'Em Andamento': 50,
@@ -24,8 +29,46 @@ const INITIAL_VISIBLE_BY_COLUMN = {
 
 const LOAD_MORE_STEP = 40;
 
+
+/**
+ * Busca ou monta os dados de get column id usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} status - Valor de status consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const getColumnId = (status) => {
+  const normalized = normalizeText(status);
+  if (normalized === 'aberto' || normalized === 'pendente') return 'Aberto';
+  if (normalized === 'em andamento' || normalized === 'em atendimento' || normalized === 'diagnostico') return 'Em Andamento';
+  if (normalized === 'aguardando peca' || normalized === 'aguardando pecas') return 'Aguardando Peça';
+  if (normalized.includes('conclu') || normalized === 'fechado') return 'Concluído';
+  return 'Aberto';
+};
+
+
 /**
  * Normaliza normalize text para evitar divergencia de formato nas comparacoes.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const normalizeText = (value) =>
   String(value || '')
@@ -34,8 +77,21 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+
 /**
  * Busca ou monta os dados de get badge urgencia usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} urgencia - Valor de urgencia consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getBadgeUrgencia = (urgencia) => {
   if (!urgencia || urgencia === 'Pendente') return null;
@@ -116,21 +172,33 @@ const KanbanTicketCard = memo(function KanbanTicketCard({
 });
 
 /**
- * Quadro Kanban para Gestão de Incidentes (ITSM)
+ * Quadro Kanban para Gestão de Incidentes (ITSM) Responsabilidades: Props:
  *
- * Responsabilidades:
- * - Apresentar tickets por coluna (Triagem, Em Andamento, Logística, Concluído)
- * - Permitir drag-and-drop nativo e ações de movimentação manual
- * - Fornecer filtros de busca e KPIs resumidos para operação rápida
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
  *
- * Props:
- * - `chamados`: lista de ordens de serviço
- * - `api`: instância HTTP para atualizações de status
- * - `carregarChamados`: função para recarregar dados após mudanças
- * - `showToast`, `isOffline`: utilitários de UI/estado offline
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.chamados - Propriedade chamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarChamados - Propriedade carregarChamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function Kanban({ chamados, api, carregarChamados, showToast, isOffline }) {
-  const [busca, setBusca] = useState('');
+export default function Kanban({ chamados, api, carregarChamados, showToast, isOffline, filialAtiva }) {
+  const [busca, setBusca] = usePersistentState('termosync_kanban_search', '');
+  const [prioridade, setPrioridade] = usePersistentState('termosync_kanban_priority', 'todas');
+  const [instanteReferencia] = useState(Date.now);
   const buscaDiferida = useDeferredValue(busca);
   const [visibleLimitByColumn, setVisibleLimitByColumn] = useState(INITIAL_VISIBLE_BY_COLUMN);
   
@@ -218,16 +286,28 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
     // bases com muitos chamados.
     const buckets = Object.fromEntries(KANBAN_COLUMNS.map(col => [col.id, []]));
     const termo = normalizeText(buscaDiferida);
-    const resumo = { total: 0, criticos: 0, resolvidos: 0 };
+    const resumo = { total: 0, criticos: 0, resolvidos: 0, semResponsavel: 0, maisAntigoDias: 0 };
+    const filialNormalizada = normalizeText(filialAtiva);
+    const agora = instanteReferencia;
 
     for (const chamado of listaSeguraChamados) {
       if (!chamado || chamado.arquivado) continue;
+      if (filialAtiva && filialAtiva !== 'Todas' && normalizeText(chamado.filial || chamado.equipamento_filial) !== filialNormalizada) continue;
+
+      const urgencia = normalizeText(chamado.urgencia || 'pendente');
+      if (prioridade !== 'todas' && urgencia !== prioridade) continue;
+      const columnId = getColumnId(chamado.status);
 
       resumo.total += 1;
-      if (chamado.status === 'Aberto') resumo.criticos += 1;
-      if (chamado.status === 'Concluído') resumo.resolvidos += 1;
+      if (columnId !== 'Concluído' && urgencia === 'critica') resumo.criticos += 1;
+      if (columnId === 'Concluído') resumo.resolvidos += 1;
+      if (columnId !== 'Concluído' && !String(chamado.tecnico_responsavel || '').trim()) resumo.semResponsavel += 1;
+      const abertura = chamado.data_abertura ? new Date(chamado.data_abertura).getTime() : agora;
+      if (columnId !== 'Concluído' && Number.isFinite(abertura)) {
+        resumo.maisAntigoDias = Math.max(resumo.maisAntigoDias, Math.floor((agora - abertura) / 86400000));
+      }
 
-      const colunaExiste = buckets[chamado.status];
+      const colunaExiste = buckets[columnId];
       if (!colunaExiste) continue;
 
       if (termo) {
@@ -247,7 +327,7 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
     }
 
     return { chamadosAgrupados: buckets, kpis: resumo };
-  }, [listaSeguraChamados, buscaDiferida]);
+  }, [listaSeguraChamados, buscaDiferida, filialAtiva, prioridade, instanteReferencia]);
 
   const handleShowMore = useCallback((colId) => {
     setVisibleLimitByColumn(prev => ({
@@ -264,10 +344,10 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
         <div>
           <h3 className="itsm-title-modern">
             <div className="icon-box-primary"><Columns size={24} /></div>
-            Gestão de Incidentes (ITSM)
+            Gestão Ágil de Chamados
           </h3>
           <p className="text-muted" style={{ margin: '8px 0 0 0', fontSize: '0.9rem' }}>
-            Field Service Management (FSM). <b>Dica: Pode arrastar e largar os cartões entre as colunas.</b>
+            Organize a fila técnica, atribua prioridades e acompanhe o fluxo até a conclusão.
           </p>
         </div>
 
@@ -276,23 +356,31 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
             <Search size={18} color="var(--text-muted)" style={{marginRight: '8px'}} />
             <input type="text" placeholder="Pesquisar OS, Máquina ou Filtro..." value={busca} onChange={e => setBusca(e.target.value)} />
           </div>
+          <select className="kanban-priority-filter" value={prioridade} onChange={(event) => setPrioridade(event.target.value)} aria-label="Filtrar por prioridade">
+            <option value="todas">Todas as prioridades</option>
+            <option value="critica">Crítica</option>
+            <option value="alta">Alta</option>
+            <option value="media">Média</option>
+            <option value="baixa">Baixa</option>
+            <option value="pendente">Sem prioridade</option>
+          </select>
         </div>
       </div>
 
       {/* KPI GLASSMORPHISM BAR */}
       <div className="itsm-kpi-bar">
         <div className="kpi-card-modern info">
-          <div style={{color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '12px', borderRadius: '12px'}}>
+          <div style={{color: 'var(--info)', background: 'color-mix(in srgb, var(--info) 10%, transparent)', padding: '12px', borderRadius: '12px'}}>
             <ActivitySquare size={28}/>
           </div>
           <div className="kpi-text-box">
             <span className="kpi-value-modern">{kpis.total}</span>
-            <span className="kpi-label-modern">Tickets Ativos</span>
+            <span className="kpi-label-modern">Tickets no Quadro</span>
           </div>
         </div>
         
         <div className="kpi-card-modern danger">
-          <div style={{color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '12px'}}>
+          <div style={{color: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', padding: '12px', borderRadius: '12px'}}>
             <AlertTriangle size={28}/>
           </div>
           <div className="kpi-text-box">
@@ -302,12 +390,26 @@ export default function Kanban({ chamados, api, carregarChamados, showToast, isO
         </div>
         
         <div className="kpi-card-modern success">
-          <div style={{color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '12px'}}>
+          <div style={{color: 'var(--success)', background: 'color-mix(in srgb, var(--success) 10%, transparent)', padding: '12px', borderRadius: '12px'}}>
             <CheckCircle size={28}/>
           </div>
           <div className="kpi-text-box">
             <span className="kpi-value-modern">{kpis.resolvidos}</span>
             <span className="kpi-label-modern">Aguardando Auditoria</span>
+          </div>
+        </div>
+        <div className="kpi-card-modern warning">
+          <div className="kanban-kpi-icon warning"><UserRoundX size={25}/></div>
+          <div className="kpi-text-box">
+            <span className="kpi-value-modern">{kpis.semResponsavel}</span>
+            <span className="kpi-label-modern">Sem Responsável</span>
+          </div>
+        </div>
+        <div className="kpi-card-modern info">
+          <div className="kanban-kpi-icon info"><TimerReset size={25}/></div>
+          <div className="kpi-text-box">
+            <span className="kpi-value-modern">{kpis.maisAntigoDias}d</span>
+            <span className="kpi-label-modern">Maior Tempo em Aberto</span>
           </div>
         </div>
       </div>

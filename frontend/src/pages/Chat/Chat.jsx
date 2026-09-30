@@ -1,3 +1,8 @@
+/**
+ * Módulo: frontend/src/pages/Chat/Chat.jsx
+ * Responsabilidade: Implementa a tela Chat, seus estados, interações e integrações de dados.
+ */
+
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Send, Search, Paperclip, CheckCheck, Reply, ChevronDown,
@@ -10,9 +15,23 @@ import EmptyState from '../../components/EmptyState';
 import logger from '../../utils/logger';
 import { getApiUrl } from '../../config/api.js';
 
-// ============================================================================
-// NORMALIZADOR SEGURO PARA DADOS DO MYSQL E WEBSOCKETS
-// ============================================================================
+
+
+/**
+ * Normaliza normalizar mensagem para evitar divergencia de formato nas comparacoes.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} m - Valor de m consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const normalizarMensagem = (m) => {
   // Aceita payloads vindos tanto do MySQL quanto do Socket.io, que podem usar
   // nomes de campos diferentes, e converte tudo para o formato único da UI.
@@ -28,8 +47,22 @@ const normalizarMensagem = (m) => {
   };
 };
 
+
 /**
  * Formata formatar data segura para exibicao segura na interface.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} dataStr - Valor de data str consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const formatarDataSegura = (dataStr) => {
   try {
@@ -40,8 +73,22 @@ const formatarDataSegura = (dataStr) => {
   } catch (e) { return ''; }
 };
 
+
 /**
  * Formata formatar hora segura para exibicao segura na interface.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} dataStr - Valor de data str consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const formatarHoraSegura = (dataStr) => {
   try {
@@ -52,8 +99,36 @@ const formatarHoraSegura = (dataStr) => {
   } catch (e) { return ''; }
 };
 
+
 /**
  * Renderiza a tela Chat e concentra as regras de apresentacao desse modulo.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador; troca eventos em tempo real; finaliza a resposta HTTP
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.contatosDb - Propriedade contatosDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userId - Propriedade userId usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.historicoChat - Propriedade historicoChat usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setHistoricoChat - Propriedade setHistoricoChat usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.contatoAtivo - Propriedade contatoAtivo usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setContatoAtivo - Propriedade setContatoAtivo usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.naoLidasPorContato - Propriedade naoLidasPorContato usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setNaoLidasPorContato - Propriedade setNaoLidasPorContato usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function Chat({
   api,
@@ -79,16 +154,43 @@ export default function Chat({
     return String(id);
   }, [userId]);
 
-  // ============================================================================
-  // ESTADO LOCAL DE SELEÇÃO COM PRIORIDADE MÁXIMA
-  // ============================================================================
+  
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
   const contatoAtivo = contatoSelecionado || contatoAtivoProp || null;
 
-  // ============================================================================
-  // HISTÓRICO DE MENSAGENS (SEM CONCATENAÇÕES QUE DUPLICAM DADOS)
-  // ============================================================================
+  
   const [historicoChatLocal, setHistoricoChatLocal] = useState([]);
+   /**
+    * Concentra a logica de historico chat raw para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+    * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @returns {unknown} Resultado calculado para consumo do chamador.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
+
+  /**
+   * Concentra a logica de historico chat raw para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const historicoChatRaw = (historicoChatProp && historicoChatProp.length > 0)
     ? historicoChatProp
     : historicoChatLocal;
@@ -151,8 +253,21 @@ export default function Chat({
   // Escuta novas mensagens no WebSocket sem permitir duplicatas de ID
   useEffect(() => {
     if (!socket || typeof socket.on !== 'function') return;
+
     /**
      * Processa a interacao de handle nova mensagem e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @param {unknown} msg - Valor de msg consumido por esta rotina.
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleNovaMensagem = (msg) => {
       const msgNorm = normalizarMensagem(msg);
@@ -204,13 +319,26 @@ export default function Chat({
   const isDev = roleLogada === 'DEV';
   const isAdminOrDev = roleLogada === 'ADMIN' || isDev;
 
+
   /**
    * Busca ou monta os dados de get security clearance usados no fluxo atual.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} role - Valor de role consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const getSecurityClearance = (role) => {
-    if (role === 'DEV' || role === 'ADMIN') return <span title="Acesso Master" style={{color: '#ef4444'}}>[LVL-5]</span>;
-    if (role === 'MANUTENCAO') return <span title="Equipe Técnica" style={{color: '#38bdf8'}}>[LVL-3]</span>;
-    return <span title="Operação de Loja" style={{color: '#10b981'}}>[LVL-1]</span>;
+    if (role === 'DEV' || role === 'ADMIN') return <span title="Acesso Master" style={{color: 'var(--danger)'}}>[LVL-5]</span>;
+    if (role === 'MANUTENCAO') return <span title="Equipe Técnica" style={{color: 'var(--info)'}}>[LVL-3]</span>;
+    return <span title="Operação de Loja" style={{color: 'var(--success)'}}>[LVL-1]</span>;
   };
 
   const quickReplies = ["Estou na posição 📍", "Anomalia contida ✅", "Aguardando luz verde ⏳", "Solicito contato voz 📞", "Apoio necessário 🆘"];
@@ -236,8 +364,21 @@ export default function Chat({
   const audioChunksRef = useRef([]);
   const localMessageSeqRef = useRef(0);
 
+
   /**
    * Processa a interacao de handle input change e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -246,8 +387,21 @@ export default function Chat({
     else setShowCommands(false);
   };
 
+
   /**
    * Executa executar comando coordenando as etapas principais desse fluxo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} cmdObj - Valor de cmd obj consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const executarComando = (cmdObj) => {
     dispararMensagem(cmdObj.output);
@@ -286,67 +440,75 @@ export default function Chat({
     return list.sort((a, b) => (roleOrder[a.role] || 5) - (roleOrder[b.role] || 5));
   }, [contatosDb, pesquisa, roleLogada, papelLogado, userFilial]);
 
-  const canalGlobal = {
-    id: 'todos',
-    nome: isDev ? 'NOC Global (Monitoramento Multi-Tenant)' : (isAdminOrDev ? 'Broadcast Corporativo (Empresa)' : 'Central de Suporte (Matriz)'),
-    cargo: isDev ? 'Acesso Root a todas as Redes' : 'Avisos e Comunicados Gerais',
-    isGroup: true
-  };
-
-  // ============================================================================
-  // FILTRO PONTO A PONTO E BROADCAST COM FALLBACK DE SEGURANÇA
-  // ============================================================================
-  const mensagensExibidas = useMemo(() => {
-    if (!contatoAtivo) return [];
-
-    let list = historicoChat.filter(m => {
-      const remetente = String(m.remetenteId || '');
-      const destino = String(m.destinoId || '');
-      const ativoId = String(contatoAtivo.id || '');
-
-      if (ativoId === 'todos') {
-        return destino === 'todos' || remetente === 'todos';
-      }
-
-      // Se por algum motivo o ID logado demorar a carregar, exibe todas as mensagens do contato
-      if (!currentUserId) {
-        return remetente === ativoId || destino === ativoId;
-      }
-
-      const enviadaPorMim = (remetente === currentUserId && destino === ativoId);
-      const recebidaDoContato = (remetente === ativoId && (destino === currentUserId || destino === 'todos'));
-
-      return enviadaPorMim || recebidaDoContato;
+  // Soma pendências para dar ao operador uma leitura rápida antes de abrir uma conversa.
+  const totalNaoLidas = useMemo(() => Object.values(naoLidasPorContato || {}) .reduce((total, quantidade) => total + (Number(quantidade) || 0), 0), [naoLidasPorContato]);
+  const ultimaMensagemPorContato = useMemo(() => {
+    const latest = {};
+    historicoChat.forEach((message) => {
+      const senderId = String(message.remetenteId || '');
+      const destinationId = String(message.destinoId || '');
+      const contactId = senderId === currentUserId ? destinationId : senderId;
+      if (!contactId || contactId === 'todos') return;
+      const current = latest[contactId];
+      if (!current || new Date(message.data).getTime() >= new Date(current.data).getTime()) latest[contactId] = message;
     });
-
-    if (searchChat.trim()) {
-      list = list.filter(m => String(m.texto || '').toLowerCase().includes(searchChat.toLowerCase()));
-    }
-    return list;
-  }, [historicoChat, contatoAtivo, searchChat, currentUserId]);
-
-  useEffect(() => {
-    if (!showSearchChat && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [mensagensExibidas.length, isTyping, showSearchChat]);
-
+    return latest;
+  }, [historicoChat, currentUserId]);
   /**
    * Processa a interacao de handle scroll e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     setShowScrollBottom((scrollHeight - scrollTop - clientHeight) > 150);
   };
 
+
   /**
    * Concentra a logica de scroll to bottom para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Clique de Seleção no Contato
+  /**
+   * Clique de Seleção no Contato
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} contato - Valor de contato consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const handleSelecionarContato = (contato) => {
     if (!contato) return;
 
@@ -379,8 +541,22 @@ export default function Chat({
     carregarHistorico();
   };
 
+
   /**
    * Processa a interacao de fechar chat e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const fecharChat = (e) => {
     e?.stopPropagation();
@@ -391,8 +567,21 @@ export default function Chat({
     setShowAgentModal(false);
   };
 
+
   /**
    * Concentra a logica de disparar mensagem para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; troca eventos em tempo real
+   *
+   * @param {unknown} textoFinal - Valor de texto final consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const dispararMensagem = (textoFinal) => {
     if (!textoFinal.trim() || !contatoAtivo) return;
@@ -423,8 +612,21 @@ export default function Chat({
     }
   };
 
+
   /**
    * Envia enviar mensagem texto para o canal ou provedor configurado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const enviarMensagemTexto = (e) => {
     e?.preventDefault();
@@ -437,8 +639,21 @@ export default function Chat({
     setIsConfidential(false);
   };
 
+
   /**
    * Concentra a logica de process file para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} file - Valor de file consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const processFile = (file) => {
     if (!file) return;
@@ -450,16 +665,42 @@ export default function Chat({
     setShowAttachMenu(false);
   };
 
+
   /**
    * Processa a interacao de handle file change e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleFileChange = (e) => {
     processFile(e.target.files[0]);
     e.target.value = '';
   };
 
+
   /**
    * Processa a interacao de handle drag over e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -468,16 +709,42 @@ export default function Chat({
     }
   };
 
+
   /**
    * Processa a interacao de handle drag leave e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
+
   /**
    * Processa a interacao de handle drop e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleDrop = (e) => {
     e.preventDefault();
@@ -486,16 +753,42 @@ export default function Chat({
     processFile(e.dataTransfer.files[0]);
   };
 
+
   /**
    * Envia enviar localizacao para o canal ou provedor configurado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const enviarLocalizacao = () => {
     dispararMensagem(`[LOCATION] -23.5505, -46.6333`);
     setShowAttachMenu(false);
   };
 
+
   /**
    * Concentra a logica de iniciar gravacao para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const iniciarGravacao = async () => {
     try {
@@ -532,8 +825,20 @@ export default function Chat({
     }
   };
 
+
   /**
    * Concentra a logica de parar eenviar gravacao para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const pararEEnviarGravacao = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -543,8 +848,20 @@ export default function Chat({
     clearInterval(recordIntervalRef.current);
   };
 
+
   /**
    * Verifica a condicao cancelar gravacao e retorna um valor booleano.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {boolean} Indica se a condição avaliada foi atendida.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const cancelarGravacao = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -555,8 +872,20 @@ export default function Chat({
     clearInterval(recordIntervalRef.current);
   };
 
+
   /**
    * Concentra a logica de iniciar chamada para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const iniciarChamada = () => {
     setActiveCall({ status: 'calling', time: 0 });
@@ -568,8 +897,20 @@ export default function Chat({
     }, 2500);
   };
 
+
   /**
    * Concentra a logica de encerrar chamada para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const encerrarChamada = () => {
     clearInterval(callIntervalRef.current);
@@ -577,35 +918,88 @@ export default function Chat({
     setActiveCall(null);
   };
 
+
   /**
    * Concentra a logica de apagar mensagem local para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} idParaApagar - Valor de id para apagar consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const apagarMensagemLocal = (idParaApagar) => {
     setHistoricoChat(prev => (prev || []).filter(m => String(m.id) !== String(idParaApagar)));
   };
 
+
   /**
    * Concentra a logica de encaminhar para whats app para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @param {unknown} texto - Valor de texto consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const encaminharParaWhatsApp = (texto) => {
     const textoFormatado = encodeURIComponent(`*Alerta Tático TermoSync:*\n\n${String(texto || '').replace(/\[.*?\]\s*/, '')}`);
     window.open(`https://wa.me/?text=${textoFormatado}`, '_blank');
   };
 
+
   /**
    * Concentra a logica de transcrever audio para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {string|number} msgId - Identificador do registro ou recurso processado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const transcreverAudio = (msgId) => {
-    setTranscribingIds(prev => ({ ...prev, [msgId]: 'loading' }));
-    setTimeout(() => {
-      const frasesMock = ["A máquina 04 está a vazar água pela frente.", "Preciso de ajuda urgente no setor das carnes.", "Reiniciei o disjuntor mas o alarme não parou.", "Tudo ok na matriz, ronda finalizada."];
-      const textoTranscrito = frasesMock[Math.floor(Math.random() * frasesMock.length)];
-      setTranscribingIds(prev => ({ ...prev, [msgId]: textoTranscrito }));
-    }, 2000);
+    setTranscribingIds((current) => ({
+      ...current,
+      [msgId]: 'Transcrição indisponível: nenhum serviço de reconhecimento de voz está configurado.'
+    }));
   };
+
 
   /**
    * Concentra a logica de render bubble text para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} msg - Valor de msg consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const renderBubbleText = (msg) => {
     try {
@@ -618,14 +1012,28 @@ export default function Chat({
         textoBruto = textoBruto.replace('[CONFIDENCIAL] ', '');
       }
 
+
       /**
        * Concentra a logica de wrap confidential para manter o restante do tela mais legivel.
+       *
+       * Responsabilidade: mantém este comportamento isolado para que validação,
+       * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+       *
+       * Fluxo principal:
+       * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+       * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+       *
+       * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+       *
+       * @param {unknown} content - Valor de content consumido por esta rotina.
+       * @returns {unknown} Resultado calculado para consumo do chamador.
+       * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
        */
       const wrapConfidential = (content) => {
         if (!isConfidentialMsg) return content;
         return (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.65rem', fontWeight: '900', color: 'var(--chat-warning)', borderBottom: '1px solid rgba(245, 158, 11, 0.3)', paddingBottom: '4px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: '900', color: 'var(--chat-warning)', borderBottom: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)', paddingBottom: '4px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Lock size={10} /> PROTEGIDO: AUDITORIA RESTRITA
             </span>
             {content}
@@ -635,7 +1043,7 @@ export default function Chat({
 
       if (textoBruto.startsWith('[CALL_END]')) {
         return wrapConfidential(
-          <div className="system-msg-bubble" style={{background: 'rgba(56, 189, 248, 0.1)', color: 'var(--chat-secondary)', borderColor: 'rgba(56, 189, 248, 0.3)'}}>
+          <div className="system-msg-bubble" style={{background: 'color-mix(in srgb, var(--info) 10%, transparent)', color: 'var(--chat-secondary)', borderColor: 'color-mix(in srgb, var(--info) 30%, transparent)'}}>
             <PhoneOff size={16} /> {textoBruto.replace('[CALL_END]', '')}
           </div>
         );
@@ -671,7 +1079,7 @@ export default function Chat({
                </div>
             ) : (
                <button onClick={() => transcreverAudio(msg.id)} style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '12px', cursor: 'pointer', transition: '0.2s' }}>
-                  <BrainCircuit size={12} /> Transcrever (IA)
+                  <BrainCircuit size={12} /> Verificar transcrição
                </button>
             )}
           </div>
@@ -729,7 +1137,94 @@ export default function Chat({
     }
   };
 
-  return (
+    const canalGlobal = {
+      id: 'todos',
+      nome: isDev ? 'NOC Global (Monitoramento Multi-Tenant)' : (isAdminOrDev ? 'Broadcast Corporativo (Empresa)' : 'Central de Suporte (Matriz)'),
+      cargo: isDev ? 'Acesso Root a todas as Redes' : 'Avisos e Comunicados Gerais',
+      isGroup: true
+    };
+
+  const mensagensExibidas = useMemo(() => {
+      if (!contatoAtivo) return [];
+  
+      let list = historicoChat.filter(m => {
+        const remetente = String(m.remetenteId || '');
+        const destino = String(m.destinoId || '');
+        const ativoId = String(contatoAtivo.id || '');
+  
+        if (ativoId === 'todos') {
+          return destino === 'todos' || remetente === 'todos';
+        }
+  
+        // Se por algum motivo o ID logado demorar a carregar, exibe todas as mensagens do contato
+        if (!currentUserId) {
+          return remetente === ativoId || destino === ativoId;
+        }
+           /**
+            * Concentra a logica de enviada por mim para manter o restante do tela mais legivel.
+            *
+            * Responsabilidade: mantém este comportamento isolado para que validação,
+            * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+            *
+            * Fluxo principal:
+            * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+            *
+            * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+            *
+            * @param {unknown} remetente - Valor de remetente consumido por esta rotina.
+            * @param {unknown} contatoAtivo - Valor de contato ativo consumido por esta rotina.
+            * @param {unknown} searchChat - Valor de search chat consumido por esta rotina.
+            * @returns {unknown} Resultado calculado para consumo do chamador.
+            * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+            */
+  
+        /**
+         * Concentra a logica de enviada por mim para manter o restante do tela mais legivel.
+         *
+         * Responsabilidade: mantém este comportamento isolado para que validação,
+         * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+         *
+         * Fluxo principal:
+         * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+         *
+         * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+         *
+         * @param {unknown} remetente - Valor de remetente consumido por esta rotina.
+         * @param {unknown} contatoAtivo - Valor de contato ativo consumido por esta rotina.
+         * @param {unknown} searchChat - Valor de search chat consumido por esta rotina.
+         * @returns {unknown} Resultado calculado para consumo do chamador.
+         * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+         */
+        const enviadaPorMim = (remetente === currentUserId && destino === ativoId);
+        /**
+         * Concentra a logica de recebida do contato para manter o restante do tela mais legivel.
+         *
+         * Responsabilidade: mantém este comportamento isolado para que validação,
+         * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+         *
+         * Fluxo principal:
+         * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+         *
+         * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+         *
+         * @param {unknown} remetente - Valor de remetente consumido por esta rotina.
+         * @param {unknown} contatoAtivo - Valor de contato ativo consumido por esta rotina.
+         * @param {unknown} searchChat - Valor de search chat consumido por esta rotina.
+         * @returns {unknown} Resultado calculado para consumo do chamador.
+         * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+         */
+        const recebidaDoContato = (remetente === ativoId && (destino === currentUserId || destino === 'todos'));
+  
+        return enviadaPorMim || recebidaDoContato;
+      });
+  
+      if (searchChat.trim()) {
+        list = list.filter(m => String(m.texto || '').toLowerCase().includes(searchChat.toLowerCase()));
+      }
+      return list;
+    }, [historicoChat, contatoAtivo, searchChat, currentUserId]);
+
+return (
     <div className={`chat-page-container ${contatoAtivo ? 'has-active-chat' : ''}`} onClick={() => { setShowCommands(false); setShowAttachMenu(false); setShowEncryptionInfo(false); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
 
       {isDragging && contatoAtivo && !(contatoAtivo.isGroup && !isAdminOrDev) && (
@@ -754,6 +1249,10 @@ export default function Chat({
       )}
 
       <div className="chat-sidebar">
+        <div className="chat-sidebar-summary">
+          <div><span>Comunicação operacional</span><strong>{contatosFiltrados.length} contatos disponíveis</strong></div>
+          {totalNaoLidas > 0 && <span className="chat-pending-count">{totalNaoLidas} não lida(s)</span>}
+        </div>
         <div className="chat-search-header">
           <div className="chat-search-box">
             <Search size={18} color="var(--chat-muted)" />
@@ -772,7 +1271,7 @@ export default function Chat({
             </div>
           )}
 
-          <div className="contacts-divider">Rede de Operadores {isDev && <span style={{marginLeft: 'auto', color: 'var(--chat-danger)', fontSize: '0.6rem'}}>*GOD MODE*</span>}</div>
+          <div className="contacts-divider">Equipe e suporte {isDev && <span style={{marginLeft: 'auto', color: 'var(--chat-danger)', fontSize: '0.6rem'}}>VISÃO GLOBAL</span>}</div>
 
           {contatosFiltrados.length === 0 ? (
             <EmptyState title="Nenhum agente localizado" description={!isDev ? 'O seu acesso está restrito à rede da sua empresa.' : 'Nenhum agente corresponde à pesquisa.'} icon={User} />
@@ -780,6 +1279,11 @@ export default function Chat({
             contatosFiltrados.map(contato => {
               const qtdNaoLidas = naoLidasPorContato?.[contato.id] || 0;
               const isActive = contatoAtivo?.id === contato.id;
+              const ultimaMensagem = ultimaMensagemPorContato[String(contato.id)];
+              const previa = String(ultimaMensagem?.texto || '')
+                .replace(/\[(AUDIO|LOCATION|CONFIDENCIAL)\]/g, '')
+                .replace(/\[FILE:.*?\]/g, 'Anexo: ')
+                .trim();
               return (
                 <div key={contato.id} className={`chat-contact-item ${isActive ? 'active' : ''} ${qtdNaoLidas > 0 && !isActive ? 'has-unread' : ''}`} onClick={() => handleSelecionarContato(contato)}>
                   <div className="contact-avatar-wrapper">
@@ -788,10 +1292,8 @@ export default function Chat({
                   </div>
                   <div className="contact-info">
                     <span className="contact-name">{contato.nome}</span>
-                    <span className="contact-role">
-                      {contato.cargo} {getSecurityClearance(contato.role)}
-                      {isDev && contato.empresa && <span className="tenant-badge" title={`Empresa: ${contato.empresa}`}>{contato.empresa}</span>}
-                    </span>
+                    <span className="contact-role">{previa || `${contato.cargo || 'Colaborador'} ${getSecurityClearance(contato.role)}`}</span>
+                    {isDev && contato.empresa && <span className="tenant-badge" title={`Empresa: ${contato.empresa}`}>{contato.empresa}</span>}
                   </div>
                   {qtdNaoLidas > 0 && !isActive && <div className="contact-unread-badge">{qtdNaoLidas > 9 ? '9+' : qtdNaoLidas}</div>}
                 </div>
@@ -815,7 +1317,7 @@ export default function Chat({
                 <div className="chat-active-user" onClick={() => !contatoAtivo.isGroup && setShowAgentModal(true)} style={{cursor: contatoAtivo.isGroup ? 'default' : 'pointer'}}>
                   <button className="chat-header-btn mobile-back-btn" onClick={fecharChat}><ArrowLeft size={20} /></button>
                   <div className="contact-avatar-wrapper"><div className={`contact-avatar ${contatoAtivo.isGroup ? 'global-avatar' : ''}`} style={{ width: '42px', height: '42px', fontSize: '1.1rem' }}>{contatoAtivo.isGroup ? <Globe size={20}/> : (contatoAtivo.nome ? contatoAtivo.nome.charAt(0).toUpperCase() : '?')}</div></div>
-                  <div className="chat-user-header-details"><h3>{contatoAtivo?.nome || 'Agente'}</h3>{isTyping && !contatoAtivo.isGroup ? <span className="chat-status-typing">Criptografando pacote...</span> : <span className="chat-status-online"><span className="chat-status-dot"></span> {contatoAtivo.isGroup ? 'Rede Unificada' : 'Conexão Segura Estabelecida'}</span>}</div>
+                  <div className="chat-user-header-details"><h3>{contatoAtivo?.nome || 'Contato'}</h3>{isTyping && !contatoAtivo.isGroup ? <span className="chat-status-typing">Digitando...</span> : <span className="chat-status-online"><span className="chat-status-dot"></span> {contatoAtivo.isGroup ? 'Canal corporativo' : 'Disponível para comunicação'}</span>}</div>
                 </div>
               )}
 
@@ -837,7 +1339,7 @@ export default function Chat({
             </div>
 
             {pinnedMessage && (
-              <div className="pinned-message-banner" style={{ background: 'rgba(56, 189, 248, 0.1)', borderBottom: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px 15px', display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'white', cursor: 'pointer' }}>
+              <div className="pinned-message-banner" style={{ background: 'color-mix(in srgb, var(--info) 10%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--info) 30%, transparent)', padding: '10px 15px', display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'white', cursor: 'pointer' }}>
                  <Pin size={16} color="var(--chat-secondary)" style={{ marginTop: '2px', flexShrink: 0 }} />
                  <div style={{ flex: 1, overflow: 'hidden' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--chat-secondary)', fontWeight: 'bold', marginBottom: '2px' }}>Aviso Fixado por {pinnedMessage.remetenteNome || 'Agente'}</div>

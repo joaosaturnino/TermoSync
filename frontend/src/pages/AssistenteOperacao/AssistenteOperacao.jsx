@@ -1,285 +1,234 @@
+/**
+ * Módulo: frontend/src/pages/AssistenteOperacao/AssistenteOperacao.jsx
+ * Responsabilidade: Implementa a tela Assistente Operacao, seus estados, interações e integrações de dados.
+ */
+
+import { useEffect, useState } from 'react';
+import { AlertTriangle, BellRing, BookOpen, CalendarDays, Gauge, Thermometer } from 'lucide-react';
 import React, { useMemo } from 'react';
 import {
   ClipboardCheck, CheckCircle2, MessageSquare,
   ShieldCheck, Sparkles, Wrench, ShieldAlert, ThermometerSnowflake,
-  Cpu, Activity, ArrowRight, Zap, Target, Lock
+  ArrowRight, Lock
 } from 'lucide-react';
 import './AssistenteOperacao.css';
 
 /**
- * Assistente de Operação (Copiloto Tático)
+ * Normaliza normalize para evitar divergencia de formato nas comparacoes.
  *
- * Responsabilidades:
- * - Agregar sinais de telemetria, chamados e alertas para gerar recomendações
- * - Expor ações rápidas e checklists orientados por I.A. para operadores
- * - Respeitar RBAC ao habilitar navegações e comandos
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
  *
- * Props: `equipamentosDaFilial`, `notificacoesDaFilial`, `chamados`, `userRole`, `filialAtiva`, `onNavigate`, `showToast`
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const normalize = (value) => String(value || '').trim().toLowerCase();
+
+/**
+ * Verifica a condicao has value e retorna um valor booleano.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const hasValue = (value) => value !== null && value !== undefined && value !== '';
+
+/**
+ * Formata uma data operacional, mantendo uma saída útil para bases antigas.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const formatWhen = (value) => {
+  if (!value) return 'Agora';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Agora' : date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+/**
+ * Converte telemetria, alertas e chamados em uma fila objetiva de trabalho para o turno,
+ * sempre respeitando o papel e o contexto de filial do usuário.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.equipamentosDaFilial - Propriedade equipamentosDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.notificacoesDaFilial - Propriedade notificacoesDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.chamados - Propriedade chamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @param {Function} props.onNavigate - Callback onNavigate fornecido pelo componente responsável.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function AssistenteOperacao({
-  equipamentosDaFilial = [],
-  notificacoesDaFilial = [],
-  chamados = [],
-  userRole = 'LOJA',
-  filialAtiva = 'Todas',
-  onNavigate, // Recebe a função de navegação do App.jsx
-  showToast   // Recebe a função de notificações para avisos de segurança
+  equipamentosDaFilial = [], notificacoesDaFilial = [], chamados = [],
+  userRole = 'LOJA', filialAtiva = 'Todas', onNavigate, showToast
 }) {
-  
-  // Função auxiliar de Segurança RBAC
-  const hasPermission = (allowedRoles) => allowedRoles.includes(userRole);
+  const readinessKey = `termosync:shift-readiness:${new Date().toISOString().slice(0, 10)}:${filialAtiva}`;
+  const [completedChecks, setCompletedChecks] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(readinessKey) || '[]')); }
+    catch { return new Set(); }
+  });
 
-  // 1. Processamento de Dados Matemático
-  const { equipamentosEmRisco, alertasCriticos, chamadosPendentes, healthScore } = useMemo(() => {
-    const equipRisco = equipamentosDaFilial.filter((eq) => eq.em_degelo || !eq.motor_ligado || !eq.ultima_temp || !eq.ultima_umidade).length;
-    const criticos = notificacoesDaFilial.filter((n) => ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'].includes(n.tipo_alerta)).length;
-    const pendentes = chamados.filter((c) => !['Concluído', 'Fechado'].includes(c.status)).length;
-
-    // Cálculo do Health Score (Índice Base = 100)
-    let score = 100 - (criticos * 15) - (equipRisco * 5) - (pendentes * 3);
-    if (score < 0) score = 0;
-
-    return { equipamentosEmRisco: equipRisco, alertasCriticos: criticos, chamadosPendentes: pendentes, healthScore: score };
-  }, [equipamentosDaFilial, notificacoesDaFilial, chamados]);
-
-  const scoreColor = healthScore >= 90 ? '#10b981' : healthScore >= 70 ? '#f59e0b' : '#ef4444';
-
-  // 2. Diagnóstico Atual (Cards de Ação)
-  const checklist = useMemo(() => {
-    return [
-      {
-        title: 'Estabilidade dos Ativos',
-        description: equipamentosEmRisco > 0 ? `${equipamentosEmRisco} equipamentos fora do ciclo ideal térmico.` : 'Todos os ativos em operação normalizada.',
-        status: equipamentosEmRisco > 0 ? 'Atenção' : 'Estável',
-        icon: Activity,
-        tone: equipamentosEmRisco > 0 ? 'warning' : 'success',
-        color: equipamentosEmRisco > 0 ? '#f59e0b' : '#10b981',
-        actionLabel: 'Ver Mapa Térmico',
-        actionTarget: 'motores',
-        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
-      },
-      {
-        title: 'Radar de Ocorrências',
-        description: alertasCriticos > 0 ? `${alertasCriticos} alertas críticos exigem intervenção manual.` : 'Radar NOC limpo. Sem anomalias críticas.',
-        status: alertasCriticos > 0 ? 'Crítico' : 'Limpo',
-        icon: ShieldCheck,
-        tone: alertasCriticos > 0 ? 'danger' : 'success',
-        color: alertasCriticos > 0 ? '#ef4444' : '#10b981',
-        actionLabel: 'Abrir Painel NOC',
-        actionTarget: 'dashboard',
-        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
-      },
-      {
-        title: 'Ordens de Serviço (OS)',
-        description: chamadosPendentes > 0 ? `${chamadosPendentes} ordens ativas no fluxo ITSM da manutenção.` : 'Backlog técnico de manutenção zerado.',
-        status: chamadosPendentes > 0 ? 'Backlog' : 'Resolvido',
-        icon: Wrench,
-        tone: chamadosPendentes > 0 ? 'warning' : 'success',
-        color: chamadosPendentes > 0 ? '#f59e0b' : '#10b981',
-        actionLabel: 'Acessar Kanban',
-        actionTarget: 'kanban',
-        roles: ['ADMIN', 'MANUTENCAO', 'DEV'] // Loja comum não acessa kanban
-      }
-    ];
-  }, [equipamentosEmRisco, alertasCriticos, chamadosPendentes]);
-
-  // 3. Motor de Recomendação Dinâmica (I.A. Copilot)
-  const aiRecommendation = useMemo(() => {
-    if (alertasCriticos > 0) {
-      return {
-        title: "Risco de Quebra Térmica Iminente",
-        text: `O radar identificou ${alertasCriticos} alertas críticos. A ação mandatória do turno é normalizar estes ativos imediatamente para evitar a quebra térmica da mercadoria e perda financeira.`,
-        icon: ShieldAlert,
-        color: '#ef4444',
-        border: 'rgba(239, 68, 68, 0.5)',
-        btnLabel: 'RESOLVER ANOMALIAS AGORA',
-        btnTarget: 'dashboard',
-        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
-      };
-    } else if (equipamentosEmRisco > 0) {
-      return {
-        title: "Acompanhamento de Ciclos (Preventiva)",
-        text: `O sistema não regista falhas, mas ${equipamentosEmRisco} ativos encontram-se em ciclo de degelo ou com os motores parados. Mantenha vigilância até que retornem ao setpoint térmico.`,
-        icon: ThermometerSnowflake,
-        color: '#f59e0b',
-        border: 'rgba(245, 158, 11, 0.5)',
-        btnLabel: 'ACOMPANHAR SENSORES IOT',
-        btnTarget: 'motores',
-        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
-      };
-    } else if (chamadosPendentes > 0) {
-      return {
-        title: "Otimização de Backlog Técnico",
-        text: `A operação frigorífica está 100% estabilizada. Utilize a janela de oportunidade deste turno para auxiliar a equipe técnica a encerrar as ${chamadosPendentes} ordens de serviço pendentes.`,
-        icon: Wrench,
-        color: '#38bdf8',
-        border: 'rgba(56, 189, 248, 0.5)',
-        btnLabel: 'GERENCIAR ORDENS (ITSM)',
-        btnTarget: 'kanban',
-        roles: ['ADMIN', 'MANUTENCAO', 'DEV']
-      };
-    } else {
-      return {
-        title: "Operação Trabalhando em Excelência",
-        text: "Todos os indicadores estão perfeitamente calibrados e em conformidade com as diretrizes da engenharia. Inicie o checklist diário de rotina e as rondas físicas.",
-        icon: CheckCircle2,
-        color: '#10b981',
-        border: 'rgba(16, 185, 129, 0.5)',
-        btnLabel: 'INICIAR PLANO DO DIA',
-        btnTarget: 'plano_dia',
-        roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV']
-      };
-    }
-  }, [alertasCriticos, equipamentosEmRisco, chamadosPendentes]);
-
-  const orientacoesSOP = [
-    {
-      title: 'Auditoria Visual Contínua (Rondas)',
-      text: 'A telemetria não substitui a supervisão humana. Confirme fisicamente o estado das portas, cortinas noturnas e gelo excessivo nos evaporadores.',
-      icon: Target
-    },
-    {
-      title: 'Registro Oficial de Ocorrências',
-      text: 'Utilize o Chat Operacional da plataforma para registrar anomalias elétricas ou de hardware. O histórico auditável protege a operação de loja.',
-      icon: MessageSquare
-    },
-    {
-      title: 'Disciplina & Execução de Metas',
-      text: 'Complete integralmente o Plano do Dia e o Checklist de Turno do sistema. Estes dados provam a conformidade operacional da filial perante a matriz.',
-      icon: ClipboardCheck
-    }
+  useEffect(() => {
+    localStorage.setItem(readinessKey, JSON.stringify([...completedChecks]));
+  }, [completedChecks, readinessKey]);
+  const criticalAlerts = useMemo(() => notificacoesDaFilial.filter((item) => ['CRITICA', 'CRÍTICA', 'TEMPERATURA_CRITICA', 'FALHA'].includes(String(item.tipo_alerta || item.severidade || '').toUpperCase())), [notificacoesDaFilial]);
+  const riskyEquipment = useMemo(() => equipamentosDaFilial.filter((item) => item.em_degelo || item.motor_ligado || !hasValue(item.ultima_temp)), [equipamentosDaFilial]);
+  const scopedTickets = useMemo(() => chamados.filter((item) => !['concluído', 'concluido', 'fechado', 'cancelado'].includes(normalize(item.status))).filter((item) => filialAtiva === 'Todas' || normalize(item.filial) === normalize(filialAtiva)), [chamados, filialAtiva]);
+  const priorityQueue = useMemo(() => [
+    ...criticalAlerts.map((item) => ({ id: `alert-${item.id}`, priority: 1, icon: ShieldAlert, title: item.equipamento_nome || 'Alerta crítico', description: item.mensagem || item.tipo_alerta, source: 'Alerta', location: item.setor || item.filial || 'Operação', time: item.data_hora, route: 'motores' })),
+    ...riskyEquipment.map((item) => ({ id: `equipment-${item.id}`, priority: 2, icon: ThermometerSnowflake, title: item.nome, description: 'Ativo requer conferência operacional.', source: 'Telemetria', location: item.setor || item.filial || 'Operação', time: item.ultima_comunicacao, route: 'motores' })),
+    ...scopedTickets.map((item) => ({ id: `ticket-${item.id}`, priority: 3, icon: Wrench, title: item.titulo || `Chamado #${item.id}`, description: item.descricao || 'Atendimento em aberto.', source: 'Chamado', location: item.setor || item.filial || 'Operação', time: item.data_abertura, route: 'chamados' }))
+  ].sort((a, b) => a.priority - b.priority).slice(0, 8), [criticalAlerts, riskyEquipment, scopedTickets]);
+  const healthScore = Math.max(0, 100 - criticalAlerts.length * 18 - riskyEquipment.length * 6 - scopedTickets.length * 3);
+  const healthTone = healthScore >= 90 ? 'healthy' : healthScore >= 70 ? 'attention' : 'critical';
+  const shiftChecks = [
+    { id: 'alerts', label: 'Revisar alertas ativos', detail: `${criticalAlerts.length} ocorrência(s) crítica(s)`, route: 'motores' },
+    { id: 'equipment', label: 'Conferir ativos em atenção', detail: `${riskyEquipment.length} ativo(s)`, route: 'motores' },
+    { id: 'tickets', label: 'Atualizar chamados do turno', detail: `${scopedTickets.length} chamado(s)`, route: 'chamados' }
   ];
-
-  // Disparador de Rota Tática Segura
-  const handleNav = (targetId, requiredRoles) => {
-    if (!hasPermission(requiredRoles)) {
-      if (showToast) showToast('Acesso negado pelas diretrizes de segurança (RBAC).', 'error');
+  const recommendation = priorityQueue.length ? { icon: priorityQueue[0].icon, tone: healthTone, title: priorityQueue[0].title, text: priorityQueue[0].description, route: priorityQueue[0].route, action: 'Abrir prioridade' } : { icon: CheckCircle2, tone: 'healthy', title: 'Operação sob controle', text: 'Não há ocorrências prioritárias neste contexto.', route: 'dashboard', action: 'Voltar ao painel' };
+  /**
+   * Concentra a logica de navigate para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} route - Valor de route consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const navigate = (route) => {
+    const roleRules = {
+      hardware: ['DEV'],
+      kanban: ['ADMIN', 'MANUTENCAO', 'DEV'],
+      metrologia: ['ADMIN', 'MANUTENCAO', 'DEV']
+    };
+    if (roleRules[route] && !roleRules[route].includes(userRole)) {
+      showToast?.('Seu perfil não possui acesso a este módulo.', 'warning');
       return;
     }
-    if (onNavigate) {
-      onNavigate(targetId);
-    }
+    onNavigate?.(route);
   };
 
+  /**
+   * Alterna uma confirmação do checklist sem alterar dados operacionais.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const toggleCheck = (id) => setCompletedChecks((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const RecommendationIcon = recommendation.icon;
+  const completion = Math.round((completedChecks.size / shiftChecks.length) * 100);
+
   return (
-    <div className="assistente-operacao anim-fade-in">
-      
-      <section className="hero-assistente">
-        <div>
-          <div className="hero-badge-assistente">
-            <Sparkles size={14} /> Motor de Inferência TermoSync
-          </div>
-          <h3>Copiloto de Decisão Tática</h3>
-          <p>
-            Análise computacional em tempo real baseada na rede de telemetria da unidade. Siga as recomendações de ação direta geradas pela I.A. para garantir a conformidade física.
-          </p>
-        </div>
-        <div className="hero-summary">
-          <span>{filialAtiva === 'Todas' ? 'Visão: Matriz Global' : `Visão Local: ${filialAtiva}`}</span>
-          <span className="ia-badge-pulse" style={{ paddingLeft: '20px' }}>
-            <Cpu size={14} color="#38bdf8"/> I.A. Analítica Ativa
-          </span>
-          <span><ShieldCheck size={14} color={scoreColor}/> Health Score: {healthScore}%</span>
-        </div>
+    <div className="ops-assistant">
+      <header className="ops-assistant-header">
+        <div className="ops-heading"><span><Sparkles size={22} /></span><div><small>Inteligência operacional</small><h2>Assistente de Operações</h2><p>Prioridades, riscos e próximos passos calculados para o contexto atual.</p></div></div>
+        <div className="ops-context"><span>{filialAtiva === 'Todas' ? 'Rede completa' : filialAtiva}</span><strong className={healthTone}><ShieldCheck size={15} /> Saúde {healthScore}%</strong></div>
+      </header>
+
+      <section className="ops-metrics" aria-label="Resumo operacional">
+        <article className={criticalAlerts.length ? 'critical' : 'healthy'}><span><BellRing size={16} /> Alertas críticos</span><strong>{criticalAlerts.length}</strong><small>{criticalAlerts.length ? 'Exigem triagem imediata' : 'Nenhuma anomalia crítica'}</small></article>
+        <article className={riskyEquipment.length ? 'attention' : 'healthy'}><span><Thermometer size={16} /> Ativos em atenção</span><strong>{riskyEquipment.length}</strong><small>Degelo, motor ou leitura incompleta</small></article>
+        <article className={scopedTickets.length ? 'info' : 'healthy'}><span><Wrench size={16} /> OS em aberto</span><strong>{scopedTickets.length}</strong><small>No contexto de filial selecionado</small></article>
+        <article className={healthTone}><span><Gauge size={16} /> Índice operacional</span><strong>{healthScore}%</strong><small>{healthScore >= 90 ? 'Operação controlada' : healthScore >= 70 ? 'Acompanhamento necessário' : 'Intervenção prioritária'}</small></article>
       </section>
 
-      <section className="checklist-grid">
-        {checklist.map((item) => {
-          const isAllowed = hasPermission(item.roles);
-          const Icon = item.icon;
-          
-          return (
-            <article key={item.title} className={`check-item-card ${item.tone}`}>
-              <div className="check-item-head">
-                <div className="check-icon-assistente">
-                  <Icon size={20} color={item.color}/>
-                </div>
-                <span>{item.status}</span>
-              </div>
-              <h4>{item.title}</h4>
-              <p>{item.description}</p>
-              
-              <button 
-                className={`btn-assist-action ${!isAllowed ? 'locked' : ''}`} 
-                onClick={() => handleNav(item.actionTarget, item.roles)}
-                disabled={!isAllowed}
-              >
-                {isAllowed ? item.actionLabel : 'Acesso Restrito'}
-                {isAllowed ? <ArrowRight size={14} /> : <Lock size={14} />}
-              </button>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="content-assistente-grid">
-        
-        {/* Recomendação Dinâmica Tática da I.A. */}
-        <article className="section-card-assistente" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
-          <div className="next-step-card" style={{ borderColor: aiRecommendation.border }}>
-            <div className="ai-header">
-              <div className="ai-icon-wrapper" style={{ background: `color-mix(in srgb, ${aiRecommendation.color} 20%, transparent)` }}>
-                <aiRecommendation.icon size={28} color={aiRecommendation.color} />
-              </div>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Comando Recomendado (I.A.)</span>
-                <strong style={{ color: aiRecommendation.color, fontSize: '1.4rem', display: 'block', marginTop: '2px' }}>{aiRecommendation.title}</strong>
-              </div>
-            </div>
-            
-            <div className="ai-content" style={{ marginTop: '1rem' }}>
-              <p>{aiRecommendation.text}</p>
-            </div>
-
-            <div className="ai-action-footer">
-              <button 
-                className={`btn-ai-execute ${!hasPermission(aiRecommendation.roles) ? 'locked' : ''}`} 
-                onClick={() => handleNav(aiRecommendation.btnTarget, aiRecommendation.roles)}
-                disabled={!hasPermission(aiRecommendation.roles)}
-                style={{ background: hasPermission(aiRecommendation.roles) ? aiRecommendation.color : 'rgba(0,0,0,0.4)', color: (aiRecommendation.color === '#10b981' || aiRecommendation.color === '#f59e0b' || aiRecommendation.color === '#38bdf8') && hasPermission(aiRecommendation.roles) ? '#020617' : 'white' }}
-              >
-                {hasPermission(aiRecommendation.roles) ? <Zap size={18} fill="currentColor" /> : <Lock size={18} />}
-                {hasPermission(aiRecommendation.roles) ? aiRecommendation.btnLabel : 'DIRETIVA REJEITADA (SEM ACESSO)'}
-              </button>
-            </div>
-
-            <div className="health-score-container">
-              <div className="health-score-header">
-                <span>Índice de Saúde Operacional da Filial</span>
-                <span style={{ color: scoreColor }}>{healthScore}%</span>
-              </div>
-              <div className="health-bar-bg">
-                <div className="health-bar-fill" style={{ width: `${healthScore}%`, background: scoreColor, boxShadow: `0 0 15px ${scoreColor}` }} />
-              </div>
-            </div>
-          </div>
-        </article>
-
-        {/* Standard Operating Procedures (SOPs) */}
-        <article className="section-card-assistente">
-          <div className="section-header-assistente">
-            <h4>Protocolos Standard (SOP)</h4>
-            <p>Procedimentos físicos exigidos pela Governança Corporativa.</p>
-          </div>
-          <div className="orientacoes-list">
-            {orientacoesSOP.map((item) => {
+      <div className="ops-primary-grid">
+        <section className="ops-priority-panel">
+          <div className="ops-panel-title"><div><AlertTriangle size={17} /><span>Fila priorizada</span></div><small>{priorityQueue.length} item(ns)</small></div>
+          <div className="ops-priority-list">
+            {priorityQueue.map((item, index) => {
               const Icon = item.icon;
-              return (
-                <div key={item.title} className="orientacao-item">
-                  <div className="orientacao-icon">
-                    <Icon size={20} />
-                  </div>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.text}</p>
-                  </div>
-                </div>
-              );
+              return <button type="button" key={item.id} onClick={() => navigate(item.route)}><span className={`priority-rank p${item.priority}`}>{String(index + 1).padStart(2, '0')}</span><span className="priority-icon"><Icon size={17} /></span><span className="priority-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.source} · {item.location} · {formatWhen(item.time)}</em></span><ArrowRight size={16} /></button>;
             })}
+            {priorityQueue.length === 0 && <div className="ops-empty"><CheckCircle2 size={24} /><strong>Fila operacional limpa</strong><span>Nenhuma ação corretiva foi identificada para este contexto.</span></div>}
           </div>
-        </article>
+        </section>
 
-      </section>
+        <section className={`ops-recommendation ${recommendation.tone}`}>
+          <div className="recommendation-label"><RecommendationIcon size={18} /><span>Próxima melhor ação</span></div>
+          <h3>{recommendation.title}</h3><p>{recommendation.text}</p>
+          <div className="ops-health"><div><span>Saúde operacional</span><strong>{healthScore}%</strong></div><div><i style={{ width: `${healthScore}%` }} /></div></div>
+          <button type="button" onClick={() => navigate(recommendation.route)}>{recommendation.action}<ArrowRight size={16} /></button>
+        </section>
+      </div>
+
+      <div className="ops-secondary-grid">
+        <section className="ops-checklist-panel">
+          <div className="ops-panel-title"><div><ClipboardCheck size={17} /><span>Prontidão do turno</span></div><small>{completion}% concluído</small></div>
+          <div className="ops-check-progress"><i style={{ width: `${completion}%` }} /></div>
+          <div className="ops-shift-checks">
+            {shiftChecks.map((item) => <div key={item.id} className={completedChecks.has(item.id) ? 'done' : ''}><button type="button" className="check-control" onClick={() => toggleCheck(item.id)} aria-label={`${completedChecks.has(item.id) ? 'Desmarcar' : 'Concluir'} ${item.label}`}>{completedChecks.has(item.id) ? <CheckCircle2 size={18} /> : <span />}</button><button type="button" className="check-copy" onClick={() => navigate(item.route)}><strong>{item.label}</strong><small>{item.detail}</small></button><ArrowRight size={15} /></div>)}
+          </div>
+        </section>
+
+        <section className="ops-shortcuts-panel">
+          <div className="ops-panel-title"><div><BookOpen size={17} /><span>Recursos do turno</span></div></div>
+          <div className="ops-shortcuts">
+            <button type="button" onClick={() => navigate('central_procedimentos')}><BookOpen size={18} /><span><strong>Procedimentos</strong><small>Guias de resposta e escalonamento</small></span><ArrowRight size={15} /></button>
+            <button type="button" onClick={() => navigate('plano_dia')}><CalendarDays size={18} /><span><strong>Plano do dia</strong><small>Prioridades e metas operacionais</small></span><ArrowRight size={15} /></button>
+            <button type="button" onClick={() => navigate('chat')}><MessageSquare size={18} /><span><strong>Chat operacional</strong><small>Alinhar resposta com a equipe</small></span><ArrowRight size={15} /></button>
+            <button type="button" onClick={() => navigate('chamados')}><Wrench size={18} /><span><strong>Abrir ocorrência</strong><small>Formalizar intervenção técnica</small></span><ArrowRight size={15} /></button>
+          </div>
+          {userRole === 'LOJA' && <div className="ops-rbac-note"><Lock size={14} /><span>Ações administrativas permanecem protegidas pelo seu perfil.</span></div>}
+        </section>
+      </div>
     </div>
   );
 }

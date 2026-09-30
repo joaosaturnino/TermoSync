@@ -12,22 +12,29 @@ A WebView continua carregando a aplicacao React/Vite completa, mantendo as mesma
 - tela de erro nativa para falhas de conexao;
 - area segura para notch, status bar e home indicator.
 
+No celular, somente uma conta com perfil ROOT (`DEV`) ve o formulario compacto de credencial ROOT apos o login, inclusive depois do MFA. As demais contas entram diretamente no dashboard, sem essa verificacao. A tela de boot em formato CMD fica restrita ao desktop.
+
 ## Rodar no Expo Go
 
-1. Inicie a API normalmente, com o backend ouvindo em `0.0.0.0:3000`.
-2. Inicie o frontend web aceitando acesso pela rede local:
+Para iniciar a API, o frontend e o Expo juntos, execute na raiz do projeto:
+
+```bash
+npm run dev:mobile
+```
+
+Como alternativa, os serviços podem ser iniciados separadamente. Primeiro, inicie a API normalmente, com o backend ouvindo em `0.0.0.0:3001`. Depois, inicie o frontend web aceitando acesso pela rede local:
 
 ```bash
 npm run dev --prefix frontend -- --host 0.0.0.0
 ```
 
-3. Inicie o app Expo:
+Por fim, inicie o app Expo:
 
 ```bash
 npm run mobile:start
 ```
 
-4. Escaneie o QR Code no Expo Go.
+Escaneie o QR Code no Expo Go.
 
 Se o Expo Go ainda mostrar uma tela antiga depois de ajustes no app, feche o app no celular e escaneie novamente o QR Code.
 
@@ -35,7 +42,7 @@ No primeiro acesso, confirme as URLs:
 
 ```text
 Web: http://IP-DA-SUA-MAQUINA:5173
-API: http://IP-DA-SUA-MAQUINA:3000
+API: http://IP-DA-SUA-MAQUINA:3001
 ```
 
-Nao use `127.0.0.1` no celular, porque esse endereco aponta para o proprio aparelho. Nesta maquina, a configuracao padrao usa `http://172.16.0.81:5173` para a web e `http://172.16.0.81:3000` para a API.
+Nao use `127.0.0.1` no celular, porque esse endereco aponta para o proprio aparelho. O app detecta o IPv4 anunciado pelo Expo e migra automaticamente configuracoes antigas. Nesta maquina, o fallback atual usa `http://192.168.200.27:5173` para a web e `http://192.168.200.27:3001` para a API.

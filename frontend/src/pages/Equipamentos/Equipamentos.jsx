@@ -1,3 +1,10 @@
+/**
+ * Módulo: frontend/src/pages/Equipamentos/Equipamentos.jsx
+ * Responsabilidade: Implementa a tela Equipamentos, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
+import { Activity, Snowflake } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import {
   PlusCircle, ShieldCheck, AlertTriangle, ClipboardCheck, Edit, X,
@@ -11,12 +18,33 @@ import Loader from '../../components/Loader';
 import EmptyState from '../../components/EmptyState';
 
 /**
- * Inventário de Equipamentos e Metrologia
+ * Renderiza a tela Equipamentos e concentra as regras de apresentacao desse modulo.
  *
- * Responsabilidades:
- * - Gerenciar ativos IoT (criar, editar, excluir)
- * - Aplicar padrões de calibração (ex.: ANVISA) por tipo
- * - Gerar etiquetas QR e relatórios de manutenção
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userFilial - Propriedade userFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filiaisDb - Propriedade filiaisDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.listaSetores - Propriedade listaSetores usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.listaTipos - Propriedade listaTipos usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarDadosBase - Propriedade carregarDadosBase usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.equipamentosFiltradosLista - Propriedade equipamentosFiltradosLista usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.editarEquipamento - Propriedade editarEquipamento usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.pedirExclusao - Propriedade pedirExclusao usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function Equipamentos({ 
   api, showToast, isOffline, userRole, userFilial, filiaisDb, listaSetores, listaTipos, 
@@ -27,11 +55,9 @@ export default function Equipamentos({
   // MOTOR DE SEGURANÇA E ISOLAMENTO DE ACESSO
   // ============================================================================
   const roleLogada = userRole || sessionStorage.getItem('userRole') || 'LOJA';
-  const papelLogado = sessionStorage.getItem('papelLogado') || ''; 
-  const isGestorLoja = papelLogado.toLowerCase().includes('gerente') || papelLogado.toLowerCase().includes('coordenador');
   
-  // Permissão de Edição: ADMIN, DEV, MANUTENCAO, e GESTORES DA LOJA
-  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV' || roleLogada === 'MANUTENCAO' || (roleLogada === 'LOJA' && isGestorLoja);
+  // Cadastros e exclusões de ativos alteram a estrutura da operação e ficam com ADMIN/DEV.
+  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV';
 
   const formInicial = { 
     nome: '', tipo: '', temp_min: '', temp_max: '', 
@@ -43,11 +69,26 @@ export default function Equipamentos({
   const [formEquip, setFormEquip] = useState({ ...formInicial });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [buscaAtivo, setBuscaAtivo] = useState('');
+  const [filtroAtivo, setFiltroAtivo] = usePersistentState('termosync_equipment_status', 'TODOS');
+  const [instanteReferencia] = useState(Date.now);
   
   const [modalHistorico, setModalHistorico] = useState(null);
 
+
   /**
    * Concentra a logica de aplicar norma anvisa para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tipoSelecionado - Valor de tipo selecionado consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const aplicarNormaANVISA = (tipoSelecionado) => {
     if (!tipoSelecionado) return showToast('Selecione um Tipo de Refrigeração na seção acima primeiro.', 'warning');
@@ -67,8 +108,21 @@ export default function Equipamentos({
       tMin = 2; tMax = 8; uMin = 50; uMax = 85; iDeg = 12; dDeg = 30;
     }
 
+
     /**
      * Verifica a condicao has valid val e retorna um valor booleano.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} val - Valor de val consumido por esta rotina.
+     * @returns {boolean} Indica se a condição avaliada foi atendida.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const hasValidVal = (val) => val !== undefined && val !== null && val !== '';
 
@@ -85,8 +139,23 @@ export default function Equipamentos({
     showToast(`Padrão ANVISA/RDC aplicado para: ${tipoSelecionado}`, 'success');
   };
 
+
   /**
    * Concentra a logica de salvar novo equipamento para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const salvarNovoEquipamento = async (e) => {
     e.preventDefault(); 
@@ -103,8 +172,21 @@ export default function Equipamentos({
     } catch (e) { showToast('Ocorreu um erro ao gravar a máquina.', 'error'); }
   };
 
+
   /**
    * Gera gerar etiqueta qr com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} eq - Valor de eq consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarEtiquetaQR = (eq) => {
     showToast(`A gerar Etiqueta Inteligente para ${eq.nome}...`, 'info');
@@ -141,32 +223,39 @@ export default function Equipamentos({
     }
   };
 
+  /** Classifica o estado operacional sem confundir ciclo de degelo com falha do motor. */
+  const ativosAnalisados = useMemo(() => (equipamentosFiltradosLista || []).map((eq) => {
+    const estado = eq.em_degelo ? 'DEGELO' : (eq.motor_ligado === false || eq.motor_ligado === 0 ? 'INATIVO' : 'OPERANDO');
+    return { ...eq, estado_operacional: estado };
+  }), [equipamentosFiltradosLista]);
+
+  /** Combina pesquisa e situação operacional para reduzir a lista sem alterar o inventário original. */
   const ativosExibidos = useMemo(() => {
-    if (!equipamentosFiltradosLista) return [];
-    if (!buscaAtivo.trim()) return equipamentosFiltradosLista;
-    
     const termo = buscaAtivo.toLowerCase().trim();
-    return equipamentosFiltradosLista.filter(eq => 
-      (eq.nome || '').toLowerCase().includes(termo) || 
-      (eq.setor || '').toLowerCase().includes(termo) ||
-      (eq.filial || '').toLowerCase().includes(termo) ||
-      (eq.tipo || '').toLowerCase().includes(termo)
-    );
-  }, [equipamentosFiltradosLista, buscaAtivo]);
+    return ativosAnalisados.filter((eq) => {
+      const correspondeEstado = filtroAtivo === 'TODOS' || eq.estado_operacional === filtroAtivo;
+      const correspondeBusca = !termo || [eq.nome, eq.setor, eq.filial, eq.tipo]
+        .some((valor) => String(valor || '').toLowerCase().includes(termo));
+      return correspondeEstado && correspondeBusca;
+    });
+  }, [ativosAnalisados, buscaAtivo, filtroAtivo]);
 
   const kpis = useMemo(() => {
-    if (!ativosExibidos) return { total: 0, riscoCalib: 0, offlines: 0, degelo: 0 };
+    if (!ativosAnalisados) return { total: 0, riscoCalib: 0, offlines: 0, degelo: 0, operando: 0 };
     let riscoCalib = 0; let offlines = 0; let degelo = 0;
 
-    ativosExibidos.forEach(eq => {
-      const diasCalib = eq.data_calibracao ? Math.floor((Date.now() - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-      if (diasCalib > 330) riscoCalib++; 
-      if (!eq.motor_ligado) offlines++;
-      if (eq.em_degelo) degelo++;
+    ativosAnalisados.forEach(eq => {
+      const dataCalibracao = eq.data_calibracao ? new Date(eq.data_calibracao) : null;
+      const diasCalib = dataCalibracao && !Number.isNaN(dataCalibracao.getTime())
+        ? Math.floor((instanteReferencia - dataCalibracao.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+      if (diasCalib === null || diasCalib > 330) riscoCalib++;
+      if (eq.estado_operacional === 'INATIVO') offlines++;
+      if (eq.estado_operacional === 'DEGELO') degelo++;
     });
 
-    return { total: ativosExibidos.length, riscoCalib, offlines, degelo };
-  }, [ativosExibidos]);
+    return { total: ativosAnalisados.length, riscoCalib, offlines, degelo, operando: ativosAnalisados.length - offlines - degelo };
+  }, [ativosAnalisados, instanteReferencia]);
 
   if (!equipamentosFiltradosLista) return <Loader message="Carregando inventário de equipamentos..." />;
 
@@ -187,15 +276,13 @@ export default function Equipamentos({
               <p style={{margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px'}}><MapPin size={14}/> {modalHistorico.filial || 'Filial'} • {modalHistorico.setor}</p>
             </div>
 
-            <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
-              <div style={{borderLeft: '2px solid var(--border)', paddingLeft: '15px', marginLeft: '10px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                <div style={{position: 'relative'}}>
-                  <span style={{position: 'absolute', left: '-22px', top: '2px', background: 'var(--success)', width: '12px', height: '12px', borderRadius: '50%'}}></span>
-                  <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold'}}>{new Date().toLocaleDateString('pt-BR')} (Recente)</div>
-                  <div style={{color: 'var(--text-main)', fontSize: '0.9rem', marginTop: '4px'}}>Auditoria sem falhas. Operação nominal do ativo.</div>
-                </div>
-              </div>
+            <div className="equipment-snapshot">
+              <div><span>Estado operacional</span><strong>{modalHistorico.em_degelo ? 'Em degelo' : (modalHistorico.motor_ligado === false || modalHistorico.motor_ligado === 0 ? 'Inativo' : 'Operando')}</strong></div>
+              <div><span>Última calibração</span><strong>{modalHistorico.data_calibracao ? new Date(modalHistorico.data_calibracao).toLocaleDateString('pt-BR') : 'Não registrada'}</strong></div>
+              <div><span>Faixa térmica</span><strong>{modalHistorico.temp_min ?? '--'}°C a {modalHistorico.temp_max ?? '--'}°C</strong></div>
+              <div><span>Ciclo de degelo</span><strong>{modalHistorico.intervalo_degelo ? `A cada ${modalHistorico.intervalo_degelo}h por ${modalHistorico.duracao_degelo || '--'} min` : 'Não configurado'}</strong></div>
             </div>
+            <p className="equipment-snapshot-note">Este painel apresenta a configuração e o estado atual recebido do equipamento. Eventos históricos dependem de registros de manutenção vinculados ao ativo.</p>
             
             <button className="btn btn-primary w-100" onClick={() => setModalHistorico(null)} style={{marginTop: '20px'}}>Fechar Relatório</button>
           </div>
@@ -204,8 +291,8 @@ export default function Equipamentos({
 
       <div className="flex-header equipamentos-header">
         <div>
-          <h3 className="equipamentos-title">Inventário de Equipamentos & Metrologia</h3>
-          <p className="equipamentos-subtitle">Gestão de ativos, calibração de sensores e SLA.</p>
+          <h3 className="equipamentos-title">Inventário de Equipamentos</h3>
+          <p className="equipamentos-subtitle">Cadastro técnico, disponibilidade e configuração do parque instalado.</p>
         </div>
 
         <div className="action-group">
@@ -248,6 +335,27 @@ export default function Equipamentos({
           <div className="kpi-icon"><AlertTriangle size={20}/></div>
           <div className="kpi-data"><span className="kpi-value">{kpis.offlines}</span><span className="kpi-label">Sensores Inativos</span></div>
         </div>
+        <div className="kpi-item ok">
+          <div className="kpi-icon"><Activity size={20}/></div>
+          <div className="kpi-data"><span className="kpi-value">{kpis.operando}</span><span className="kpi-label">Operando Agora</span></div>
+        </div>
+        <div className="kpi-item total">
+          <div className="kpi-icon"><Snowflake size={20}/></div>
+          <div className="kpi-data"><span className="kpi-value">{kpis.degelo}</span><span className="kpi-label">Em Ciclo de Degelo</span></div>
+        </div>
+      </div>
+
+      <div className="equipment-status-filters" aria-label="Filtrar equipamentos por estado">
+        {[
+          ['TODOS', 'Todos', kpis.total],
+          ['OPERANDO', 'Operando', kpis.operando],
+          ['DEGELO', 'Em degelo', kpis.degelo],
+          ['INATIVO', 'Inativos', kpis.offlines]
+        ].map(([valor, label, total]) => (
+          <button type="button" key={valor} className={filtroAtivo === valor ? 'active' : ''} onClick={() => setFiltroAtivo(valor)}>
+            {label} <span>{total}</span>
+          </button>
+        ))}
       </div>
 
       {isFormOpen && canEdit && (
@@ -314,9 +422,9 @@ export default function Equipamentos({
             </thead>
             <tbody>
               {ativosExibidos.map(eq => {
-                 const diasCalib = eq.data_calibracao ? Math.floor((Date.now() - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                 const diasCalib = eq.data_calibracao ? Math.floor((instanteReferencia - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 365;
                  const calibPercent = Math.min(100, Math.max(0, (diasCalib / 365) * 100));
-                 const isCritico = diasCalib > 330;
+                 const isCritico = !eq.data_calibracao || diasCalib > 330;
                  const isExpirado = diasCalib > 365;
                  
                  let ringColor = 'var(--success)';
@@ -330,7 +438,7 @@ export default function Equipamentos({
                     <td data-label="Hardware"><div className="equipamento-nome-box"><span className="hw-name">{eq.nome}</span><span className="equipamento-subtitle">{eq.tipo} • {eq.setor}</span></div></td>
                     <td data-label="Metrologia">
                       <div className="metrology-box">
-                        <div className="metrology-labels"><span style={{ color: isExpirado ? 'var(--danger)' : (isCritico ? 'var(--warning)' : 'var(--text-muted)') }}>{isExpirado ? '⚠️ Certificado Expirado' : (isCritico ? 'Atenção: Prestes a expirar' : 'Dentro da Validade')}</span><strong>{diasCalib} dias</strong></div>
+                        <div className="metrology-labels"><span style={{ color: isExpirado ? 'var(--danger)' : (isCritico ? 'var(--warning)' : 'var(--text-muted)') }}>{!eq.data_calibracao ? 'Sem certificado' : (isExpirado ? 'Certificado expirado' : (isCritico ? 'Renovação próxima' : 'Dentro da validade'))}</span><strong>{eq.data_calibracao ? `${diasCalib} dias` : '--'}</strong></div>
                         <div className="metrology-track"><div className={`metrology-fill ${isExpirado ? 'expired' : (isCritico ? 'warning' : 'ok')}`} style={{ width: `${calibPercent}%` }}></div></div>
                       </div>
                     </td>
@@ -342,8 +450,8 @@ export default function Equipamentos({
                     </td>
                     <td data-label="Ações" style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                        <button className="btn-action" style={{color: 'var(--secondary)', background: 'rgba(56,189,248,0.1)', border: 'transparent'}} onClick={() => setModalHistorico(eq)} title="Auditoria de Intervenções"><History size={18} /></button>
-                        <button className="btn-action" style={{color: 'var(--primary)', background: 'rgba(16,185,129,0.1)', border: 'transparent'}} onClick={() => gerarEtiquetaQR(eq)} title="Imprimir Etiqueta QR"><QrCode size={18} /></button>
+                        <button className="btn-action" style={{color: 'var(--secondary)', background: 'color-mix(in srgb, var(--info) 10%, transparent)', border: 'transparent'}} onClick={() => setModalHistorico(eq)} title="Auditoria de Intervenções"><History size={18} /></button>
+                        <button className="btn-action" style={{color: 'var(--primary)', background: 'color-mix(in srgb, var(--success) 10%, transparent)', border: 'transparent'}} onClick={() => gerarEtiquetaQR(eq)} title="Imprimir Etiqueta QR"><QrCode size={18} /></button>
                         
                         {canEdit ? (
                           <>
@@ -351,7 +459,7 @@ export default function Equipamentos({
                             <button className="btn-action delete" style={isOffline ? { color: 'var(--text-muted)', background: 'transparent' } : {}} onClick={() => pedirExclusao(eq.id, eq.nome)} disabled={isOffline} title="Excluir Equipamento"><Trash2 size={18} /></button>
                           </>
                         ) : (
-                          <div className="lock-icon-read" title="Apenas Gestores, Manutenção ou NOC podem editar este ativo"><Shield size={16} /></div>
+                          <div className="lock-icon-read" title="Cadastro disponível apenas para administradores e desenvolvedores"><Shield size={16} /></div>
                         )}
                       </div>
                     </td>

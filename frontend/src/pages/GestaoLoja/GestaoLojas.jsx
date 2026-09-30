@@ -1,3 +1,10 @@
+/**
+ * Módulo: frontend/src/pages/GestaoLoja/GestaoLojas.jsx
+ * Responsabilidade: Implementa a tela Gestao Lojas, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
+import { ContactRound, Download, HardDrive, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Store, Edit, X, Save, MapPin, Phone, UserCheck, Users,
@@ -10,21 +17,25 @@ import Loader from '../../components/Loader';
 import EmptyState from '../../components/EmptyState';
 
 /**
- * Página de Gestão de Lojas
+ * Renderiza a tela Gestao Lojas e concentra as regras de apresentacao desse modulo.
  *
- * Responsabilidades:
- * - Listar unidades (filiais) do sistema
- * - Permitir criar/editar/excluir uma loja
- * - Alterar status (Ativa / Suspensa) — ação restringida ao perfil DEV
- * - Mostrar KPIs rápidos (ativas, suspensas, sem gestor)
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
  *
- * Props:
- * - `api` (axios-like): instância para chamadas à API backend
- * - `showToast(message, type)`: função para exibir mensagens ao usuário
- * - `setModalConfig(config)`: função para exibir modais de confirmação
- * - `carregarDadosBase()`: callback para recarregar dados globais após alterações
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
  *
- * Observações: comentários e strings foram padronizados para PT-BR.
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarDadosBase - Propriedade carregarDadosBase usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function GestaoLojas({ api, showToast, setModalConfig, carregarDadosBase }) {
   
@@ -35,7 +46,10 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
   const [empresasDb, setEmpresasDb] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [buscaLoja, setBuscaLoja] = useState('');
+  const [buscaLoja, setBuscaLoja] = usePersistentState('termosync_stores_search', '');
+  const [filtroStatus, setFiltroStatus] = usePersistentState('termosync_stores_status', 'TODAS');
+  const [filtroGestao, setFiltroGestao] = usePersistentState('termosync_stores_management', 'TODAS');
+  const [limiteVisivel, setLimiteVisivel] = useState(12);
   
   const formInicialLoja = { id: '', nome: '', endereco_loja: '', telefone_loja: '', empresa: '', status: 'Ativa' };
   const [formLoja, setFormLoja] = useState({ ...formInicialLoja });
@@ -74,7 +88,21 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     buscarEmpresas();
   }, [buscarLojasServidor, buscarEmpresas]);
 
-  // Atualiza localmente a lista de lojas e, se aplicável, empresas
+  /**
+   * Atualiza localmente a lista de lojas e, se aplicável, empresas
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await buscarLojasServidor();
@@ -85,30 +113,105 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
   };
 
   const lojasFiltradas = useMemo(() => {
-    if (!buscaLoja.trim()) return lojasLocais;
     const termo = buscaLoja.toLowerCase().trim();
-    return lojasLocais.filter(l =>
-      (l?.nome && l.nome.toLowerCase().includes(termo)) ||
-      (l?.endereco && l.endereco.toLowerCase().includes(termo)) ||
-      (l?.id && String(l.id).includes(termo))
-    );
-  }, [lojasLocais, buscaLoja]);
+    return lojasLocais.filter(loja => {
+      const correspondeBusca = !termo || [loja.nome, loja.endereco, loja.telefone, loja.empresa, loja.id]
+        .filter(valor => valor != null)
+        .some(valor => String(valor).toLowerCase().includes(termo));
+      const statusLoja = String(loja.status || 'Ativa').toUpperCase();
+      const correspondeStatus = filtroStatus === 'TODAS' || filtroStatus === statusLoja;
+      const correspondeGestao = filtroGestao === 'TODAS' || (filtroGestao === 'COM_GESTOR' ? Boolean(loja.nome_gerente) : !loja.nome_gerente);
+      return correspondeBusca && correspondeStatus && correspondeGestao;
+    });
+  }, [lojasLocais, buscaLoja, filtroStatus, filtroGestao]);
+
+  // Mantém a tela leve em dispositivos móveis sem esconder resultados do usuário.
+  useEffect(() => {
+    setLimiteVisivel(12);
+  }, [buscaLoja, filtroStatus, filtroGestao]);
+
+  const lojasVisiveis = useMemo(
+    () => lojasFiltradas.slice(0, limiteVisivel),
+    [lojasFiltradas, limiteVisivel]
+  );
 
   const kpis = useMemo(() => {
-    let ativas = 0; let suspensas = 0; let risco = 0;
+    let ativas = 0; let suspensas = 0; let risco = 0; let equipamentos = 0; let usuarios = 0; let completas = 0;
     lojasLocais.forEach(l => {
-      if (l.status === 'Suspensa') suspensas++;
+      if (l.status && l.status !== 'Ativa') suspensas++;
       else ativas++;
       
       // Sem gerente = Superfície de Risco Comercial
       if (!l.nome_gerente || l.nome_gerente.trim() === '') risco++;
+      equipamentos += Number(l.equipamentos_total || 0);
+      usuarios += Number(l.usuarios_total || 0);
+      if (l.endereco && l.telefone && l.nome_gerente) completas++;
     });
-    return { total: lojasLocais.length, ativas, suspensas, risco };
+    return { total: lojasLocais.length, ativas, suspensas, risco, equipamentos, usuarios, completas };
   }, [lojasLocais]);
 
-  // Salva formulário da loja: cria novo registro ou atualiza existente
-  // - Valida nome
-  // - Chama API POST (novo) ou PUT (editar)
+  /**
+   * Exporta a visão filtrada para apoio cadastral e conferência operacional.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const exportarLojasCsv = () => {
+    if (!lojasFiltradas.length) return showToast('Não há lojas no recorte atual.', 'warning');
+
+    /**
+     * Concentra a logica de escapar para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} valor - Valor de valor consumido por esta rotina.
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const escapar = valor => `"${String(valor ?? '').replaceAll('"', '""')}"`;
+    const linhas = lojasFiltradas.map(loja => [loja.id, loja.nome, loja.empresa, loja.status || 'Ativa', loja.nome_gerente, loja.nome_coordenador, loja.endereco, loja.telefone, loja.equipamentos_total || 0, loja.usuarios_total || 0].map(escapar).join(','));
+    const csv = ['ID,Loja,Empresa,Status,Gerente,Coordenador,Endereco,Telefone,Equipamentos,Usuarios', ...linhas].join('\n');
+    const url = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Lojas_TermoSync_${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Cadastro de lojas exportado.', 'success');
+  };
+
+  /**
+   * Salva formulário da loja: cria novo registro ou atualiza existente
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const salvarLoja = async (e) => {
     e.preventDefault();
     try {
@@ -138,8 +241,23 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     }
   };
 
-  // Alterna o status operacional da loja entre 'Ativa' e 'Suspensa'
-  // (função sensível — exige autorização nível DEV na UI)
+  /**
+   * Alterna o status operacional da loja entre 'Ativa' e 'Suspensa' (função sensível — exige
+   * autorização nível DEV na UI)
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: consulta ou altera dados pela API
+   *
+   * @param {unknown} loja - Valor de loja consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const alternarStatusLoja = async (loja) => {
     try {
       const novoStatus = loja.status === 'Ativa' || !loja.status ? 'Suspensa' : 'Ativa';
@@ -158,8 +276,23 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
     }
   };
 
-  // Dispara modal de confirmação e, se confirmado, exclui a loja
-  // - Remove configurações vinculadas e atualiza a listagem
+  /**
+   * Dispara modal de confirmação e, se confirmado, exclui a loja
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @param {unknown} nome - Valor de nome consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const pedirExclusaoLoja = (id, nome) => {
     setModalConfig({
       isOpen: true,
@@ -180,7 +313,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
   };
 
   return (
-    <div className="anim-fade-in stagger-1">
+    <div className="gestao-lojas-page stagger-1">
       
       {/* HERO SECTION */}
       <div className="gestao-hero">
@@ -195,6 +328,9 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
         </div>
 
         <div className="hero-actions">
+          <button className="btn-provision export" onClick={exportarLojasCsv} disabled={!lojasFiltradas.length} title="Exportar o recorte atual em CSV">
+            <Download size={16} /> Exportar
+          </button>
           <button className="btn-provision sync" onClick={handleRefresh} title="Atualizar dados">
             <RefreshCw size={16} className={isRefreshing ? 'spin' : ''} /> Atualizar Lista
           </button>
@@ -202,6 +338,13 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
             <PlusCircle size={16} /> Cadastrar Nova Loja
           </button>
         </div>
+      </div>
+
+      <div className="stores-overview" aria-label="Resumo da rede de lojas">
+        <div><Store size={18}/><span>Unidades<strong>{kpis.total}</strong></span></div>
+        <div><HardDrive size={18}/><span>Equipamentos<strong>{kpis.equipamentos}</strong></span></div>
+        <div><Users size={18}/><span>Identidades vinculadas<strong>{kpis.usuarios}</strong></span></div>
+        <div><CheckCircle2 size={18}/><span>Cadastros completos<strong>{kpis.completas} de {kpis.total}</strong></span></div>
       </div>
 
       {/* PAINEL DE CONTROLE DE KPIS */}
@@ -215,7 +358,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
           {role === 'DEV' && kpis.suspensas > 0 && (
             <div className="kpi-item-small danger">
               <span className="kpi-val">{kpis.suspensas}</span>
-              <span className="kpi-lbl">Lojas Suspensas</span>
+            <span className="kpi-lbl">Lojas Indisponíveis</span>
             </div>
           )}
           
@@ -226,17 +369,27 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
         </div>
 
         <div className="search-box">
-          <Search size={18} color="#94a3b8" />
+          <Search size={18} color="var(--text-muted)" />
           <input type="text" placeholder="Buscar loja por nome, endereço ou ID..." value={buscaLoja} onChange={e => setBuscaLoja(e.target.value)} />
         </div>
+        <div className="store-filter-group">
+          <label><SlidersHorizontal size={15}/><select value={filtroStatus} onChange={event => setFiltroStatus(event.target.value)}>
+            <option value="TODAS">Todos os status</option><option value="ATIVA">Somente ativas</option><option value="SUSPENSA">Somente suspensas</option><option value="BLOQUEADA">Somente bloqueadas</option>
+          </select></label>
+          <label><ContactRound size={15}/><select value={filtroGestao} onChange={event => setFiltroGestao(event.target.value)}>
+            <option value="TODAS">Toda gestão</option><option value="COM_GESTOR">Com gerente</option><option value="SEM_GESTOR">Sem gerente</option>
+          </select></label>
+        </div>
       </div>
+
+      <div className="store-result-summary">Exibindo <strong>{lojasFiltradas.length}</strong> de {lojasLocais.length} unidades</div>
 
       {/* TABELA DE LOJAS */}
       <div className="table-card stagger-3">
         {isLoading ? (
           <Loader message="Carregando lojas..." />
         ) : lojasFiltradas.length === 0 ? (
-          <EmptyState title="Nenhuma Loja Cadastrada" description="O sistema não possui filiais registradas. Clique em Cadastrar Nova Loja." icon={Store} />
+          <EmptyState title="Nenhuma loja encontrada" description={lojasLocais.length ? 'Ajuste a busca ou os filtros para ampliar o resultado.' : 'O sistema ainda não possui filiais registradas.'} icon={Store} />
         ) : (
           <div className="table-wrapper">
             <table className="table">
@@ -245,17 +398,18 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
                   <th>Identificação da Loja</th>
                   {role === 'DEV' && <th>Empresa / Cliente</th>}
                   <th>Equipe de Gestão</th>
+                  <th>Capacidade Operacional</th>
                   <th>Localização & Contato</th>
                   <th style={{ textAlign: 'center' }}>Status no Sistema</th>
                   <th style={{ textAlign: 'right' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {lojasFiltradas.map(l => {
-                  const isSuspensa = l.status === 'Suspensa';
+                {lojasVisiveis.map(l => {
+                  const isSuspensa = Boolean(l.status && l.status !== 'Ativa');
                   
                   return (
-                    <tr key={l?.id || Math.random()} className={`table-row ${isSuspensa ? 'row-suspensa' : 'ativo'}`}>
+                    <tr key={l?.id || `${l?.empresa}-${l?.nome}`} className={`table-row ${isSuspensa ? 'row-suspensa' : 'ativo'}`}>
                       <td data-label="Loja / Filial">
                         <div className="name-box">
                           <div className="icon-wrapper">
@@ -296,6 +450,13 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
                         </div>
                       </td>
 
+                      <td data-label="Capacidade Operacional">
+                        <div className="store-capacity">
+                          <span><HardDrive size={14}/> {Number(l.equipamentos_total || 0)} equipamento(s)</span>
+                          <span><Users size={14}/> {Number(l.usuarios_total || 0)} acesso(s)</span>
+                        </div>
+                      </td>
+
                       <td data-label="Localização & Contato">
                         <div className="contact-box">
                           <div className="contact-line"><MapPin size={16} /> {l?.endereco || 'Endereço não cadastrado'}</div>
@@ -305,15 +466,15 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
 
                       <td data-label="Status no Sistema" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                          <div className="status-badge-network" style={{ color: isSuspensa ? '#ef4444' : '#10b981' }}>
+                          <div className="status-badge-network" style={{ color: isSuspensa ? 'var(--danger)' : 'var(--success)' }}>
                             <div className={`status-dot ${isSuspensa ? 'offline' : 'online'}`}></div>
-                            {isSuspensa ? 'Suspensa' : 'Operante'}
+                            {isSuspensa ? l.status : 'Operante'}
                           </div>
                           
                           {/* Botão de Suspensão exclusivo para o DEV */}
                           {role === 'DEV' && (
                             <button className="btn-toggle-status" onClick={() => alternarStatusLoja(l)} title="Ativar/Suspender Loja" style={{ width: 'auto' }}>
-                              {isSuspensa ? <ToggleLeft size={28} color="#ef4444"/> : <ToggleRight size={28} color="#10b981"/>}
+                              {isSuspensa ? <ToggleLeft size={28} color="var(--danger)"/> : <ToggleRight size={28} color="var(--success)"/>}
                             </button>
                           )}
                         </div>
@@ -336,6 +497,15 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
         )}
       </div>
 
+      {lojasVisiveis.length < lojasFiltradas.length && (
+        <div className="store-load-more">
+          <span>Mostrando {lojasVisiveis.length} de {lojasFiltradas.length} unidades</span>
+          <button type="button" onClick={() => setLimiteVisivel(limite => limite + 12)}>
+            Carregar mais unidades
+          </button>
+        </div>
+      )}
+
       {/* MODAL DE CADASTRO DE LOJAS */}
       {modalLoja && (
         <div className="modal-overlay">
@@ -347,7 +517,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
               </div>
               <div>
                 <h3>{formLoja.id ? 'Edição de Loja' : 'Cadastro de Nova Loja'}</h3>
-                <span style={{ color: '#10b981', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <span style={{ color: 'var(--success)', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Informações Cadastrais da Unidade
                 </span>
               </div>
@@ -367,8 +537,8 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
                   
                   {role === 'DEV' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <label style={{ color: '#10b981' }}>Vincular a uma Empresa / Cliente</label>
-                      <select style={{ border: '1px solid #10b981', background: 'rgba(16, 185, 129, 0.05)' }} value={formLoja.empresa} onChange={(e) => setFormLoja({...formLoja, empresa: e.target.value})} required>
+                      <label style={{ color: 'var(--success)' }}>Vincular a uma Empresa / Cliente</label>
+                      <select style={{ border: '1px solid var(--success)', background: 'rgba(16, 185, 129, 0.05)' }} value={formLoja.empresa} onChange={(e) => setFormLoja({...formLoja, empresa: e.target.value})} required>
                         <option value="">Selecione o Cliente...</option>
                         {empresasDb.map(emp => <option key={emp.id} value={emp.nome}>{emp.nome}</option>)}
                       </select>
@@ -380,7 +550,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
                     <input type="text" value={formLoja.nome} onChange={(e) => setFormLoja({ ...formLoja, nome: e.target.value })} placeholder="Ex: Supermercado Centro - SP" required autoFocus />
                   </div>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div className="store-contact-grid">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <label>Endereço Completo</label>
                       <input type="text" value={formLoja.endereco_loja} onChange={(e) => setFormLoja({ ...formLoja, endereco_loja: e.target.value })} placeholder="Rua, Número, Bairro, Cidade" />
@@ -399,7 +569,7 @@ export default function GestaoLojas({ api, showToast, setModalConfig, carregarDa
                 <button type="button" className="btn" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} onClick={() => setModalLoja(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn" style={{ backgroundColor: '#10b981', color: '#020617', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)' }}>
+                <button type="submit" className="btn" style={{ backgroundColor: 'var(--success)', color: 'var(--technical-canvas)', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px color-mix(in srgb, var(--success) 30%, transparent)' }}>
                   {formLoja.id ? <><CheckCircle2 size={18} /> Salvar Alterações</> : <><Save size={18} /> Cadastrar Loja</>}
                 </button>
               </div>

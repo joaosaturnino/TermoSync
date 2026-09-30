@@ -4,6 +4,8 @@
 
 # Build outputs
 frontend/dist/
+.build/
+backend/arduino/sensor/build/
 
 # Node modules
 **/node_modules/
@@ -13,6 +15,7 @@ frontend/dist/
 .env.local
 .env.development
 .env.production
+frontend/.cert/
 
 # Expo / Mobile
 TermoSyncMobile/.expo/
@@ -24,3 +27,6 @@ yarn-debug.log*
 yarn-error.log*
 
 .wwebjs_auth/
+
+# Credenciais locais do firmware ESP32
+backend/arduino/sensor/secrets.h

@@ -1,12 +1,42 @@
+/**
+ * Módulo: backend/teste-sms.js
+ * Responsabilidade: Centraliza as responsabilidades do módulo teste sms.
+ */
+
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 /**
  * Verifica a condicao is env flag enabled e retorna um valor booleano.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const isEnvFlagEnabled = (value) => ['true', '1', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
 
+
 /**
  * Envia enviar teste sms para o canal ou provedor configurado.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function enviarTesteSms() {
   const destino = process.env.SMS_TEST_TO || process.argv[2];

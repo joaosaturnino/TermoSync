@@ -1,74 +1,182 @@
+/**
+ * Módulo: frontend/src/pages/Dashboard/Dashboard.jsx
+ * Responsabilidade: Implementa a tela Dashboard, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
+import { Gauge, Signal } from 'lucide-react';
+import ActionCenter from '../../components/ActionCenter';
 import React, { useCallback, memo, useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
   AlertTriangle, Wifi, Snowflake, Power, DoorOpen, Droplets, 
   ActivitySquare, ClipboardCheck, CheckCircle, Server, 
-  Activity, ThermometerSnowflake, AlertOctagon, MessageSquare, Send, X, Clock, Radio, Zap, DownloadCloud, Tv, MapPin, CheckCircle2, Thermometer
+  Activity, ThermometerSnowflake, AlertOctagon, MessageSquare, Send, X, Clock, Radio, Zap, DownloadCloud, Tv, Search
 } from 'lucide-react';
 import './Dashboard.css';
 import EmptyState from '../../components/EmptyState';
 
+const TELEMETRY_STALE_AFTER_MS = 3 * 60 * 1000;
+const TICKER_EVENT_LIMIT = 12;
+const INCIDENTS_PAGE_SIZE = 12;
+
 /**
  * Busca ou monta os dados de get alert config usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} tipo_alerta - Valor de tipo alerta consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getAlertConfig = (tipo_alerta) => {
   const configs = {
     'REDE': { icon: Wifi, color: 'var(--warning)', action: 'Analisar Rede', critical: true },
     'DEGELO': { icon: Snowflake, color: 'var(--secondary)', action: 'Finalizar Degelo', critical: false },
-    'MECANICA': { icon: Power, color: '#f97316', action: 'Acionar Manutenção', critical: true },
-    'PORTA': { icon: DoorOpen, color: '#e11d48', action: 'Verificar Porta', critical: true },
-    'TEMPERATURA': { icon: ThermometerSnowflake, color: '#ef4444', action: 'Normalizar Temp.', critical: true },
-    'UMIDADE': { icon: Droplets, color: '#0ea5e9', action: 'Ajustar Umidade', critical: false },
-    'METROLOGIA': { icon: ClipboardCheck, color: '#6366f1', action: 'Agendar Calibração', critical: true },
-    'PREDITIVO': { icon: ActivitySquare, color: '#8b5cf6', action: 'Prevenção', critical: false }
+    'MECANICA': { icon: Power, color: 'var(--warning)', action: 'Acionar Manutenção', critical: true },
+    'PORTA': { icon: DoorOpen, color: 'var(--danger)', action: 'Verificar Porta', critical: true },
+    'TEMPERATURA': { icon: ThermometerSnowflake, color: 'var(--danger)', action: 'Normalizar Temp.', critical: true },
+    'UMIDADE': { icon: Droplets, color: 'var(--info)', action: 'Ajustar Umidade', critical: false },
+    'METROLOGIA': { icon: ClipboardCheck, color: 'var(--accent-violet)', action: 'Agendar Calibração', critical: true },
+    'PREDITIVO': { icon: ActivitySquare, color: 'var(--accent-violet)', action: 'Prevenção', critical: false }
   };
   return configs[tipo_alerta] || { icon: AlertTriangle, color: 'var(--danger)', action: 'Investigar', critical: true };
 };
 
-// =====================================================================
-// COMPONENTES BLINDADOS (MEMO) - EVITAM TRAVAMENTOS NO NAVEGADOR
-// =====================================================================
+/**
+ * Converte leituras numéricas sem interpretar valor ausente como zero.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; troca eventos em tempo real
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const parseMeasurement = (value) => { if (value === null || value === undefined || value === '') return null; const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }; /* Normaliza flags booleanas recebidas como boolean, número ou texto pelo MySQL/socket. */ const parseTelemetryFlag = (value) => value === true || value === 1 || value === '1'; /* Verifica se a temperatura pertence a uma comunicação recente do equipamento. */ const hasCurrentTelemetry = (equipment, temperature) => { if (temperature == null) return false; const connection = String(equipment.status_conexao || '').toLowerCase(); if (connection === 'offline' || connection === 'sem-sinal') return false; const timestamp = equipment.atualizado_em || equipment.ultima_comunicacao; if (!timestamp) return connection === 'online'; const readingAt = new Date(timestamp).getTime(); return Number.isFinite(readingAt) && Date.now() - readingAt <= TELEMETRY_STALE_AFTER_MS; };  const StatCard = memo(({ title, value, detail, icon: Icon, iconBg, valClass = '', isPulsing = false }) => ( <div className={`summary-card ${isPulsing ? 'pulsing-card' : ''}`}> <div className="summary-header"><span className="summary-title">{title}</span><div className={`summary-icon-wrapper ${iconBg}`}><Icon size={22} className="kpi-icon" /></div></div> <div className="summary-body"><span className={`summary-value ${valClass} ${isPulsing ? 'pulse-danger-text' : ''}`}>{value ?? 0}</span>{isPulsing && <span className="live-pulse-dot bg-danger"></span>}</div> {detail && <span className="summary-detail">{detail}</span>} </div> )); /* Classifica o estado atual sem misturar ocorrências históricas com a última leitura. */ const classifyEquipment = (equipment) => { const temperature = parseMeasurement(equipment.ultima_temp); const minimum = parseMeasurement(equipment.temp_min); const maximum = parseMeasurement(equipment.temp_max); const hasTelemetry = hasCurrentTelemetry(equipment, temperature); if (!hasTelemetry) return { key: 'offline', label: 'Sem telemetria', tone: 'neutral', priority: 5 }; if (parseTelemetryFlag(equipment.em_degelo)) return { key: 'defrost', label: 'Em degelo', tone: 'info', priority: 2 }; const motorOn = parseTelemetryFlag(equipment.motor_ligado); const aboveMaximum = maximum != null && temperature > maximum; const belowMinimum = minimum != null && temperature < minimum; if (!motorOn && maximum != null && temperature >= maximum + 10) return { key: 'critical', label: 'Falha mecânica', tone: 'bad', priority: 6 }; if (aboveMaximum || belowMinimum) return { key: 'warning', label: 'Fora da faixa', tone: 'warn', priority: 4 }; if (!motorOn) return { key: 'resting', label: 'Em repouso', tone: 'neutral', priority: 1 }; return { key: 'healthy', label: 'Operação normal', tone: 'good', priority: 0 }; }; /* Exibe uma fila compacta para localizar rapidamente equipamentos que exigem atenção. */ const EquipmentStatusTable = memo(({ rows, filter, setFilter, query, setQuery }) => { const visibleRows = rows.filter(row => { const matchesFilter = filter === 'all' || row.status.key === filter || (filter === 'attention' && ['critical', 'warning'].includes(row.status.key)); const search = query.trim().toLowerCase(); const matchesQuery = !search || `${row.name} ${row.location}`.toLowerCase().includes(search); return matchesFilter && matchesQuery; }).slice(0, 18);
+  return (
+    <section className="dashboard-section dashboard-fleet-section" aria-labelledby="fleet-title">
+      <div className="dashboard-section-heading">
+        <div><h3 id="fleet-title">Fila operacional da frota</h3><span>Equipamentos priorizados por risco e desvio térmico</span></div>
+        <div className="fleet-tools">
+          <label className="fleet-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar equipamento" aria-label="Buscar equipamento" /></label>
+          <div className="fleet-filter" aria-label="Filtrar equipamentos">
+            <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button>
+            <button type="button" className={filter === 'attention' ? 'active' : ''} onClick={() => setFilter('attention')}>Atenção</button>
+            <button type="button" className={filter === 'offline' ? 'active' : ''} onClick={() => setFilter('offline')}>Sem sinal</button>
+          </div>
+        </div>
+      </div>
+      {visibleRows.length === 0 ? <p className="dashboard-table-empty">Nenhum equipamento corresponde aos filtros.</p> : (
+        <div className="fleet-table-scroll" tabIndex="0">
+          <div className="fleet-table-head"><span>Equipamento</span><span>Temperatura</span><span>Faixa</span><span>Motor</span><span>Estado</span></div>
+          {visibleRows.map((row) => (
+            <div className="fleet-table-row" key={row.id}>
+              <span><strong>{row.name}</strong><small>{row.location}</small></span>
+              <span>{row.temperature == null ? '—' : `${row.temperature.toFixed(1)}°C`}</span>
+              <span>{row.minimum == null || row.maximum == null ? 'Não definida' : `${row.minimum.toFixed(1)}° a ${row.maximum.toFixed(1)}°`}</span>
+              <span>{row.motorOn ? 'Ligado' : 'Desligado'}</span>
+              <span className={`fleet-status ${row.status.tone}`}><i />{row.status.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+});
 
-const StatCard = memo(({ title, value, icon: Icon, iconBg, valClass = '', isPulsing = false }) => (
-  <div className={`summary-card ${isPulsing ? 'pulsing-card' : ''}`}>
-    <div className="summary-header"><span className="summary-title">{title}</span><div className={`summary-icon-wrapper ${iconBg}`}><Icon size={22} className="kpi-icon" /></div></div>
-    <div className="summary-body"><span className={`summary-value ${valClass} ${isPulsing ? 'pulse-danger-text' : ''}`}>{value || 0}</span>{isPulsing && <span className="live-pulse-dot bg-danger"></span>}</div>
-  </div>
-));
+const AlertBreakdown = memo(({ alerts = [] }) => {
+  const grouped = Object.values(alerts.reduce((accumulator, alert) => {
+    const type = String(alert.tipo_alerta || 'OUTROS').toUpperCase();
+    if (!accumulator[type]) accumulator[type] = { type, count: 0, color: getAlertConfig(type).color };
+    accumulator[type].count += 1;
+    return accumulator;
+  }, {})).sort((a, b) => b.count - a.count).slice(0, 6);
+  const maximum = Math.max(1, ...grouped.map((item) => item.count));
+
+  return (
+    <section className="dashboard-section" aria-labelledby="alert-breakdown-title">
+      <div className="dashboard-section-heading"><div><h3 id="alert-breakdown-title">Alertas por tipo</h3><span>Distribuição das ocorrências no escopo atual</span></div></div>
+      {grouped.length ? <div className="alert-breakdown-list">{grouped.map((item) => (
+        <div key={item.type}><span style={{ color: item.color }}>●</span><span>{item.type}</span><div><i style={{ width: `${(item.count / maximum) * 100}%`, background: item.color }} /></div><strong>{item.count}</strong></div>
+      ))}</div> : <p className="dashboard-table-empty">Nenhum alerta ativo.</p>}
+    </section>
+  );
+});
 
 /**
  * Concentra a logica de custom tooltip para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.active - Propriedade active usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.payload - Propriedade payload usada para configurar dados ou comportamento do componente.
+ * @param {boolean} options.isDarkMode - Sinalizador isDarkMode que controla este comportamento visual.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const CustomTooltip = ({ active, payload, isDarkMode }) => {
   if (active && payload && payload.length) {
     return (
       <div style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '12px', border: '1px solid var(--border)', color: isDarkMode ? '#f8fafc' : '#0f172a', padding: '10px' }}>
         <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>{payload[0].name}</p>
-        <p style={{ margin: 0, fontWeight: '700', color: payload[0].payload.fill || '#38bdf8' }}>Quantidade: {payload[0].value}</p>
+        <p style={{ margin: 0, fontWeight: '700', color: payload[0].payload.fill || 'var(--info)' }}>Quantidade: {payload[0].value}</p>
       </div>
     );
   }
   return null;
 };
 
+
 /**
  * Concentra a logica de empty tooltip para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const EmptyTooltip = () => (<div style={{ padding: '8px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>Aguardando telemetria...</div>);
 
 // [NOVIDADE] Gráfico Isolado. Ele causava a lentidão por recarregar a cada temperatura.
 const MemoizedDonut = memo(({ temDadosDonut, dadosDonutReativos, dadosPlaceholder, isDarkMode }) => {
-  const DONUT_COLORS = { 'Ok': '#10b981', 'Degelo': '#38bdf8', 'Falha': '#ef4444' };
+  const DONUT_COLORS = { 'Ok': 'var(--success)', 'Degelo': 'var(--info)', 'Falha': 'var(--danger)', 'Sem sinal': 'var(--text-muted)' };
   return (
     <ResponsiveContainer width="100%" height={260}>
       <PieChart>
         {temDadosDonut ? (
           <>
             <Pie data={dadosDonutReativos} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="name" stroke="none" isAnimationActive={false}>
-              {dadosDonutReativos.map((entry, index) => (<Cell key={`cell-${index}`} fill={DONUT_COLORS[entry.name] || '#94a3b8'} />))}
+              {dadosDonutReativos.map((entry, index) => (<Cell key={`cell-${index}`} fill={DONUT_COLORS[entry.name] || 'var(--text-muted)'} />))}
             </Pie>
             <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} isAnimationActive={false} />
             <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.85rem', fontWeight: '600', paddingBottom: '10px' }}/>
@@ -91,7 +199,7 @@ const NocTicker = memo(({ localAlertas }) => (
     <div className="noc-ticker">
       <div className="ticker-content">
         {localAlertas.length > 0 ? (
-          localAlertas.map((n, i) => (
+          localAlertas.slice(0, TICKER_EVENT_LIMIT).map((n, i) => (
             <span key={`ticker-${n.id || i}`} className={`ticker-item ${n.tipo_alerta === 'MECANICA' || n.tipo_alerta === 'PORTA' || n.tipo_alerta === 'TEMPERATURA' ? 'ticker-critical' : 'ticker-warning'}`}>
               [{new Date(n.data_hora).toLocaleTimeString()}] {String(n.filial || 'MATRIZ').toUpperCase()} - {String(n.equipamento_nome || 'EQUIPAMENTO').toUpperCase()}: {String(n.mensagem || '').toUpperCase()}
             </span>
@@ -134,146 +242,52 @@ const AlertCard = memo(({ notif, onResolve, onAbrirChat, isOffline }) => {
   );
 });
 
-// [NOVIDADE] MODO TV BLINDADO 
-const PainelTVKiosk = memo(({ equipamentosDaFilial, filialAtiva, onClose }) => {
-  const equipamentosAgrupados = useMemo(() => {
-    if (!equipamentosDaFilial) return {};
-    return equipamentosDaFilial.reduce((grupos, eq) => {
-      const nomeFilial = eq.filial || 'Filial Não Identificada';
-      if (!grupos[nomeFilial]) grupos[nomeFilial] = [];
-      grupos[nomeFilial].push(eq);
-      return grupos;
-    }, {});
-  }, [equipamentosDaFilial]);
-
-  useEffect(() => {
-    /**
-     * Processa a interacao de handle esc e atualiza a interface conforme o resultado.
-     */
-    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
-
-  return createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: '#0f172a', display: 'flex', flexDirection: 'column', padding: '2rem', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '2.5rem', color: '#38bdf8' }}>
-            {!filialAtiva || filialAtiva.toLowerCase() === 'todas' ? 'Visão Geral (Rede Completa)' : filialAtiva}
-          </h1>
-          <p style={{ margin: 0, fontSize: '1.2rem', color: '#94a3b8' }}>Monitoramento Operacional e Metrológico</p>
-        </div>
-        <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>
-              <span className="live-indicator-dot" style={{ width: '15px', height: '15px', backgroundColor: '#10b981', borderRadius: '50%' }}></span> AO VIVO
-            </div>
-            <p style={{ margin: 0, color: '#64748b' }}>Sincronização Ativa</p>
-          </div>
-          
-          <button onClick={onClose} style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#ef4444', padding: '12px 20px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <X size={20} /> Sair [ESC]
-          </button>
-        </div>
-      </div>
-
-      {!equipamentosDaFilial || equipamentosDaFilial.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#1e293b', borderRadius: '24px', border: '1px dashed #334155' }}>
-          <Activity size={64} color="#64748b" style={{marginBottom: '1rem', opacity: 0.5}} />
-          <h2 style={{color: '#cbd5e1', margin: '0 0 10px 0'}}>Nenhuma máquina encontrada.</h2>
-          <p style={{color: '#94a3b8', fontSize: '1.1rem'}}>Verifique a conexão dos sensores desta unidade.</p>
-        </div>
-      ) : (
-        Object.entries(equipamentosAgrupados).map(([nomeFilial, maquinasDaFilial], index) => (
-          <div key={index} style={{ marginBottom: '3.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', paddingBottom: '10px', borderBottom: '2px solid rgba(59, 130, 246, 0.3)' }}>
-              <MapPin size={28} color="#3b82f6" />
-              <h2 style={{ margin: 0, fontSize: '1.8rem', color: '#f1f5f9' }}>{nomeFilial}</h2>
-              <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '10px' }}>{maquinasDaFilial.length} ativo(s)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
-              {maquinasDaFilial.map((eq, idx) => {
-                const t = parseFloat(eq.ultima_temp);
-                const min = parseFloat(eq.temp_min);
-                const max = parseFloat(eq.temp_max);
-                const temDados = !isNaN(t);
-                
-                const isAcima = temDados && t > max;
-                const isAbaixo = temDados && t < min;
-                const isFalhaMecanica = !eq.motor_ligado && temDados && t >= (max + 10.0) && !eq.em_degelo;
-
-                let corCard = '#1e293b'; 
-                let corTexto = '#10b981'; 
-                let icone = <CheckCircle2 size={36} />;
-                let status = 'DENTRO DA NORMA';
-
-                if (!temDados) {
-                  corTexto = '#f59e0b'; icone = <AlertTriangle size={36} />; status = 'SEM SINAL';
-                } else if (eq.em_degelo) {
-                  corTexto = '#0ea5e9'; icone = <Snowflake size={36} />; status = 'EM DEGELO';
-                } else if (isFalhaMecanica) {
-                  corTexto = '#ef4444'; corCard = '#450a0a'; icone = <Power size={36} />; status = 'MOTOR PARADO';
-                } else if (isAcima) {
-                  corTexto = '#ef4444'; icone = <AlertTriangle size={36} />; status = 'ALTA TEMPERATURA';
-                } else if (isAbaixo) {
-                  corTexto = '#38bdf8'; icone = <Thermometer size={36} />; status = 'BAIXA TEMPERATURA';
-                } else if (!eq.motor_ligado) {
-                  status = 'EM REPOUSO (IDEAL)';
-                }
-
-                return (
-                  <div key={idx} style={{ background: corCard, border: `2px solid ${corTexto}`, borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', boxShadow: `0 8px 20px ${corTexto}15` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>{eq.nome}</h3>
-                        <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase' }}>{eq.setor}</span>
-                      </div>
-                      <div style={{ color: corTexto }}>{icone}</div>
-                    </div>
-
-                    <div style={{ textAlign: 'center', margin: '0.5rem 0' }}>
-                      <span style={{ fontSize: '4.5rem', fontWeight: '900', color: corTexto, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-                        {temDados ? t.toFixed(1) : '--'}°C
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
-                      <span style={{ fontSize: '1rem', color: '#cbd5e1' }}>Mín: <b>{min.toFixed(1)}°C</b></span>
-                      <span style={{ fontSize: '1rem', fontWeight: '900', color: corTexto }}>{status}</span>
-                      <span style={{ fontSize: '1rem', color: '#cbd5e1' }}>Máx: <b>{max.toFixed(1)}°C</b></span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))
-      )}
-      
-      <style dangerouslySetInnerHTML={{__html: `
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        .live-indicator-dot { animation: blink 2s infinite; }
-      `}} />
-    </div>,
-    document.body 
-  );
-});
 
 /**
  * Concentra a logica de chat drawer para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; troca eventos em tempo real
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.notif - Propriedade notif usada para configurar dados ou comportamento do componente.
+ * @param {Function} options.onClose - Callback onClose fornecido pelo componente responsável.
+ * @param {unknown} options.contatosDb - Propriedade contatosDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.irParaChat - Propriedade irParaChat usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.userId - Propriedade userId usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setHistoricoChat - Propriedade setHistoricoChat usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat }) => {
   const [contatoSelecionado, setContatoSelecionado] = useState('');
   const [novaMensagem, setNovaMensagem] = useState(`[ALERTA CRÍTICO] A máquina ${notif.equipamento_nome || 'Desconhecida'} (${notif.filial || 'Matriz'}) registrou uma anomalia grave. Ocorrência: ${notif.mensagem}. Solicito verificação técnica imediata.`);
 
+
   /**
    * Processa a interacao de handle enviar e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; troca eventos em tempo real
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleEnviar = (e) => {
     e.preventDefault();
@@ -305,28 +319,100 @@ const ChatDrawer = ({ notif, onClose, contatosDb, irParaChat, showToast, socket,
 
 
 /**
+ * ===================================================================== Dashboard Principal
  * =====================================================================
- * Dashboard Principal
- * =====================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador; troca eventos em tempo real
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.qtdTotal - Propriedade qtdTotal usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.dadosDonutStatus - Propriedade dadosDonutStatus usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.notificacoesDaFilial - Propriedade notificacoesDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.resolverTodasNotificacoes - Propriedade resolverTodasNotificacoes usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {unknown} props.pedirNotaResolucao - Propriedade pedirNotaResolucao usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isDarkMode - Sinalizador isDarkMode que controla este comportamento visual.
+ * @param {unknown} props.contatosDb - Propriedade contatosDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.irParaChat - Propriedade irParaChat usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userId - Propriedade userId usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setHistoricoChat - Propriedade setHistoricoChat usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.equipamentosDaFilial - Propriedade equipamentosDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.chamados - Propriedade chamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {Function} props.onNavigate - Callback onNavigate fornecido pelo componente responsável.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function Dashboard({
   qtdTotal,
-  qtdDegelo,
   dadosDonutStatus: _dadosDonutStatus = [],
   notificacoesDaFilial = [], resolverTodasNotificacoes, isOffline, pedirNotaResolucao, isDarkMode,
   contatosDb, irParaChat, showToast, socket, userId, nomeLogado, setHistoricoChat,
-  filialAtiva, equipamentosDaFilial 
+  filialAtiva, equipamentosDaFilial, chamados = [], api, userRole = 'LOJA', onNavigate
 }) {
   
   const [chatAtivo, setChatAtivo] = useState(null);
-  const [filtroRisco, setFiltroRisco] = useState('TODOS'); 
-  const [kioskMode, setKioskMode] = useState(false); 
+  const [filtroRisco, setFiltroRisco] = usePersistentState('termosync_dashboard_risk_filter', 'TODOS');
+  const [fleetFilter, setFleetFilter] = usePersistentState('termosync_dashboard_fleet_filter', 'all');
+  const [fleetQuery, setFleetQuery] = useState('');
+  const [incidentLimit, setIncidentLimit] = useState(INCIDENTS_PAGE_SIZE);
+  const [lastUpdateAt, setLastUpdateAt] = useState(() => Date.now());
+
+  const latestTelemetryAt = useMemo(() => {
+     /**
+      * Concentra a logica de timestamps para manter o restante do tela mais legivel.
+      *
+      * Responsabilidade: mantém este comportamento isolado para que validação,
+      * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+      *
+      * Fluxo principal:
+      * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+      *
+      * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+      *
+      * @returns {unknown} Resultado calculado para consumo do chamador.
+      * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+      */
+
+    /**
+     * Concentra a logica de timestamps para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const timestamps = (equipamentosDaFilial || [])
+      .map(equipment => new Date(equipment.atualizado_em || equipment.ultima_comunicacao || 0).getTime())
+      .filter(timestamp => Number.isFinite(timestamp) && timestamp > 0);
+    return timestamps.length ? Math.max(...timestamps) : lastUpdateAt;
+  }, [equipamentosDaFilial, lastUpdateAt]);
 
   const [localAlertas, setLocalAlertas] = useState(notificacoesDaFilial || []);
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
       setLocalAlertas(notificacoesDaFilial || []);
+      setLastUpdateAt(Date.now());
     });
     return () => window.cancelAnimationFrame(frameId);
   }, [notificacoesDaFilial]);
@@ -334,22 +420,60 @@ export default function Dashboard({
   useEffect(() => {
     if (!socket) return;
     
+
     /**
      * Processa a interacao de handle alerta removido e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @param {object|Array} data - Dados de entrada que serão validados e transformados pelo fluxo.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleAlertaRemovido = (data) => {
       setLocalAlertas(prev => prev.filter(n => !(n.equipamento_id === data.equipamento_id && n.tipo_alerta === data.tipo_alerta)));
     };
 
+
     /**
      * Processa a interacao de handle alerta removido id e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @param {object|Array} data - Dados de entrada que serão validados e transformados pelo fluxo.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleAlertaRemovidoId = (data) => {
       setLocalAlertas(prev => prev.filter(n => String(n.id) !== String(data.id)));
     };
 
+
     /**
      * Processa a interacao de handle alertas limpos e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleAlertasLimpos = () => {
       setLocalAlertas([]);
@@ -366,43 +490,89 @@ export default function Dashboard({
     };
   }, [socket]);
 
-  const { operandoReal, falhaReal, maquinasEmFalha, maquinasDegelo } = useMemo(() => {
+  const { operandoReal, falhaReal, maquinasEmFalha, maquinasDegelo, maquinasSemSinal } = useMemo(() => {
     const qtAlertas = localAlertas.length;
-    const setMaquinasFalhas = new Set(localAlertas.map(a => String(a.equipamento_id)));
-    const qtMaquinasComFalha = setMaquinasFalhas.size;
-    
-    let qtDegeloFinal = qtdDegelo || 0;
-    let qtOperando = (qtdTotal || 0) - qtDegeloFinal - qtMaquinasComFalha;
-    
-    if (qtOperando < 0) {
-        qtOperando = 0;
-        qtDegeloFinal = Math.max(0, (qtdTotal || 0) - qtMaquinasComFalha);
-    }
-    
+
+    /**
+     * Concentra a logica de states para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const states = (equipamentosDaFilial || []).map(equipment => classifyEquipment(equipment));
+    const qtDegeloFinal = states.filter(state => state.key === 'defrost').length;
+    const qtOperando = states.filter(state => state.key === 'healthy' || state.key === 'resting').length;
+    const qtMaquinasComFalha = states.filter(state => state.key === 'critical' || state.key === 'warning').length;
+    const qtSemSinal = states.filter(state => state.key === 'offline').length;
+
     return { 
         operandoReal: qtOperando, 
         falhaReal: qtAlertas, 
         maquinasEmFalha: qtMaquinasComFalha,
-        maquinasDegelo: qtDegeloFinal
+        maquinasDegelo: qtDegeloFinal,
+        maquinasSemSinal: qtSemSinal
     };
-  }, [localAlertas, qtdTotal, qtdDegelo]);
+  }, [localAlertas, equipamentosDaFilial]);
 
   const dadosDonutReativos = useMemo(() => [ 
     { name: 'Ok', value: operandoReal, color: 'var(--success)' }, 
-    { name: 'Degelo', value: maquinasDegelo, color: '#38bdf8' }, 
-    { name: 'Falha', value: maquinasEmFalha, color: 'var(--danger)' } 
-  ].filter(d => d.value > 0), [operandoReal, maquinasDegelo, maquinasEmFalha]);
+    { name: 'Degelo', value: maquinasDegelo, color: 'var(--info)' },
+    { name: 'Falha', value: maquinasEmFalha, color: 'var(--danger)' },
+    { name: 'Sem sinal', value: maquinasSemSinal, color: 'var(--text-muted)' }
+  ].filter(d => d.value > 0), [operandoReal, maquinasDegelo, maquinasEmFalha, maquinasSemSinal]);
 
   const abrirChatInterno = useCallback((notif) => { setChatAtivo(notif); }, []);
   const handleResolve = useCallback((id) => { pedirNotaResolucao(id); }, [pedirNotaResolucao]);
 
   const saudeRede = useMemo(() => {
-    if (!qtdTotal || qtdTotal === 0) return { score: 100, status: 'ESTÁVEL', class: 'stable' };
+    if (!qtdTotal || qtdTotal === 0) return { score: 0, status: 'SEM TELEMETRIA', class: 'warning' };
     const score = Math.round((operandoReal / qtdTotal) * 100);
     if (score < 80) return { score, status: 'CRÍTICO', class: 'critical' };
     if (score < 95) return { score, status: 'ATENÇÃO', class: 'warning' };
     return { score, status: 'ESTÁVEL', class: 'stable' };
   }, [qtdTotal, operandoReal]);
+
+  const fleetRows = useMemo(() => {
+    return (equipamentosDaFilial || []).map(equipment => {
+      const temperature = parseMeasurement(equipment.ultima_temp);
+      const minimum = parseMeasurement(equipment.temp_min);
+      const maximum = parseMeasurement(equipment.temp_max);
+      const status = classifyEquipment(equipment);
+      return {
+        id: equipment.id,
+        name: equipment.nome || `Equipamento ${equipment.id}`,
+        location: [equipment.setor, equipment.filial].filter(Boolean).join(' · ') || 'Local não informado',
+        temperature,
+        minimum,
+        maximum,
+        motor: parseTelemetryFlag(equipment.motor_ligado),
+        defrost: parseTelemetryFlag(equipment.em_degelo),
+        hasTelemetry: hasCurrentTelemetry(equipment, temperature),
+        status
+      };
+    }).sort((a, b) => b.status.priority - a.status.priority || a.name.localeCompare(b.name, 'pt-BR'));
+  }, [equipamentosDaFilial]);
+
+  const fleetInsights = useMemo(() => {
+    const temperatures = fleetRows.map(row => row.temperature).filter(Number.isFinite);
+    const withTelemetry = fleetRows.filter(row => row.hasTelemetry).length;
+    const attention = fleetRows.filter(row => row.status.key === 'critical' || row.status.key === 'warning').length;
+    const offline = fleetRows.filter(row => row.status.key === 'offline').length;
+    return {
+      coverage: fleetRows.length ? Math.round((withTelemetry / fleetRows.length) * 100) : 0,
+      averageTemperature: temperatures.length ? temperatures.reduce((sum, value) => sum + value, 0) / temperatures.length : null,
+      attention,
+      offline
+    };
+  }, [fleetRows]);
 
   const alertasExibidos = useMemo(() => {
     if (!localAlertas) return [];
@@ -413,8 +583,31 @@ export default function Dashboard({
     });
   }, [localAlertas, filtroRisco]);
 
+  const alertasVisiveis = useMemo(
+    () => alertasExibidos.slice(0, incidentLimit),
+    [alertasExibidos, incidentLimit]
+  );
+
+  const changeRiskFilter = useCallback((filter) => {
+    setFiltroRisco(filter);
+    setIncidentLimit(INCIDENTS_PAGE_SIZE);
+  }, [setFiltroRisco]);
+
+
   /**
    * Gera gerar snapshot pdf com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarSnapshotPDF = () => {
     showToast('A compilar Snapshot Operacional...', 'info');
@@ -433,6 +626,7 @@ export default function Dashboard({
         ['Operação Normal (Dentro do SLA)', operandoReal],
         ['Máquinas em Ciclo de Degelo', maquinasDegelo],
         ['Máquinas em Alerta/Falha', maquinasEmFalha],
+        ['Máquinas sem sinal atual', maquinasSemSinal],
         ['Total de Ocorrências Individuais', falhaReal]
       ]
     });
@@ -452,85 +646,94 @@ export default function Dashboard({
     showToast('Download do Relatório concluído.', 'success');
   };
 
-  const temDadosDonut = dadosDonutReativos && dadosDonutReativos.length > 0;
+  const temDadosDonut = Boolean(qtdTotal > 0 && dadosDonutReativos?.length);
   const dadosPlaceholder = [{ name: 'Aguardando Dados', value: 1 }];
+  /** Abre o Painel TV em uma nova aba preservando a sessão autenticada atual. */
+  const openTvPanel = useCallback(() => {
+    const authToken = sessionStorage.getItem('token');
+    if (!authToken) {
+      showToast('Sua sessão expirou. Entre novamente para abrir o Painel TV.', 'warning');
+      return;
+    }
 
-  const fecharKiosk = useCallback(() => setKioskMode(false), []);
+    const branch = filialAtiva || 'Todas';
+    const panelUrl = `/painel-tv/${encodeURIComponent(branch)}#panel_token=${encodeURIComponent(authToken)}`;
+    const panelWindow = window.open(panelUrl, '_blank', 'noopener,noreferrer');
+    if (!panelWindow) {
+      showToast('O navegador bloqueou a abertura do Painel TV.', 'warning');
+      return;
+    }
+  }, [filialAtiva, showToast]);
 
   return (
     <>
-      {kioskMode && (
-        <PainelTVKiosk 
-          equipamentosDaFilial={equipamentosDaFilial} 
-          filialAtiva={filialAtiva} 
-          onClose={fecharKiosk} 
-        />
-      )}
-
       {(!temDadosDonut && (!localAlertas || localAlertas.length === 0) && (!qtdTotal || qtdTotal === 0)) ? (
         <EmptyState title="Sem telemetria" description="Nenhuma telemetria disponível no momento. Verifique a conexão com os gateways ou aguarde novos dados." />
       ) : (
         <div className="anim-fade-in dashboard-container">
-          
-          <div className={`health-banner ${saudeRede.class} stagger-1`}>
-            <div className="health-info">
-              <Zap size={32} className="health-icon" />
-              <div>
-                <h4>Índice de integridade do sistema</h4>
-                <p>Estado Operacional: <strong>{saudeRede.status}</strong></p>
-              </div>
-            </div>
-            
-            <div className="health-secondary-stats">
-              <div className="sla-stat"><span className="sla-label">SLA GARANTIDO</span><span className="sla-value">99.98%</span></div>
-              <div className="sla-stat"><span className="sla-label">SENSORES ATIVOS</span><span className="sla-value">{qtdTotal} NÓS</span></div>
-            </div>
 
-            <div className="health-score-area">
-              <span className="health-score">{saudeRede.score}%</span>
-              <div className="health-progress-bg"><div className="health-progress-fill" style={{ width: `${saudeRede.score}%` }}></div></div>
+          <section className={`dashboard-command-strip ${saudeRede.class} stagger-1`} aria-label="Resumo operacional">
+            <div className="dashboard-command-status">
+              <span className="dashboard-command-icon"><Zap size={21} /></span>
+              <div><span>Integridade operacional</span><strong>{saudeRede.status}</strong></div>
             </div>
+            <div className="dashboard-command-context">
+              <div><span>Escopo</span><strong>{filialAtiva || 'Todas as unidades'}</strong></div>
+              <div><span>Última atualização</span><strong>{new Date(latestTelemetryAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong></div>
+              <div><span>Conectividade</span><strong className={isOffline ? 'bad' : 'good'}><i />{isOffline ? 'Offline' : 'Tempo real'}</strong></div>
+            </div>
+            <div className="dashboard-command-actions">
+              <button type="button" className="btn btn-outline" onClick={gerarSnapshotPDF}><DownloadCloud size={16} /> Snapshot PDF</button>
+              <button type="button" className="btn btn-primary" onClick={openTvPanel} title="Abrir painel TV em uma nova aba"><Tv size={16} /> Painel TV</button>
+            </div>
+            <div className="dashboard-command-score">
+              <strong>{saudeRede.score}%</strong><span>da frota em operação segura</span>
+              <div><i style={{ width: `${saudeRede.score}%` }} /></div>
+            </div>
+          </section>
+
+          <div className="summary-cards dashboard-kpi-grid stagger-2">
+            <StatCard title="Frota monitorada" value={qtdTotal} detail={`${fleetInsights.coverage}% com telemetria`} icon={Server} iconBg="icon-bg-gray" />
+            <StatCard title="Operação segura" value={operandoReal} detail={`${saudeRede.score}% do total`} icon={Activity} iconBg="icon-bg-green" valClass="val-green" />
+            <StatCard title="Exigem atenção" value={fleetInsights.attention} detail={`${falhaReal} ocorrências abertas`} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={fleetInsights.attention > 0} />
+            <StatCard title="Sem telemetria" value={fleetInsights.offline} detail="Equipamentos sem leitura atual" icon={Signal} iconBg="icon-bg-warning" valClass={fleetInsights.offline ? 'val-warning' : ''} />
+            <StatCard title="Temperatura média" value={fleetInsights.averageTemperature == null ? '—' : `${fleetInsights.averageTemperature.toFixed(1)}°`} detail="Média das leituras disponíveis" icon={Gauge} iconBg="icon-bg-blue" valClass="val-blue" />
           </div>
 
-          <div className="dashboard-grid stagger-2">
-            <div className="summary-cards">
-              <StatCard title="Máquinas na Rede" value={qtdTotal} icon={Server} iconBg="icon-bg-gray" />
-              <StatCard title="Operação Segura" value={operandoReal} icon={Activity} iconBg="icon-bg-green" valClass="val-green" />
-              <StatCard title="Ciclos de Degelo" value={maquinasDegelo} icon={ThermometerSnowflake} iconBg="icon-bg-blue" valClass="val-blue" />
-              <StatCard title="Máquinas em Alerta" value={maquinasEmFalha} icon={AlertOctagon} iconBg="icon-bg-red" valClass="val-red" isPulsing={maquinasEmFalha > 0} />
-            </div>
-
-            <div className="donut-container">
-              <span className="donut-title">Distribuição de Carga</span>
-              <div style={{ width: '100%', height: '240px', minHeight: '240px', position: 'relative', marginTop: '10px' }}>
-                <MemoizedDonut 
-                  temDadosDonut={temDadosDonut} 
-                  dadosDonutReativos={dadosDonutReativos} 
-                  dadosPlaceholder={dadosPlaceholder} 
-                  isDarkMode={isDarkMode} 
-                />
+          <div className="dashboard-insight-grid stagger-2">
+            <section className="donut-container" aria-labelledby="fleet-state-title">
+              <div className="dashboard-section-heading"><div><h3 id="fleet-state-title">Estado da frota</h3><span>Distribuição atual dos equipamentos</span></div></div>
+              <div className="donut-chart-wrap">
+                <MemoizedDonut temDadosDonut={temDadosDonut} dadosDonutReativos={dadosDonutReativos} dadosPlaceholder={dadosPlaceholder} isDarkMode={isDarkMode} />
+                <div className="donut-center" aria-hidden="true"><strong>{qtdTotal || 0}</strong><span>equipamentos</span></div>
               </div>
-            </div>
+            </section>
+            <AlertBreakdown alerts={localAlertas} />
+          </div>
+
+          <div className="dashboard-operations-hub stagger-3" aria-label="Central de ações e fila operacional">
+            <ActionCenter
+              api={api}
+              alertas={localAlertas}
+              chamados={chamados}
+              equipamentos={equipamentosDaFilial}
+              filialAtiva={filialAtiva}
+              userRole={userRole}
+              onNavigate={onNavigate}
+              socket={socket}
+            />
+            <EquipmentStatusTable rows={fleetRows} filter={fleetFilter} setFilter={setFleetFilter} query={fleetQuery} setQuery={setFleetQuery} />
           </div>
 
           <div className="flex-header stagger-3" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
             <h3 className="section-title">Monitor de Incidentes Ativos</h3>
             
             <div className="triage-actions">
-              <div style={{ display: 'flex', gap: '8px', marginRight: '10px' }}>
-                 <button onClick={gerarSnapshotPDF} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'var(--card-bg)' }}>
-                   <DownloadCloud size={16} style={{marginRight: '6px'}}/> Snapshot PDF
-                 </button>
-                 <button onClick={() => setKioskMode(true)} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} title="Abre a visão Kiosk para a unidade autorizada">
-                   <Tv size={16} style={{marginRight: '6px'}}/> Painel TV
-                 </button>
-              </div>
-
               {localAlertas?.length > 0 && (
                 <div className="triage-filters">
-                  <button className={`btn-filter ${filtroRisco === 'TODOS' ? 'active' : ''}`} onClick={() => setFiltroRisco('TODOS')}>Todos</button>
-                  <button className={`btn-filter critical ${filtroRisco === 'CRITICO' ? 'active' : ''}`} onClick={() => setFiltroRisco('CRITICO')}>Críticos</button>
-                  <button className={`btn-filter warning ${filtroRisco === 'AVISO' ? 'active' : ''}`} onClick={() => setFiltroRisco('AVISO')}>Avisos</button>
+                  <button className={`btn-filter ${filtroRisco === 'TODOS' ? 'active' : ''}`} onClick={() => changeRiskFilter('TODOS')}>Todos</button>
+                  <button className={`btn-filter critical ${filtroRisco === 'CRITICO' ? 'active' : ''}`} onClick={() => changeRiskFilter('CRITICO')}>Críticos</button>
+                  <button className={`btn-filter warning ${filtroRisco === 'AVISO' ? 'active' : ''}`} onClick={() => changeRiskFilter('AVISO')}>Avisos</button>
                 </div>
               )}
               {localAlertas?.length > 0 && (
@@ -552,8 +755,14 @@ export default function Dashboard({
             </div>
           ) : (
             <div className="grid-cards stagger-3">
-              {alertasExibidos.map(notif => (<AlertCard key={`alert-${notif.id}`} notif={notif} onResolve={handleResolve} onAbrirChat={abrirChatInterno} isOffline={isOffline} />))}
+              {alertasVisiveis.map(notif => (<AlertCard key={`alert-${notif.id}`} notif={notif} onResolve={handleResolve} onAbrirChat={abrirChatInterno} isOffline={isOffline} />))}
             </div>
+          )}
+
+          {alertasExibidos.length > alertasVisiveis.length && (
+            <button type="button" className="dashboard-load-more" onClick={() => setIncidentLimit(limit => limit + INCIDENTS_PAGE_SIZE)}>
+              Mostrar mais incidentes ({alertasExibidos.length - alertasVisiveis.length})
+            </button>
           )}
 
           <NocTicker localAlertas={localAlertas} />

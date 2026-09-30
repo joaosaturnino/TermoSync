@@ -1,0 +1,150 @@
+/** Define o layout, os estados visuais e os breakpoints de System Error Screen. */
+
+.system-error-screen {
+  display: grid;
+  width: 100%;
+  min-height: 100%;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: var(--bg-color, #071116);
+  color: var(--text-main);
+}
+
+.system-error-screen.full-error {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  min-height: 100dvh;
+}
+
+.system-error-screen.module-error {
+  min-height: min(620px, calc(100dvh - 180px));
+}
+
+.system-error-panel {
+  width: min(100%, 680px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border, var(--neutral-700)));
+  border-radius: 8px;
+  background: var(--card-bg, #0b1820);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.system-error-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border, var(--neutral-700));
+  color: var(--brand-core);
+}
+
+.system-error-brand > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.system-error-brand div { display: grid; gap: 0.1rem; }
+.system-error-brand strong { color: var(--text-main); font-size: 0.95rem; }
+.system-error-brand small { color: var(--text-muted, #91a5af); font-size: 0.72rem; }
+
+.system-error-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.4rem 1.4rem 1rem;
+}
+
+.system-error-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.system-error-copy { min-width: 0; }
+.system-error-eyebrow { color: var(--danger); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.system-error-copy h1 { margin: 0.28rem 0 0.5rem; color: var(--text-main); font-size: clamp(1.25rem, 3vw, 1.75rem); line-height: 1.18; }
+.system-error-copy p { margin: 0; color: var(--text-muted, #91a5af); font-size: 0.88rem; line-height: 1.55; }
+
+.system-error-status {
+  display: grid;
+  grid-template-columns: 1.45fr 0.8fr 0.7fr;
+  margin: 0 1.4rem;
+  border: 1px solid var(--border, var(--neutral-700));
+  border-radius: 7px;
+}
+
+.system-error-status > div { min-width: 0; padding: 0.75rem; }
+.system-error-status > div + div { border-left: 1px solid var(--border, var(--neutral-700)); }
+.system-error-status dt { margin-bottom: 0.25rem; color: var(--text-muted, #91a5af); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+.system-error-status dd { display: flex; align-items: center; gap: 0.35rem; margin: 0; overflow: hidden; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.system-error-status dd.online { color: var(--success); }
+.system-error-status dd.offline { color: var(--warning); }
+
+.system-error-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 1rem 1.4rem;
+  padding: 0.8rem;
+  border-left: 3px solid var(--secondary, var(--info));
+  background: color-mix(in srgb, var(--secondary, var(--info)) 7%, transparent);
+  color: var(--secondary, var(--info));
+}
+
+.system-error-guidance div { display: grid; gap: 0.2rem; }
+.system-error-guidance strong { color: var(--text-main); font-size: 0.8rem; }
+.system-error-guidance span { color: var(--text-muted, #91a5af); font-size: 0.76rem; line-height: 1.4; }
+
+.system-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 1rem 1.4rem 1.4rem;
+  border-top: 1px solid var(--border, var(--neutral-700));
+}
+
+.system-error-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 38px;
+  padding: 0.55rem 0.78rem;
+  border: 1px solid var(--border, var(--neutral-700));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.system-error-actions button:hover { border-color: var(--primary); color: var(--primary); }
+.system-error-actions .system-error-primary { border-color: var(--primary); background: var(--primary); color: #04120f; }
+.system-error-actions button:focus-visible { outline: 2px solid var(--secondary, var(--info)); outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  .system-error-screen { align-items: start; padding: 0.75rem; }
+  .system-error-screen.full-error { overflow-y: auto; }
+  .system-error-content { grid-template-columns: 1fr; }
+  .system-error-status { grid-template-columns: 1fr; }
+  .system-error-status > div + div { border-top: 1px solid var(--border, var(--neutral-700)); border-left: 0; }
+  .system-error-actions { display: grid; grid-template-columns: 1fr; }
+  .system-error-actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-error-screen * { animation: none !important; transition: none !important; }
+}

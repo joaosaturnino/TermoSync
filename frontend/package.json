@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:mobile": "cross-env VITE_CAPACITOR=true vite build",
     "lint": "eslint .",
+    "test": "node --test --test-concurrency=1 test/navigationPolicy.test.js test/componentSmoke.test.js test/screenSmoke.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

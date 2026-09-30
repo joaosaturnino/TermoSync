@@ -1,3 +1,5 @@
+/** Centraliza as responsabilidades do módulo index. */
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

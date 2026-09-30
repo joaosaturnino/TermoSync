@@ -89,6 +89,7 @@ Mobile:
 
 - [Guia de manutencao](docs/MANUTENCAO.md): mapa do codigo, boas praticas por modulo e checklist de entrega.
 - [Guia de producao](docs/PRODUCAO.md): variaveis, deploy, backup, smoke test e rollback.
+- [Saude do sistema](docs/SAUDE_SISTEMA.md): coleta persistida, stream Socket.IO, seguranca e diagnostico.
 
 ## Rotina recomendada antes de entregar
 

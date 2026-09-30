@@ -1,0 +1,106 @@
+/** Modal jurídico alinhado aos tokens visuais globais do ThermoSync. */
+
+.legal-modal-backdrop {
+  position: fixed;
+  z-index: 120000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 2.5vw, 32px);
+  background: color-mix(in srgb, var(--surface-inverse) 76%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.legal-modal {
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  width: min(1180px, 100%);
+  height: min(880px, calc(100dvh - clamp(20px, 5vw, 64px)));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.legal-modal-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 14px 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.legal-modal-heading,
+.legal-modal-heading > span,
+.legal-modal-actions {
+  display: flex;
+  align-items: center;
+}
+
+.legal-modal-heading { min-width: 0; gap: 10px; }
+.legal-modal-heading > span {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border));
+  border-radius: 6px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised));
+}
+.legal-modal-heading > div { display: grid; min-width: 0; gap: 2px; }
+.legal-modal-heading small { color: var(--text-muted); font-size: .55rem; font-weight: 800; text-transform: uppercase; }
+.legal-modal-heading strong { overflow: hidden; color: var(--text-main); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+
+.legal-modal-actions { gap: 4px; }
+.legal-modal-actions button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.legal-modal-actions button:hover,
+.legal-modal-actions button:focus-visible {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+}
+
+.legal-modal-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-color);
+}
+
+.legal-modal-loading {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: .72rem;
+}
+
+@media (max-width: 680px) {
+  .legal-modal-backdrop { padding: 0; }
+  .legal-modal { width: 100%; height: 100dvh; border: 0; border-radius: 0; }
+  .legal-modal-header { padding-inline: 12px 8px; }
+}
+
+@media print {
+  body > *:not(.legal-modal-backdrop) { display: none !important; }
+  .legal-modal-backdrop { position: static; display: block; padding: 0; background: transparent; }
+  .legal-modal { display: block; width: 100%; height: auto; overflow: visible; border: 0; box-shadow: none; }
+  .legal-modal-header { display: none; }
+  .legal-modal-scroll { overflow: visible; }
+}

@@ -1,3 +1,9 @@
+/**
+ * Módulo: frontend/src/pages/Chamados/Chamados.jsx
+ * Responsabilidade: Implementa a tela Chamados, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   Printer, MessageSquarePlus, CheckCircle, Wrench, Save,
@@ -6,11 +12,10 @@ import {
 } from 'lucide-react';
 import './Chamados.css';
 import EmptyState from '../../components/EmptyState';
+import { canRolePerform } from '../../config/navigationPolicy';
 
-// ============================================================================
-// COMPONENTE OTIMIZADO (MEMO): Evita a re-renderização massiva da lista
-// ============================================================================
-const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, onDetalhes, isSelected, onToggleSelection }) => {
+
+const ChamadoCard = memo(({ c, isOffline, canManageWorkflow, onResolver, onArquivar, onDetalhes, isSelected, onToggleSelection }) => {
   // Tolerância a acentos e espaços vazios originados do banco de dados
   const statusSeguro = String(c.status || '').trim().toLowerCase();
   const isConcluido = statusSeguro === 'concluído' || statusSeguro === 'concluido' || statusSeguro === 'fechado';
@@ -75,18 +80,22 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, onDetalhes, is
             <button className="btn btn-outline" onClick={() => onDetalhes(c)} disabled={isOffline}>
               <MessageSquare size={16} /> Detalhes
             </button>
-            <button className="btn btn-outline" onClick={() => onArquivar(c.id)} disabled={isOffline} style={{borderColor: 'var(--border)', color: 'var(--text-muted)'}}>
-              <Archive size={16} /> Arquivar
-            </button>
+            {canManageWorkflow && (
+              <button className="btn btn-outline" onClick={() => onArquivar(c.id)} disabled={isOffline} style={{borderColor: 'var(--border)', color: 'var(--text-muted)'}}>
+                <Archive size={16} /> Arquivar
+              </button>
+            )}
           </div>
         ) : (
           <div className="chamado-footer-actions">
             <button className="btn btn-outline" onClick={() => onDetalhes(c)} disabled={isOffline}>
               <MessageSquare size={16} /> Detalhes
             </button>
-            <button className="btn btn-primary" onClick={() => onResolver(c.id, c)} disabled={isOffline}>
-              <CheckSquare size={16} /> Intervenção
-            </button>
+            {canManageWorkflow && (
+              <button className="btn btn-primary" onClick={() => onResolver(c.id, c)} disabled={isOffline}>
+                <CheckSquare size={16} /> Intervenção
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -94,16 +103,34 @@ const ChamadoCard = memo(({ c, isOffline, onResolver, onArquivar, onDetalhes, is
   );
 });
 
-// ============================================================================
-// COMPONENTE PRINCIPAL
-// ============================================================================
+
+
 /**
- * Central de Chamados (Ordens de Serviço)
+ * Renderiza a tela Chamados e concentra as regras de apresentacao desse modulo.
  *
- * Responsabilidades:
- * - Listar e filtrar OS por filial, status e urgência
- * - Abrir novas ordens, atribuir técnicos e registrar resolução
- * - Suportar seleção em lote para relatórios/impressão
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.chamados - Propriedade chamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.tecnicosDb - Propriedade tecnicosDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarChamados - Propriedade carregarChamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {unknown} props.gerarLoteOS - Propriedade gerarLoteOS usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function Chamados({
   userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb: _tecnicosDb = [],
@@ -111,8 +138,8 @@ export default function Chamados({
 }) {
   
   const [busca, setBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('Aberto');
-  const [filtroUrgencia, setFiltroUrgencia] = useState('Todas');
+  const [filtroStatus, setFiltroStatus] = usePersistentState('termosync_calls_status', 'Aberto');
+  const [filtroUrgencia, setFiltroUrgencia] = usePersistentState('termosync_calls_urgency', 'Todas');
   
   const [novoChamado, setNovoChamado] = useState({ equipamento_id: '', urgencia: 'Pendente', descricao: '', tecnico_responsavel: '' });
   const [mostrarAbrirChamado, setMostrarAbrirChamado] = useState(false);
@@ -132,9 +159,12 @@ export default function Chamados({
   const [loadingComentarios, setLoadingComentarios] = useState(false);
 
   const [selecionadosIds, setSelecionadosIds] = useState(new Set());
+  const [instanteReferencia] = useState(Date.now);
 
   // Perfis de Segurança
   const isLoja = userRole === 'LOJA';
+  const canManageWorkflow = canRolePerform(userRole, 'MANAGE_TICKET_WORKFLOW');
+  const canAssignTechnician = canRolePerform(userRole, 'ASSIGN_TICKET_TECHNICIAN');
 
   // CARREGA OS EQUIPAMENTOS PARA ABERTURA DE OS (Seguro por Filial)
   const carregarOpcoesAbertura = useCallback(async () => {
@@ -142,7 +172,7 @@ export default function Chamados({
     try {
       const [resEquip, resTec] = await Promise.all([
         api.get('/auxiliares/equipamentos-abertura').catch(() => ({ data: [] })),
-        api.get('/tecnicos').catch(() => ({ data: [] }))
+        canAssignTechnician ? api.get('/tecnicos').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
       
       let equipList = Array.isArray(resEquip.data) ? resEquip.data : [];
@@ -158,7 +188,7 @@ export default function Chamados({
     } catch (error) {
       showToast('Aviso: Não foi possível carregar as opções de abertura.', 'warning');
     }
-  }, [api, isOffline, showToast, filialAtiva]);
+  }, [api, isOffline, showToast, filialAtiva, canAssignTechnician]);
 
   React.useEffect(() => {
     carregarOpcoesAbertura();
@@ -230,18 +260,22 @@ export default function Chamados({
     }).length;
   }, [chamadosFiltrados]);
 
-  // SELEÇÃO EM LOTE PARA IMPRESSÃO / RELATÓRIO
-  const toggleSelecaoChamado = useCallback((id) => {
-    setSelecionadosIds(prev => {
-      const novoSet = new Set(prev);
-      if (novoSet.has(id)) novoSet.delete(id);
-      else novoSet.add(id);
-      return novoSet;
-    });
-  }, []);
-
+  // Resume a fila inteira da filial, independentemente da aba selecionada.
+  const resumoFila = useMemo(() => { const agora = instanteReferencia; const filial = String(filialAtiva || '').trim().toLowerCase(); const visiveis = chamados.filter((c) => { const arquivado = c.arquivado == 1 || c.arquivado === true || String(c.arquivado).toLowerCase() === 'true'; if (arquivado) return false; if (!filial || filialAtiva === 'Todas') return true; return String(c.filial || c.equipamento_filial || '').trim().toLowerCase() === filial; }); const abertos = visiveis.filter((c) => !['concluído', 'concluido', 'fechado'].includes(String(c.status || '').trim().toLowerCase())); const criticos = abertos.filter((c) => String(c.urgencia || '').trim().toLowerCase().replace('í', 'i') === 'critica').length; const semTecnico = abertos.filter((c) => !String(c.tecnico_responsavel || '').trim()).length; const envelhecidos = abertos.filter((c) => { const abertura = new Date(c.data_abertura).getTime(); return Number.isFinite(abertura) && agora - abertura >= 24 * 60 * 60 * 1000; }).length; return { total: visiveis.length, abertos: abertos.length, criticos, semTecnico, envelhecidos }; }, [chamados, filialAtiva, instanteReferencia]);
   /**
    * Processa a interacao de toggle selecionar todos e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const toggleSelecionarTodos = () => {
     if (selecionadosIds.size === chamadosFiltrados.length && chamadosFiltrados.length > 0) {
@@ -251,8 +285,21 @@ export default function Chamados({
     }
   };
 
+
   /**
    * Processa a interacao de handle gerar lote exato e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleGerarLoteExato = () => {
     if (selecionadosIds.size > 0) {
@@ -263,7 +310,23 @@ export default function Chamados({
     }
   };
 
-  // ABERTURA DE CHAMADOS
+  /**
+   * ABERTURA DE CHAMADOS
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const handleAbrirChamado = async (e) => {
     e.preventDefault();
     if (isOffline) return showToast('Ação bloqueada no modo offline.', 'warning');
@@ -277,7 +340,7 @@ export default function Chamados({
         equipamento_id: novoChamado.equipamento_id,
         descricao: novoChamado.descricao,
         solicitante_nome: nomeLogado || 'Colaborador',
-        tecnico_responsavel: novoChamado.tecnico_responsavel || null,
+        ...(canAssignTechnician ? { tecnico_responsavel: novoChamado.tecnico_responsavel || null } : {}),
         urgencia: novoChamado.urgencia
       });
       await carregarChamados();
@@ -315,8 +378,22 @@ export default function Chamados({
     carregarComentarios(chamado);
   }, [carregarComentarios]);
   
+
   /**
    * Processa a interacao de confirmar resolucao e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const confirmarResolucao = async () => {
     if (isOffline || !chamadoResolvendo) return;
@@ -333,8 +410,22 @@ export default function Chamados({
     finally { setIsProcessing(false); }
   };
 
+
   /**
    * Envia enviar comentario para o canal ou provedor configurado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const enviarComentario = async () => {
     if (!chamadoDetalhes || isOffline) return;
@@ -368,8 +459,22 @@ export default function Chamados({
     }
   };
 
+
   /**
    * Concentra a logica de reabrir chamado para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const reabrirChamado = async () => {
     if (!chamadoDetalhes || isOffline) return;
@@ -400,8 +505,23 @@ export default function Chamados({
     finally { setIsProcessing(false); }
   }, [api, carregarChamados, isOffline, showToast]);
 
+
   /**
    * Processa a interacao de confirmar arquivar todos e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const confirmarArquivarTodos = async () => {
     if (isOffline) return showToast('Ação bloqueada no modo offline.', 'warning');
@@ -420,7 +540,16 @@ export default function Chamados({
     finally { setIsProcessing(false); }
   };
 
-  return (
+    const toggleSelecaoChamado = useCallback((id) => {
+      setSelecionadosIds(prev => {
+        const novoSet = new Set(prev);
+        if (novoSet.has(id)) novoSet.delete(id);
+        else novoSet.add(id);
+        return novoSet;
+      });
+    }, []);
+
+return (
     <div className="anim-fade-in stagger-1">
       
       <div className="chamados-header">
@@ -449,6 +578,14 @@ export default function Chamados({
         </div>
       </div>
 
+      <section className="chamados-overview" aria-label="Resumo da fila de atendimento">
+        <article><MessageSquare size={19} /><div><strong>{resumoFila.abertos}</strong><span>OS em aberto</span></div></article>
+        <article className={resumoFila.criticos ? 'danger' : ''}><Shield size={19} /><div><strong>{resumoFila.criticos}</strong><span>Prioridade critica</span></div></article>
+        <article className={resumoFila.semTecnico ? 'warning' : ''}><Wrench size={19} /><div><strong>{resumoFila.semTecnico}</strong><span>Sem tecnico</span></div></article>
+        <article className={resumoFila.envelhecidos ? 'warning' : ''}><Clock size={19} /><div><strong>{resumoFila.envelhecidos}</strong><span>Ha mais de 24h</span></div></article>
+        <div className="chamados-overview-note"><CheckCircle size={16} /><span>{resumoFila.total - resumoFila.abertos} concluida(s) aguardando arquivo ou consulta</span></div>
+      </section>
+
       {mostrarAbrirChamado && (
         <div className="chamados-open-panel stagger-2 anim-slide-up">
           <div className="chamados-open-panel-copy">
@@ -473,7 +610,7 @@ export default function Chamados({
               </select>
             </div>
 
-            <div className="form-grid-chamados-2">
+            <div className={canAssignTechnician ? 'form-grid-chamados-2' : undefined}>
               <div className="form-group-chamados">
                 <label>Nível de Urgência</label>
                 <select className="chamados-input" value={novoChamado.urgencia} onChange={(e) => setNovoChamado(prev => ({ ...prev, urgencia: e.target.value }))}>
@@ -485,15 +622,17 @@ export default function Chamados({
                 </select>
               </div>
 
-              <div className="form-group-chamados">
-                <label>Atribuir a um Técnico</label>
-                <select className="chamados-input" value={novoChamado.tecnico_responsavel} onChange={(e) => setNovoChamado(prev => ({ ...prev, tecnico_responsavel: e.target.value }))}>
-                  <option value="">Fila Geral (Automático)</option>
-                  {tecnicosAbertura?.map(t => (
-                    <option key={t.id} value={t.nome_tecnico || t.usuario}>{t.nome_tecnico || t.usuario}</option>
-                  ))}
-                </select>
-              </div>
+              {canAssignTechnician && (
+                <div className="form-group-chamados">
+                  <label>Atribuir a um Técnico</label>
+                  <select className="chamados-input" value={novoChamado.tecnico_responsavel} onChange={(e) => setNovoChamado(prev => ({ ...prev, tecnico_responsavel: e.target.value }))}>
+                    <option value="">Fila Geral (Automático)</option>
+                    {tecnicosAbertura?.map(t => (
+                      <option key={t.id} value={t.nome_tecnico || t.usuario}>{t.nome_tecnico || t.usuario}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="form-group-chamados">
@@ -532,14 +671,14 @@ export default function Chamados({
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', overflowX: 'auto', paddingBottom: '4px', flexShrink: 0 }}>
             <span style={{fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase'}}>Urgência:</span>
             <button className={`btn-outline ${filtroUrgencia === 'Todas' ? 'btn-primary' : ''}`} style={{padding: '6px 12px', fontSize: '0.75rem', border: 'none', background: filtroUrgencia === 'Todas' ? 'var(--primary)' : 'rgba(0,0,0,0.05)', color: filtroUrgencia === 'Todas' ? 'var(--bg-color)' : 'var(--text-main)'}} onClick={() => setFiltroUrgencia('Todas')}>Todas</button>
-            <button className={`btn-outline ${filtroUrgencia === 'Crítica' ? 'btn-danger' : ''}`} style={{padding: '6px 12px', fontSize: '0.75rem', border: 'none', background: filtroUrgencia === 'Crítica' ? 'var(--danger)' : 'rgba(239, 68, 68, 0.1)', color: filtroUrgencia === 'Crítica' ? '#fff' : 'var(--danger)'}} onClick={() => setFiltroUrgencia('Crítica')}>Crítica</button>
-            <button className={`btn-outline ${filtroUrgencia === 'Alta' ? 'btn-warning' : ''}`} style={{padding: '6px 12px', fontSize: '0.75rem', border: 'none', background: filtroUrgencia === 'Alta' ? 'var(--warning)' : 'rgba(245, 158, 11, 0.1)', color: filtroUrgencia === 'Alta' ? '#fff' : 'var(--warning)'}} onClick={() => setFiltroUrgencia('Alta')}>Alta</button>
+            <button className={`btn-outline ${filtroUrgencia === 'Crítica' ? 'btn-danger' : ''}`} style={{padding: '6px 12px', fontSize: '0.75rem', border: 'none', background: filtroUrgencia === 'Crítica' ? 'var(--danger)' : 'color-mix(in srgb, var(--danger) 10%, transparent)', color: filtroUrgencia === 'Crítica' ? '#fff' : 'var(--danger)'}} onClick={() => setFiltroUrgencia('Crítica')}>Crítica</button>
+            <button className={`btn-outline ${filtroUrgencia === 'Alta' ? 'btn-warning' : ''}`} style={{padding: '6px 12px', fontSize: '0.75rem', border: 'none', background: filtroUrgencia === 'Alta' ? 'var(--warning)' : 'color-mix(in srgb, var(--warning) 10%, transparent)', color: filtroUrgencia === 'Alta' ? '#fff' : 'var(--warning)'}} onClick={() => setFiltroUrgencia('Alta')}>Alta</button>
           </div>
         </div>
 
         {/* Barra de Seleção em Lote */}
         {chamadosFiltrados.length > 0 && (
-          <div className="anim-fade-in" style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(56, 189, 248, 0.05)', padding: '10px 15px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)', width: '100%', flexWrap: 'wrap' }}>
+          <div className="anim-fade-in" style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(56, 189, 248, 0.05)', padding: '10px 15px', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--info) 20%, transparent)', width: '100%', flexWrap: 'wrap' }}>
              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                <input 
                  type="checkbox" 
@@ -569,6 +708,7 @@ export default function Chamados({
               key={c.id}
               c={c}
               isOffline={isOffline}
+              canManageWorkflow={canManageWorkflow}
               onResolver={handleResolverClick} 
               onArquivar={handleArquivar} 
               onDetalhes={abrirDetalhes}

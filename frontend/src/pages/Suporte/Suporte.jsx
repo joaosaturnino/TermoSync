@@ -1,10 +1,16 @@
+/**
+ * Módulo: frontend/src/pages/Suporte/Suporte.jsx
+ * Responsabilidade: Implementa a tela Suporte, seus estados, interações e integrações de dados.
+ */
+
+import { ArrowUpDown, RefreshCw, WifiOff } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   LifeBuoy, PlusCircle, Clock3, AlertTriangle,
   MessageSquare, User, Building2, ShieldCheck, X, Send,
   History, Loader2, Filter,
   Search, Sparkles, Terminal, BookOpen,
-  BadgeCheck, Hourglass, Bot,
+  BadgeCheck, Hourglass,
   HelpCircle, Server, Copy, Check, Play, CheckCheck
 } from 'lucide-react';
 import './Suporte.css';
@@ -17,6 +23,18 @@ const CATEGORY_OPTIONS = ['Todas', 'Geral', 'Técnico', 'Financeiro', 'Sugestão
 
 /**
  * Concentra a logica de status class para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} status - Valor de status consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const statusClass = (status) => {
   const s = String(status || '').toLowerCase();
@@ -26,8 +44,21 @@ const statusClass = (status) => {
   return 'status-aberto';
 };
 
+
 /**
  * Formata format date para exibicao segura na interface.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const formatDate = (value) => {
   if (!value) return 'Data indisponível';
@@ -36,39 +67,96 @@ const formatDate = (value) => {
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 };
 
+
 /**
  * Busca ou monta os dados de get priority config usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} prioridade - Valor de prioridade consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getPriorityConfig = (prioridade) => {
   const p = String(prioridade || 'Média').toLowerCase();
   if (p === 'crítica' || p === 'critica') {
-    return { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: '#ef4444', slaHours: 4, label: 'Crítica (Emergência - SLA 4h)' };
+    return { color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.12)', border: 'var(--danger)', slaHours: 4, label: 'Crítica (Emergência - SLA 4h)' };
   }
   if (p === 'alta') {
-    return { color: '#f97316', bg: 'rgba(249, 115, 22, 0.12)', border: '#f97316', slaHours: 12, label: 'Alta (Urgente - SLA 12h)' };
+    return { color: 'var(--warning)', bg: 'rgba(249, 115, 22, 0.12)', border: 'var(--warning)', slaHours: 12, label: 'Alta (Urgente - SLA 12h)' };
   }
   if (p === 'baixa') {
-    return { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', border: '#38bdf8', slaHours: 48, label: 'Baixa (Dúvida/Melhoria - SLA 48h)' };
+    return { color: 'var(--info)', bg: 'rgba(56, 189, 248, 0.12)', border: 'var(--info)', slaHours: 48, label: 'Baixa (Dúvida/Melhoria - SLA 48h)' };
   }
-  return { color: '#eab308', bg: 'rgba(234, 179, 8, 0.12)', border: '#eab308', slaHours: 24, label: 'Média (Padrão - SLA 24h)' };
+  return { color: 'var(--warning)', bg: 'rgba(234, 179, 8, 0.12)', border: 'var(--warning)', slaHours: 24, label: 'Média (Padrão - SLA 24h)' };
 };
+
 
 /**
  * Verifica a condicao is chamado recente e retorna um valor booleano.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} dataCriacao - Valor de data criacao consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const isChamadoRecente = (dataCriacao) => {
   if (!dataCriacao) return false;
+  /**
+   * Concentra a logica de diff minutos para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} dataCriacao - Valor de data criacao consumido por esta rotina.
+   * @param {unknown} status - Valor de status consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const diffMinutos = (Date.now() - new Date(dataCriacao).getTime()) / (1000 * 60);
   return diffMinutos <= 120; 
 };
 
+
 /**
  * Concentra a logica de calcular sla para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} prioridade - Valor de prioridade consumido por esta rotina.
+ * @param {unknown} dataCriacao - Valor de data criacao consumido por esta rotina.
+ * @param {unknown} status - Valor de status consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const calcularSLA = (prioridade, dataCriacao, status) => {
   const s = String(status || '').toLowerCase();
   if (s === 'concluído' || s === 'resolvido' || s === 'fechado' || s === 'respondido') {
-    return { percent: 100, text: 'SLA Cumprido', color: 'var(--success)' };
+    return { percent: 100, text: 'Atendimento encerrado', color: 'var(--success)' };
   }
   
   const config = getPriorityConfig(prioridade);
@@ -112,7 +200,7 @@ const SupportTicketCard = memo(({ ticket, selected, onClick }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span className={`support-flow-status ${statusClass(ticket.status)}`}>{ticket.status || 'Aberto'}</span>
           {recente && (
-            <span style={{ fontSize: '0.65rem', fontWeight: '800', background: '#a855f7', color: '#fff', padding: '2px 8px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '3px', boxShadow: '0 0 10px rgba(168, 85, 247, 0.6)' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'var(--accent-violet)', color: '#fff', padding: '2px 8px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '3px', boxShadow: '0 0 10px rgba(168, 85, 247, 0.6)' }}>
               ✨ NOVO
             </span>
           )}
@@ -163,7 +251,7 @@ const SupportQueueCard = memo(({ ticket, selected, onClick }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span className={`support-flow-status ${statusClass(ticket.status)}`}>{ticket.status || 'Aberto'}</span>
           {recente && (
-            <span style={{ fontSize: '0.65rem', fontWeight: '800', background: '#a855f7', color: '#fff', padding: '2px 8px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '3px', boxShadow: '0 0 10px rgba(168, 85, 247, 0.6)' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: '800', background: 'var(--accent-violet)', color: '#fff', padding: '2px 8px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '3px', boxShadow: '0 0 10px rgba(168, 85, 247, 0.6)' }}>
               ✨ NOVO
             </span>
           )}
@@ -196,12 +284,30 @@ const SupportQueueCard = memo(({ ticket, selected, onClick }) => {
 });
 
 /**
- * Módulo de Suporte (Entrada)
+ * Módulo de Suporte (Entrada) Responsabilidades:
  *
- * Responsabilidades:
- * - Gerenciar criação e atendimento de chamados
- * - Fornecer triagem, acompanhamento e integração com notificações
- * - Otimizar fluxo com filtros, prioridade e SLA visual
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; troca eventos em tempo real
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userFilial - Propriedade userFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {Function} props.onNavigate - Callback onNavigate fornecido pelo componente responsável.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function Suporte({ api, socket, userRole, nomeLogado, userFilial, showToast, isOffline, onNavigate }) {
   const isDev = userRole === 'DEV';
@@ -218,6 +324,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     equipamento: '', 
     descricao: '' 
   });
+  const [incluirContexto, setIncluirContexto] = useState(true);
   const [enviando, setEnviando] = useState(false);
 
   const [tickets, setTickets] = useState([]);
@@ -226,21 +333,26 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   const [filtroStatus, setFiltroStatus] = useState('Todos');
   const [filtroPrioridade, setFiltroPrioridade] = useState('Todas');
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
+  const [ordenacao, setOrdenacao] = useState('sla');
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [selecionado, setSelecionado] = useState(null);
   const [historico, setHistorico] = useState([]);
 
   const [resposta, setResposta] = useState('');
   const [statusAtual, setStatusAtual] = useState('Em análise');
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [copiadoId, setCopiadoId] = useState(false);
 
   const carregarTickets = useCallback(async (silencioso = false) => {
-    if (!api || isOffline) return;
+    if (!api || isOffline) {
+      if (!silencioso) setLoading(false);
+      return;
+    }
     try {
       if (!silencioso) setLoading(true);
       const res = await api.get('/suporte/chamados');
       setTickets(Array.isArray(res.data) ? res.data : []);
+      setLastUpdated(new Date());
     } catch (error) {
       if (!silencioso) showToast?.('Erro ao carregar chamados de suporte.', 'error');
     } finally {
@@ -256,8 +368,21 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   useEffect(() => {
     if (!socket) return undefined;
     
+
     /**
      * Processa a interacao de handle novo chamado e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @param {unknown} novoTicket - Valor de novo ticket consumido por esta rotina.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleNovoChamado = (novoTicket) => {
       // SÓ MOSTRA O BANNER SE QUEM ESTIVER NA TELA FOR TÉCNICO DEV (NOC)
@@ -268,8 +393,20 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
       carregarTicketsRef.current(true);
     };
 
+
     /**
      * Processa a interacao de handle update silencioso e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleUpdateSilencioso = () => {
       carregarTicketsRef.current(true);
@@ -311,16 +448,74 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
         return true;
       })
       .sort((a, b) => {
-        return new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime();
+        if (ordenacao === 'recentes') return new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime();
+        if (ordenacao === 'prioridade') {
+          const weight = { crítica: 4, critica: 4, alta: 3, média: 2, media: 2, baixa: 1 };
+          return (weight[String(b.prioridade || '').toLowerCase()] || 0) - (weight[String(a.prioridade || '').toLowerCase()] || 0);
+        }
+
+        /**
+         * Concentra a logica de deadline para manter o restante do tela mais legivel.
+         *
+         * Responsabilidade: mantém este comportamento isolado para que validação,
+         * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+         *
+         * Fluxo principal:
+         * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+         *
+         * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+         *
+         * @param {unknown} ticket - Valor de ticket consumido por esta rotina.
+         * @returns {unknown} Resultado calculado para consumo do chamador.
+         * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+         */
+        const deadline = (ticket) => new Date(ticket.criado_em || 0).getTime() + getPriorityConfig(ticket.prioridade).slaHours * 3600000;
+
+        /**
+         * Concentra a logica de closed para manter o restante do tela mais legivel.
+         *
+         * Responsabilidade: mantém este comportamento isolado para que validação,
+         * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+         *
+         * Fluxo principal:
+         * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+         *
+         * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+         *
+         * @param {unknown} ticket - Valor de ticket consumido por esta rotina.
+         * @returns {unknown} Resultado calculado para consumo do chamador.
+         * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+         */
+        const closed = (ticket) => ['respondido', 'concluído', 'resolvido', 'fechado'].includes(String(ticket.status || '').toLowerCase());
+        if (closed(a) !== closed(b)) return closed(a) ? 1 : -1;
+        return deadline(a) - deadline(b);
       });
-  }, [tickets, busca, filtroStatus, filtroPrioridade, filtroCategoria]);
+  }, [tickets, busca, filtroStatus, filtroPrioridade, filtroCategoria, ordenacao]);
 
   const resumo = useMemo(() => {
-    const abertos = ticketsVisiveis.filter((t) => t.status === 'Aberto').length;
-    const analise = ticketsVisiveis.filter((t) => ['Em análise', 'Em Atendimento'].includes(t.status)).length;
-    const respondidos = ticketsVisiveis.filter((t) => ['Respondido', 'Concluído', 'Resolvido', 'Fechado'].includes(t.status)).length;
-    const criticos = ticketsVisiveis.filter((t) => t.prioridade === 'Crítica').length;
-    return { abertos, analise, respondidos, criticos };
+
+    /**
+     * Concentra a logica de status para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} ticket - Valor de ticket consumido por esta rotina.
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const status = (ticket) => String(ticket.status || '').toLowerCase();
+    const abertos = ticketsVisiveis.filter((ticket) => status(ticket) === 'aberto').length;
+    const analise = ticketsVisiveis.filter((ticket) => ['em análise', 'em atendimento'].includes(status(ticket))).length;
+    const respondidos = ticketsVisiveis.filter((ticket) => ['respondido', 'concluído', 'resolvido', 'fechado'].includes(status(ticket))).length;
+    const criticos = ticketsVisiveis.filter((ticket) => ['crítica', 'critica'].includes(String(ticket.prioridade || '').toLowerCase())).length;
+    const vencidos = ticketsVisiveis.filter((ticket) => calcularSLA(ticket.prioridade, ticket.criado_em, ticket.status).text === 'SLA Expirado').length;
+    return { abertos, analise, respondidos, criticos, vencidos };
   }, [ticketsVisiveis]);
 
   useEffect(() => {
@@ -338,8 +533,22 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   }, [ticketsVisiveis, selecionado]);
 
   useEffect(() => {
+
     /**
      * Concentra a logica de carregar historico para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+     * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+     *
+     * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const carregarHistorico = async () => {
       if (!api || isOffline || !selecionado?.id) { setHistorico([]); return; }
@@ -351,8 +560,23 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     carregarHistorico();
   }, [api, isOffline, selecionado?.id]);
 
+
   /**
    * Processa a interacao de handle criar chamado e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleCriarChamado = async (e) => {
     e.preventDefault();
@@ -361,9 +585,11 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
 
     setEnviando(true);
     try {
-      const descCompleta = formNovo.equipamento 
-        ? `[Ativo / Setor Impactado: ${formNovo.equipamento}]\n\n${formNovo.descricao}`
-        : formNovo.descricao;
+      const contexto = incluirContexto
+        ? `[Contexto: perfil ${userRole || 'não informado'} | unidade ${userFilial || 'não informada'} | conexão ${isOffline ? 'offline' : 'online'}]\n`
+        : '';
+      const ativo = formNovo.equipamento ? `[Ativo / Setor Impactado: ${formNovo.equipamento}]\n` : '';
+      const descCompleta = `${contexto}${ativo}\n${formNovo.descricao}`.trim();
 
       await api.post('/suporte/chamados', {
         titulo: formNovo.titulo,
@@ -373,7 +599,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
         solicitante: nomeLogado
       });
 
-      showToast?.('Chamado submetido com sucesso! Posição #1 na fila.', 'success');
+      showToast?.('Chamado enviado e adicionado à fila de atendimento.', 'success');
       setModalNovoAberto(false);
       setFormNovo({ titulo: '', categoria: 'Geral', prioridade: 'Média', equipamento: '', descricao: '' });
       carregarTickets(true);
@@ -384,8 +610,23 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
     }
   };
 
+
   /**
    * Concentra a logica de salvar resposta dev para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} statusOverride - Valor de status override consumido por esta rotina.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const salvarRespostaDev = async (statusOverride = null) => {
     if (!selecionado) return;
@@ -411,24 +652,42 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
   };
 
   /**
-   * Gera gerar resposta com ia com os dados necessarios para o proximo passo.
+   * Preenche um modelo editavel sem afirmar que diagnosticos ou correcoes foram executados.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const gerarRespostaComIA = () => {
+  const aplicarModeloResposta = () => {
     if (!selecionado) return;
-    setIsGeneratingAI(true);
-    showToast?.('Analisando telemetria e gerando parecer tático...', 'info');
-    
-    setTimeout(() => {
-      const respostaIA = `Olá, ${selecionado.solicitante}.\n\nA nossa equipa de Engenharia (NOC) analisou o incidente referente à categoria "${selecionado.categoria}". Através da telemetria da unidade [${selecionado.filial || 'Matriz'}], inspecionamos o relato "${selecionado.titulo}" e aplicamos os ajustes remotos necessários na controladora.\n\nO ambiente deverá ser estabilizado no próximo ciclo de comunicação. Se o sintoma persistir, por favor interaja neste protocolo.\n\nAtentamente,\nEquipe de Engenharia ThermoSync.`;
-      setResposta(respostaIA);
-      setStatusAtual('Respondido');
-      setIsGeneratingAI(false);
-      showToast?.('Resposta rascunhada pelo Copilot AI.', 'success');
-    }, 1800);
+    const modelo = `Olá, ${selecionado.solicitante || 'usuário'}.\n\nRecebemos o chamado "${selecionado.titulo}" e iniciamos a triagem técnica da unidade ${selecionado.filial || 'informada'}.\n\nVerificações realizadas:\n- [descrever evidências consultadas]\n- [registrar resultado da telemetria ou serviço]\n\nOrientação / próximo passo:\n[descrever a ação recomendada e o critério de validação]\n\nAtenciosamente,\nEquipe de Engenharia ThermoSync.`;
+    setResposta(modelo);
+    setStatusAtual('Em análise');
+    showToast?.('Modelo técnico inserido. Revise as evidências antes de enviar.', 'info');
   };
+
 
   /**
    * Processa a interacao de copiar protocolo e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const copiarProtocolo = (id) => {
     navigator.clipboard.writeText(`PROTOCOLO-#${id}`);
@@ -443,6 +702,12 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
 
   return (
     <div className="support-flow-shell anim-fade-in">
+      {isOffline && (
+        <div className="support-flow-connectivity" role="status">
+          <WifiOff size={17} />
+          <div><strong>Suporte em modo somente leitura</strong><span>A conexão com o servidor está indisponível. Abertura e atualização de chamados foram bloqueadas.</span></div>
+        </div>
+      )}
       
       {/* BANNER INTERNO: SOMENTE PERFIS DEV RECONHECEM E VEEM ESTE AVISO */}
       {alertaNovoChamado && (
@@ -503,7 +768,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
             <div className="support-flow-stat"><strong>{ticketsVisiveis.length}</strong><span>Tickets filtrados</span></div>
             <div className="support-flow-stat"><strong>{resumo.abertos + resumo.analise}</strong><span>Em atendimento</span></div>
             <div className="support-flow-stat"><strong>{resumo.criticos}</strong><span>Prioridade crítica</span></div>
-            <div className="support-flow-stat"><strong>ROOT</strong><span>Visão de Engenharia</span></div>
+            <div className="support-flow-stat"><strong>{resumo.vencidos}</strong><span>SLA expirado</span></div>
           </div>
         </section>
       ) : (
@@ -534,7 +799,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
             <div className="support-flow-stat"><strong>{ticketsVisiveis.length}</strong><span>Chamados na lista</span></div>
             <div className="support-flow-stat"><strong>{resumo.abertos + resumo.analise}</strong><span>Em atendimento</span></div>
             <div className="support-flow-stat"><strong>{resumo.respondidos}</strong><span>Resolvidos / Ok</span></div>
-            <div className="support-flow-stat"><strong>{isDev ? 'DEV' : 'CLIENTE'}</strong><span>Perfil ativo</span></div>
+            <div className="support-flow-stat"><strong>{resumo.vencidos}</strong><span>Fora do SLA</span></div>
           </div>
         </section>
       )}
@@ -561,6 +826,19 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               {status}
             </button>
           ))}
+        </div>
+        <div className="support-flow-tools">
+          <label>
+            <ArrowUpDown size={15} />
+            <select value={ordenacao} onChange={(event) => setOrdenacao(event.target.value)} aria-label="Ordenar chamados">
+              <option value="sla">SLA mais próximo</option>
+              <option value="prioridade">Maior prioridade</option>
+              <option value="recentes">Mais recentes</option>
+            </select>
+          </label>
+          <button type="button" className="btn btn-outline" onClick={() => carregarTickets(false)} disabled={loading || isOffline} title={lastUpdated ? `Última atualização: ${formatDate(lastUpdated)}` : 'Atualizar chamados'}>
+            {loading ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />} Atualizar
+          </button>
         </div>
       </div>
 
@@ -655,12 +933,12 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                     <button 
                       onClick={() => copiarProtocolo(detalheSelecionado.id)} 
                       title="Copiar Número de Protocolo"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '6px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
                     >
-                      {copiadoId ? <Check size={12} color="#10b981" /> : <Copy size={12} />} #{detalheSelecionado.id}
+                      {copiadoId ? <Check size={12} color="var(--success)" /> : <Copy size={12} />} #{detalheSelecionado.id}
                     </button>
                   </div>
-                  <h3 style={{ color: 'white' }}>{detalheSelecionado.titulo}</h3>
+                  <h3 style={{ color: 'var(--text-main)' }}>{detalheSelecionado.titulo}</h3>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -677,7 +955,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                     type="button"
                     onClick={() => salvarRespostaDev('Em análise')}
                     disabled={isSaving || detalheSelecionado.status === 'Em análise'}
-                    style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer' }}
+                    style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--info) 30%, transparent)', background: 'color-mix(in srgb, var(--info) 10%, transparent)', color: 'var(--info)', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer' }}
                   >
                     <Play size={13} /> Iniciar Análise
                   </button>
@@ -686,7 +964,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                     type="button"
                     onClick={() => salvarRespostaDev('Concluído')}
                     disabled={isSaving || detalheSelecionado.status === 'Concluído'}
-                    style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer' }}
+                    style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)', background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer' }}
                   >
                     <CheckCheck size={14} /> Concluir Ticket
                   </button>
@@ -695,7 +973,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
 
               {/* BARRA DE PROGRESSO DE SLA (SLA EM TEMPO REAL) */}
               {currentSLA && (
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div style={{ background: 'color-mix(in srgb, var(--card-bg) 92%, var(--border))', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px', color: currentSLA.color, textTransform: 'uppercase' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Hourglass size={14} /> Acordo de Nível de Serviço (SLA)</span>
                     <span>{currentSLA.text}</span>
@@ -712,21 +990,21 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                 <span><ShieldCheck size={14} /> {detalheSelecionado.categoria || 'Geral'}</span>
               </div>
 
-              <p className="support-flow-detail-text" style={{ padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', borderLeft: '3px solid var(--border)', margin: 0, whiteSpace: 'pre-wrap' }}>
+              <p className="support-flow-detail-text" style={{ padding: '15px', background: 'color-mix(in srgb, var(--card-bg) 92%, var(--border))', borderRadius: '8px', borderLeft: '3px solid var(--border)', margin: 0, whiteSpace: 'pre-wrap' }}>
                 {detalheSelecionado.descricao}
               </p>
 
               {/* RETORNO OFICIAL DA ENGENHARIA (VISÃO DO USUÁRIO) */}
               {modoVisao === 'acompanhamento' && (
                 <div className="support-flow-note-box">
-                  <strong style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ShieldCheck size={16} color="#10b981" /> Retorno Oficial da Engenharia
+                  <strong style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={16} color="var(--success)" /> Retorno Oficial da Engenharia
                   </strong>
                   <p style={{ color: detalheSelecionado.resposta ? 'var(--success)' : 'var(--text-muted)', marginTop: '8px', whiteSpace: 'pre-wrap' }}>
                     {detalheSelecionado.resposta || 'Ainda não houve parecer registrado pelo NOC para este ticket.'}
                   </p>
                   {detalheSelecionado.responsavel && detalheSelecionado.resposta && (
-                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem', color: '#64748b' }}>
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       Responsável: {detalheSelecionado.responsavel}
                     </div>
                   )}
@@ -742,7 +1020,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', maxHeight: '140px', overflowY: 'auto' }}>
                     {historico.map((h, i) => (
                       <div key={i} style={{ fontSize: '0.8rem', borderLeft: '2px solid var(--primary)', paddingLeft: '8px', color: 'var(--text-muted)' }}>
-                        <div style={{ fontWeight: 'bold', color: '#cbd5e1' }}>{h.autor || 'Sistema'} ({h.evento})</div>
+                        <div style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>{h.autor || 'Sistema'} ({h.evento})</div>
                         <div>{h.mensagem}</div>
                       </div>
                     ))}
@@ -753,16 +1031,14 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               {/* EDITOR NOC (VISÃO DO DESENVOLVEDOR NA TRIAGEM) */}
               {modoVisao === 'triagem' && isDev && (
                 <div className="support-flow-editor" style={{ marginTop: 'auto' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div className="support-flow-editor-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label style={{ margin: 0 }}>Parecer Operacional NOC</label>
                     <button 
                       type="button" 
-                      onClick={gerarRespostaComIA} 
-                      disabled={isGeneratingAI} 
-                      style={{ background: 'linear-gradient(90deg, #a855f7, #3b82f6)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                      onClick={aplicarModeloResposta}
+                      style={{ background: 'color-mix(in srgb, var(--primary) 14%, transparent)', color: 'var(--primary)', border: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
                     >
-                      {isGeneratingAI ? <Loader2 size={14} className="spin" /> : <Bot size={14} />}
-                      {isGeneratingAI ? 'Analisando...' : 'Copilot AI'}
+                      <Sparkles size={14} /> Modelo técnico
                     </button>
                   </div>
                   <textarea 
@@ -770,9 +1046,9 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                     value={resposta} 
                     onChange={(e) => setResposta(e.target.value)} 
                     placeholder="Redija a instrução técnica ou solução para o cliente..." 
-                    style={{ background: 'rgba(0,0,0,0.4)', color: 'white' }} 
+                    style={{ background: 'color-mix(in srgb, var(--card-bg) 92%, var(--border))', color: 'var(--text-main)' }}
                   />
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '10px' }}>
+                  <div className="support-flow-editor-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '10px' }}>
                     <select value={statusAtual} onChange={(e) => setStatusAtual(e.target.value)} style={{ flex: 1 }}>
                       {['Aberto', 'Em análise', 'Respondido', 'Concluído'].map((s) => (
                         <option key={s} value={s}>{s}</option>
@@ -808,7 +1084,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
       {modalNovoAberto && (
         <div className="modal-overlay" onClick={() => setModalNovoAberto(false)}>
           <div 
-            className="modal-content anim-slide-up" 
+            className="modal-content anim-slide-up support-ticket-modal"
             onClick={(e) => e.stopPropagation()} 
             style={{ maxWidth: '600px', width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '1.8rem', boxShadow: '0 25px 80px rgba(0,0,0,0.7)' }}
           >
@@ -821,21 +1097,21 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
                 </span>
                 <h3 style={{ margin: 0, color: 'white', fontSize: '1.25rem' }}>Abrir Chamado de Suporte</h3>
               </div>
-              <button onClick={() => setModalNovoAberto(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setModalNovoAberto(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={22} />
               </button>
             </div>
 
             {/* BANNER DE CONTEXTO DO TENANT & SLA EM TEMPO REAL */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px', borderRadius: '12px', marginBottom: '1.25rem' }}>
+            <div className="support-ticket-context" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px', borderRadius: '12px', marginBottom: '1.25rem' }}>
               <div>
-                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Unidade / Tenant</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Unidade / Tenant</span>
                 <div style={{ color: '#e2e8f0', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
                   <Building2 size={15} color="var(--primary)" /> {userFilial || 'Sede Principal'}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Meta de SLA Prevista</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Meta de SLA Prevista</span>
                 <div style={{ color: sNovoPrioridadeConfig.color, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', marginTop: '3px' }}>
                   <Clock3 size={15} /> Máx. {sNovoPrioridadeConfig.slaHours} horas
                 </div>
@@ -847,7 +1123,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               {/* TÍTULO DO CHAMADO */}
               <div>
                 <label style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                  Título / Assunto Principal <span style={{ color: '#ef4444' }}>*</span>
+                  Título / Assunto Principal <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <input 
                   type="text" 
@@ -860,10 +1136,10 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               </div>
 
               {/* GRID CATEGORIA E PRIORIDADE */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="support-ticket-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                    Categoria do Suporte <span style={{ color: '#ef4444' }}>*</span>
+                    Categoria do Suporte <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <select 
                     value={formNovo.categoria}
@@ -879,7 +1155,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
 
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                    Nível de Prioridade <span style={{ color: '#ef4444' }}>*</span>
+                    Nível de Prioridade <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <select 
                     value={formNovo.prioridade}
@@ -897,7 +1173,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               {/* EQUIPAMENTO / SETOR IMPACTADO */}
               <div>
                 <label style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
-                  <Server size={14} color="#38bdf8" /> Equipamento ou Setor Impactado <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'normal' }}>(Opcional)</span>
+                  <Server size={14} color="var(--info)" /> Equipamento ou Setor Impactado <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>(Opcional)</span>
                 </label>
                 <input 
                   type="text" 
@@ -911,7 +1187,7 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               {/* DESCRIÇÃO DETALHADA */}
               <div>
                 <label style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                  Relato do Problema ou Ocorrência <span style={{ color: '#ef4444' }}>*</span>
+                  Relato do Problema ou Ocorrência <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <textarea 
                   rows="4" 
@@ -924,15 +1200,20 @@ export default function Suporte({ api, socket, userRole, nomeLogado, userFilial,
               </div>
 
               {/* DICA DE SLA E PROTOCOLO */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(14, 165, 233, 0.08)', borderLeft: '3px solid #0ea5e9', padding: '10px 12px', borderRadius: '8px', fontSize: '0.75rem', color: '#cbd5e1' }}>
-                <HelpCircle size={18} color="#0ea5e9" style={{ flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(14, 165, 233, 0.08)', borderLeft: '3px solid var(--info)', padding: '10px 12px', borderRadius: '8px', fontSize: '0.75rem', color: '#cbd5e1' }}>
+                <HelpCircle size={18} color="var(--info)" style={{ flexShrink: 0 }} />
                 <span>
-                  O protocolo será adicionado em <strong>#1 na fila</strong> de atendimento. Uma notificação aparecerá assim que a Engenharia responder.
+                  O protocolo será adicionado à fila conforme prioridade e prazo de SLA. Uma notificação aparecerá quando houver retorno da Engenharia.
                 </span>
               </div>
 
+              <label className="support-context-option">
+                <input type="checkbox" checked={incluirContexto} onChange={(event) => setIncluirContexto(event.target.checked)} />
+                <span><strong>Incluir contexto técnico</strong><small>Adiciona perfil, unidade e estado da conexão ao relato para agilizar a triagem.</small></span>
+              </label>
+
               {/* BOTÕES DE AÇÃO DO MODAL */}
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+              <div className="support-ticket-modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
                 <button 
                   type="button" 
                   className="btn btn-outline" 

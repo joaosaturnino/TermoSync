@@ -1,3 +1,5 @@
+/** Define o layout, os estados visuais e os breakpoints de Suporte Telas. */
+
 .support-flow-shell {
   display: flex;
   flex-direction: column;
@@ -15,7 +17,7 @@
     radial-gradient(circle at top left, rgba(5, 150, 105, 0.2), transparent 34%),
     radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.16), transparent 30%),
     linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.88));
-  color: #f8fafc;
+  color: var(--neutral-50);
   box-shadow: 0 24px 70px rgba(2, 6, 23, 0.24);
 }
 
@@ -40,7 +42,7 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-size: 0.72rem;
-  color: #67e8f9;
+  color: var(--info);
   font-weight: 800;
 }
 
@@ -189,8 +191,8 @@
   margin-bottom: 1rem;
 }
 
-.support-flow-panel-head > div,
-.support-flow-detail-head > div {
+.support-flow-panel-head>div,
+.support-flow-detail-head>div {
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -314,37 +316,43 @@
 }
 
 .status-aberto {
-  background: color-mix(in srgb, #f59e0b 15%, transparent);
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
 }
+
 .status-analise {
-  background: color-mix(in srgb, #38bdf8 15%, transparent);
-  color: #38bdf8;
+  background: color-mix(in srgb, var(--info) 15%, transparent);
+  color: var(--info);
 }
+
 .status-respondido {
-  background: color-mix(in srgb, #8b5cf6 15%, transparent);
-  color: #8b5cf6;
+  background: color-mix(in srgb, var(--accent-violet) 15%, transparent);
+  color: var(--accent-violet);
 }
+
 .status-concluido {
-  background: color-mix(in srgb, #10b981 15%, transparent);
-  color: #10b981;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
 }
 
 .priority-baixa {
   background: color-mix(in srgb, #0ea5e9 15%, transparent);
   color: #0ea5e9;
 }
+
 .priority-media {
-  background: color-mix(in srgb, #f59e0b 15%, transparent);
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
 }
+
 .priority-alta {
-  background: color-mix(in srgb, #ef4444 15%, transparent);
-  color: #ef4444;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
+
 .priority-critica {
-  background: color-mix(in srgb, #b91c1c 15%, transparent);
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
 
 .support-flow-side {
@@ -471,11 +479,13 @@
 }
 
 @media (max-width: 1100px) {
+
   .support-flow-hero,
   .support-flow-grid {
     grid-template-columns: 1fr;
     display: grid;
   }
+
   .support-flow-stats {
     min-width: 100%;
   }
@@ -485,9 +495,11 @@
   .support-flow-hero {
     padding: 1.25rem;
   }
+
   .support-flow-stats {
     grid-template-columns: 1fr 1fr;
   }
+
   .support-flow-ticket-top,
   .support-flow-panel-head,
   .support-flow-detail-head,
@@ -495,8 +507,413 @@
     flex-direction: column;
     align-items: stretch;
   }
+
   .support-flow-actions,
   .support-flow-action-row {
     flex-direction: column;
+  }
+}
+
+/* Camada final de layout: compacta a central para notebook e remove excessos visuais. */
+.support-flow-shell {
+  min-width: 0;
+  gap: 1rem;
+}
+
+.support-flow-connectivity {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-radius: 8px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--card-bg));
+}
+
+.support-flow-connectivity svg {
+  flex: 0 0 auto;
+}
+
+.support-flow-connectivity strong,
+.support-flow-connectivity span {
+  display: block;
+}
+
+.support-flow-connectivity strong {
+  font-size: 0.76rem;
+}
+
+.support-flow-connectivity span {
+  margin-top: 0.12rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.support-flow-hero,
+.support-flow-panel,
+.support-flow-detail,
+.support-flow-search,
+.support-flow-stat,
+.support-flow-ticket,
+.support-flow-note-box,
+.support-flow-editor,
+.support-flow-history-item {
+  border-radius: 8px;
+}
+
+.support-flow-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  padding: 1.1rem;
+  background: var(--card-bg);
+  color: var(--text-main);
+  box-shadow: var(--shadow-card);
+}
+
+.support-flow-hero-triagem {
+  border-left: 4px solid var(--warning);
+}
+
+.support-flow-hero-acompanhamento {
+  border-left: 4px solid var(--primary);
+}
+
+.support-flow-kicker {
+  color: var(--primary);
+  letter-spacing: 0;
+}
+
+.support-flow-hero h1 {
+  max-width: none;
+  margin: 0.3rem 0;
+  color: var(--text-main);
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.support-flow-hero p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.support-flow-stat {
+  padding: 0.7rem;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--primary) 5%, var(--card-bg));
+  backdrop-filter: none;
+}
+
+.support-flow-stat strong {
+  color: var(--text-main);
+  font-size: 1.1rem;
+}
+
+.support-flow-stat span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.support-flow-toolbar {
+  align-items: center;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.support-flow-search {
+  min-width: 260px;
+  padding: 0.65rem 0.75rem;
+  box-shadow: none;
+}
+
+.support-flow-filter {
+  min-height: 34px;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+}
+
+.support-flow-filter.active {
+  background: color-mix(in srgb, var(--primary) 12%, var(--card-bg));
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.support-flow-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.support-flow-tools label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.support-flow-tools select {
+  min-width: 132px;
+  border: 0;
+  color: var(--text-main);
+  background: transparent;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  outline: 0;
+}
+
+.support-flow-tools option {
+  background: var(--card-bg);
+}
+
+.support-flow-tools .btn {
+  min-height: 36px;
+}
+
+.support-context-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--neutral-300);
+  cursor: pointer;
+}
+
+.support-context-option input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.support-context-option strong,
+.support-context-option small {
+  display: block;
+}
+
+.support-context-option strong {
+  font-size: 0.75rem;
+}
+
+.support-context-option small {
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+.support-ticket-modal {
+  border-radius: 8px !important;
+  max-height: min(92vh, 820px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.support-flow-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
+  gap: 0.85rem;
+}
+
+.support-flow-panel,
+.support-flow-detail {
+  padding: 0.9rem;
+  box-shadow: var(--shadow-card);
+}
+
+.support-flow-panel-head h2 {
+  font-size: 0.95rem;
+}
+
+.support-flow-list {
+  max-height: 780px;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 35%, transparent) transparent;
+}
+
+.support-flow-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.support-flow-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+}
+
+.support-flow-ticket {
+  padding: 0.8rem;
+}
+
+.support-flow-ticket:hover {
+  transform: translateY(-1px);
+}
+
+.support-flow-ticket-top h3 {
+  font-size: 0.82rem;
+}
+
+.support-flow-ticket-desc {
+  margin: 0.55rem 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.support-flow-ticket-meta {
+  gap: 0.35rem 0.7rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  font-size: 0.66rem;
+}
+
+.support-flow-response-preview,
+.support-flow-response-empty {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  font-size: 0.7rem;
+}
+
+.support-flow-status,
+.support-flow-priority,
+.panel-badge {
+  border-radius: 6px;
+  font-size: 0.64rem;
+}
+
+.panel-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+@media (max-width: 1200px) {
+  .support-flow-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 0.86fr);
+  }
+
+  .support-flow-toolbar {
+    align-items: stretch;
+  }
+
+  .support-flow-search {
+    flex-basis: 100%;
+  }
+
+  .support-flow-tools {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 980px) {
+
+  .support-flow-hero,
+  .support-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .support-flow-list {
+    max-height: 520px;
+  }
+
+  .support-flow-stats {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .support-flow-toolbar {
+    align-items: stretch;
+  }
+
+  .support-flow-filters {
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .support-flow-filter {
+    flex: 0 0 auto;
+  }
+
+  .support-flow-tools {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .support-flow-tools label {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .support-flow-tools select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .support-flow-tools .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .support-flow-detail-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .support-flow-editor-head,
+  .support-flow-editor-actions,
+  .support-ticket-modal-actions {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .support-flow-editor-head button,
+  .support-flow-editor-actions .btn,
+  .support-ticket-modal-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .support-ticket-context,
+  .support-ticket-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .support-ticket-context>div:last-child,
+  .support-ticket-context>div:last-child div {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  .support-ticket-modal {
+    width: calc(100vw - 1rem) !important;
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .support-flow-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .support-flow-tools {
+    flex-direction: column;
+  }
+
+  .support-flow-tools label,
+  .support-flow-tools .btn {
+    width: 100%;
   }
 }

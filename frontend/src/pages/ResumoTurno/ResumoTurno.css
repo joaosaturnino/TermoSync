@@ -1,149 +1,379 @@
-/* =========================================
-   ResumoTurno.css - Visão de Turno
-   ========================================= */
+/** Define o layout, os estados visuais e os breakpoints de Resumo Turno. */
 
-.resumo-turno {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-  box-sizing: border-box;
+.shift-summary {
+    --sum-line: color-mix(in srgb, var(--border-color) 82%, transparent);
+    display: grid;
+    gap: 14px;
+    color: var(--text-main);
 }
 
-.hero-resumo-turno {
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 18px;
-  padding: 1rem 1.1rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-  backdrop-filter: blur(12px);
-  height: auto;
+.shift-summary-header,
+.shift-summary-kpis article,
+.shift-summary-panel {
+    border: 1px solid var(--sum-line);
+    border-radius: 8px;
+    background: var(--card-bg);
 }
 
-.dark-theme .hero-resumo-turno { background: rgba(15, 23, 42, 0.85); }
-
-.hero-badge-resumo-turno {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0.12);
-  color: var(--secondary);
-  font-size: 0.8rem;
-  font-weight: 700;
-  width: fit-content;
+.shift-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 22px;
 }
 
-.hero-resumo-turno h3 { margin: 0 0 0.35rem; font-size: 1.2rem; }
-.hero-resumo-turno p { margin: 0; color: var(--text-muted); line-height: 1.5; }
-
-.hero-summary-resumo-turno {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 220px;
+.shift-summary-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: .69rem;
+    font-weight: 800;
+    text-transform: uppercase;
 }
 
-.hero-summary-resumo-turno span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.04);
-  font-size: 0.8rem;
-  color: var(--text-muted);
+.shift-summary-header h2 {
+    margin: 5px 0 3px;
+    font-size: 1.45rem;
 }
 
-.cards-resumo-turno {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.9rem;
+.shift-summary-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: .72rem;
+    text-transform: capitalize;
 }
 
-.resumo-card {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 16px;
-  padding: 0.95rem;
-  display: flex;
-  gap: 0.7rem;
-  align-items: center;
-  backdrop-filter: blur(12px);
-  height: auto;
+.handoff-state {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 205px;
+    padding: 9px 11px;
+    border: 1px solid var(--sum-line);
+    border-radius: 6px;
 }
 
-.dark-theme .resumo-card { background: rgba(15, 23, 42, 0.75); }
-
-.resumo-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  flex-shrink: 0;
+.handoff-state>span {
+    width: 32px;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
 }
 
-.resumo-icon.status { background: rgba(56, 189, 248, 0.16); color: var(--secondary); }
-.resumo-icon.alert { background: rgba(248, 113, 113, 0.16); color: var(--danger); }
-.resumo-icon.service { background: rgba(245, 158, 11, 0.16); color: var(--warning); }
-.resumo-icon.success { background: rgba(16, 185, 129, 0.16); color: var(--success); }
-
-.resumo-card h4 { margin: 0 0 0.2rem; font-size: 1rem; }
-.resumo-card p { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
-
-.resumo-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-  align-items: start;
+.handoff-state.attention>span {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
 }
 
-.panel-resumo {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 16px;
-  padding: 0.95rem 1rem;
-  backdrop-filter: blur(12px);
-  height: auto;
-  overflow: visible;
+.handoff-state.critical>span {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
 }
 
-.dark-theme .panel-resumo { background: rgba(15, 23, 42, 0.75); }
-
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.7rem;
-  color: var(--text-main);
-  font-weight: 700;
+.handoff-state strong,
+.handoff-state small {
+    display: block;
 }
 
-.panel-resumo ul {
-  margin: 0;
-  padding-left: 1rem;
-  color: var(--text-muted);
-  line-height: 1.6;
+.handoff-state strong {
+    font-size: .72rem;
 }
 
-.panel-resumo p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.6;
+.handoff-state small {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: .61rem;
+}
+
+.shift-summary-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 9px;
+}
+
+.shift-summary-kpis article {
+    padding: 13px 14px;
+    border-top: 3px solid transparent;
+}
+
+.shift-summary-kpis article.danger {
+    border-top-color: var(--danger);
+}
+
+.shift-summary-kpis article>span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: .65rem;
+    font-weight: 700;
+}
+
+.shift-summary-kpis article>strong {
+    display: block;
+    min-height: 25px;
+    margin: 7px 0 2px;
+    font-size: 1.35rem;
+}
+
+.shift-summary-kpis article p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: .59rem;
+}
+
+.shift-summary-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.shift-summary-panel {
+    min-width: 0;
+    padding: 15px;
+}
+
+.shift-panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 11px;
+    border-bottom: 1px solid var(--sum-line);
+}
+
+.shift-panel-heading span {
+    color: var(--text-muted);
+    font-size: .6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.shift-panel-heading h3 {
+    margin: 2px 0 0;
+    font-size: .85rem;
+}
+
+.shift-panel-heading>svg {
+    color: var(--text-muted);
+}
+
+.handoff-list {
+    display: grid;
+}
+
+.handoff-list button {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 31px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 9px;
+    min-height: 62px;
+    padding: 8px 2px;
+    border: 0;
+    border-bottom: 1px solid var(--sum-line);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.handoff-list button>span {
+    width: 29px;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+}
+
+.handoff-list button.pending>span {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+}
+
+.handoff-list strong,
+.handoff-list small {
+    display: block;
+}
+
+.handoff-list strong {
+    font-size: .72rem;
+}
+
+.handoff-list small {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: .61rem;
+}
+
+.handoff-list button>svg {
+    color: var(--text-muted);
+}
+
+.shift-alert-list {
+    display: grid;
+    max-height: 215px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.shift-alert-list>div:not(.shift-summary-empty) {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 53px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--sum-line);
+}
+
+.shift-alert-list strong,
+.shift-alert-list small {
+    display: block;
+}
+
+.shift-alert-list strong {
+    font-size: .68rem;
+}
+
+.shift-alert-list small {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: .58rem;
+    line-height: 1.35;
+}
+
+.shift-alert-list time {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: .59rem;
+}
+
+.shift-summary-empty {
+    min-height: 165px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--success);
+}
+
+.shift-summary-empty strong {
+    margin-top: 8px;
+}
+
+.sector-shift-panel {
+    grid-column: 1 / -1;
+}
+
+.shift-sector-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+    padding-top: 11px;
+}
+
+.shift-sector-grid>div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--sum-line);
+    border-radius: 5px;
+}
+
+.shift-sector-grid strong,
+.shift-sector-grid small {
+    display: block;
+}
+
+.shift-sector-grid strong {
+    font-size: .68rem;
+}
+
+.shift-sector-grid small {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: .57rem;
+}
+
+.shift-sector-grid>div>span:last-child {
+    color: var(--success);
+    font-size: .6rem;
+    font-weight: 700;
+}
+
+.shift-sector-grid>div.with-issue>span:last-child {
+    color: var(--danger);
+}
+
+.spin {
+    animation: summary-spin .8s linear infinite;
+}
+
+@keyframes summary-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (max-width: 900px) {
-  .cards-resumo-turno,
-  .resumo-grid { grid-template-columns: 1fr; }
+    .shift-sector-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
-@media (max-width: 700px) {
-  .hero-resumo-turno { flex-direction: column; align-items: flex-start; }
+@media (max-width: 760px) {
+    .shift-summary-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sector-shift-panel {
+        grid-column: auto;
+    }
+
+    .shift-summary-kpis {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .shift-summary {
+        gap: 10px;
+    }
+
+    .shift-summary-header {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 15px;
+    }
+
+    .handoff-state {
+        min-width: 0;
+    }
+
+    .shift-summary-kpis {
+        gap: 7px;
+    }
+
+    .shift-summary-kpis article {
+        padding: 11px;
+    }
+
+    .shift-summary-panel {
+        padding: 12px;
+    }
+
+    .shift-sector-grid {
+        grid-template-columns: 1fr;
+    }
 }

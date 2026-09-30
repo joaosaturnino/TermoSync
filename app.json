@@ -1,6 +1,8 @@
 {
   "expo": {
     "extra": {
+      "webUrl": "https://thermosync.com.br",
+      "apiUrl": "https://thermosync.com.br",
       "eas": {
         "projectId": "3eaaebca-adc9-4e07-90b3-2d008cc4a6ef"
       }

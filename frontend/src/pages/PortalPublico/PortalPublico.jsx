@@ -1,185 +1,218 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Thermometer, Snowflake, Power, AlertTriangle, CheckCircle2, Activity, MapPin } from 'lucide-react';
+/**
+ * Módulo: frontend/src/pages/PortalPublico/PortalPublico.jsx
+ * Responsabilidade: Implementa a tela Portal Publico, seus estados, interações e integrações de dados.
+ */
+
+import TermoSyncLogo from '../../components/TermoSyncLogo';
+import { ChevronLeft, ChevronRight, Clock3, Expand, Fan, Loader2, Pause, Play, Radio, RefreshCw, WifiOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Thermometer, Snowflake, Power, AlertTriangle, CheckCircle2, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '../../config/api'; 
 import '../Monitoramento/Monitoramento.css';
+import './PortalPublico.css';
+
+const STALE_AFTER_MS = 3 * 60 * 1000;
 
 /**
- * Renderiza a tela Portal Publico e concentra as regras de apresentacao desse modulo.
+ * Busca ou monta os dados de get panel token usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function PortalPublico({ filialUrl }) {
-  const [dados, setDados] = useState(null);
-  const [erro, setErro] = useState(false);
+const getPanelToken = () => {
+  const storedToken = sessionStorage.getItem('token');
+  if (storedToken) return storedToken;
 
-  const carregarDados = useCallback(async () => {
-    try {
-      const res = await axios.get(`${getApiUrl()}/public/live/${encodeURIComponent(filialUrl)}`);
-      if (res.data && res.data.success) {
-        setDados(res.data);
-        setErro(false);
-      } else {
-        setErro(true);
-      }
-    } catch (err) {
-      console.error(err);
-      setErro(true);
-    }
-  }, [filialUrl]);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const transferredToken = hashParams.get('panel_token');
+  if (!transferredToken) return '';
+
+  sessionStorage.setItem('token', transferredToken);
+  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+  return transferredToken;
+};
+
+/**
+ * Converte valores vindos do banco sem transformar vazio em zero válido.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const toNumber = (value) => { if (value === null || value === undefined || value === '') return null; const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }; /* Normaliza flags booleanas retornadas pelo MySQL. */ const toBoolean = (value) => value === true || value === 1 || value === '1'; /* Classifica uma leitura para priorização e apresentação no painel. */ const classifyEquipment = (equipment, now) => { const temperature = toNumber(equipment.ultima_temp); const min = toNumber(equipment.temp_min); const max = toNumber(equipment.temp_max); const readingAt = equipment.atualizado_em ? new Date(equipment.atualizado_em).getTime() : null; const ageMs = readingAt && Number.isFinite(readingAt) ? Math.max(0, now - readingAt) : null; const motorOn = toBoolean(equipment.motor_ligado); const defrosting = toBoolean(equipment.em_degelo); if (temperature === null || ageMs === null || ageMs > STALE_AFTER_MS) { return { tone: 'stale', label: temperature === null ? 'SEM LEITURA' : 'SINAL ATRASADO', temperature, min, max, ageMs, motorOn, defrosting }; } if (defrosting) return { tone: 'defrost', label: 'EM DEGELO', temperature, min, max, ageMs, motorOn, defrosting }; const above = max !== null && temperature > max; const below = min !== null && temperature < min; const deviation = above ? temperature - max : below ? min - temperature : 0; if ((above || below) && deviation >= 5) { return { tone: 'critical', label: above ? 'ALTA CRÍTICA' : 'BAIXA CRÍTICA', temperature, min, max, ageMs, motorOn, defrosting }; } if (above || below) { return { tone: 'warning', label: above ? 'ACIMA DO LIMITE' : 'ABAIXO DO LIMITE', temperature, min, max, ageMs, motorOn, defrosting }; } return { tone: 'normal', label: motorOn ? 'REFRIGERANDO' : 'FAIXA NORMAL', temperature, min, max, ageMs, motorOn, defrosting }; }; /* Resume a idade da leitura em linguagem curta para visualização à distância. */ const formatAge = (ageMs) => { if (ageMs === null) return 'sem registro'; const seconds = Math.floor(ageMs / 1000); if (seconds < 15) return 'agora'; if (seconds < 60) return `há ${seconds}s`; const minutes = Math.floor(seconds / 60); if (minutes < 60) return `há ${minutes}min`; return `há ${Math.floor(minutes / 60)}h`; }; /* Exibe temperatura e limites sem propagar NaN para a interface. */ const formatTemperature = (value, digits = 1) => value === null ? '--' : value.toFixed(digits); /* Painel autenticado de TV com telemetria e atualização periódica. */ export default function PortalPublico({ filialUrl }) { const [authToken] = useState(getPanelToken); const [data, setData] = useState(null); const [error, setError] = useState(''); const [refreshing, setRefreshing] = useState(false); const [lastSuccessAt, setLastSuccessAt] = useState(null); const [now, setNow] = useState(Date.now()); const [activeGroupIndex, setActiveGroupIndex] = useState(0); const [autoRotate, setAutoRotate] = useState(true); const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement)); useEffect(() => { document.title = `Painel TV - ${filialUrl || 'Operação'} | ThermoSync`; }, [filialUrl]); /* Atualiza os dados sem apagar a última leitura válida em falhas transitórias. */ const loadData = useCallback(async () => { setRefreshing(true); try { if (!authToken) throw new Error('Sessão não encontrada. Abra o Painel TV pelo sistema.'); const response = await axios.get(`${getApiUrl()}/public/live/${encodeURIComponent(filialUrl)}`, { timeout: 8000, headers: { Authorization: `Bearer ${authToken}` } }); if (!response.data?.success) throw new Error(response.data?.error || 'Resposta inválida do servidor.'); setData({ ...response.data, equipamentos: Array.isArray(response.data.equipamentos) ? response.data.equipamentos : [] }); setLastSuccessAt(new Date()); setError(''); } catch (requestError) { setError(requestError.response?.data?.error || requestError.message || 'Não foi possível atualizar a telemetria.'); } finally { setRefreshing(false); } }, [authToken, filialUrl]);
+  useEffect(() => {
+    loadData();
+    const refreshTimer = window.setInterval(loadData, 10000);
+    return () => window.clearInterval(refreshTimer);
+  }, [loadData]);
+  useEffect(() => {
+    const clockTimer = window.setInterval(() => setNow(Date.now()), 1000);
+    const handleFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', handleFullscreen);
+    return () => { window.clearInterval(clockTimer); document.removeEventListener('fullscreenchange', handleFullscreen); };
+  }, []);
+
+  const groups = useMemo(() => {
+    const grouped = new Map();
+    (data?.equipamentos || []).forEach((equipment) => {
+      const branch = String(equipment.filial || data?.unidade || 'Unidade não informada');
+      if (!grouped.has(branch)) grouped.set(branch, []);
+      grouped.get(branch).push({ ...equipment, state: classifyEquipment(equipment, now) });
+    });
+    return [...grouped.entries()].map(([branch, equipment]) => ({ branch, equipment }));
+  }, [data, now]);
+  const activeGroup = groups[activeGroupIndex] || groups[0] || null;
+  const summary = useMemo(() => {
+    const states = groups.flatMap((group) => group.equipment.map((equipment) => equipment.state.tone));
+    return {
+      total: states.length,
+      normal: states.filter((tone) => tone === 'normal').length,
+      attention: states.filter((tone) => tone === 'warning' || tone === 'critical').length,
+      stale: states.filter((tone) => tone === 'stale').length,
+      defrost: states.filter((tone) => tone === 'defrost').length
+    };
+  }, [groups]);
+  const overallTone = summary.attention > 0 ? 'critical' : summary.stale > 0 ? 'stale' : summary.total > 0 ? 'normal' : 'stale';
+  const overallLabel = summary.attention > 0 ? 'ATENÇÃO NECESSÁRIA' : summary.stale > 0 ? 'TELEMETRIA PARCIAL' : summary.total > 0 ? 'OPERAÇÃO NORMAL' : 'SEM ATIVOS';
 
   useEffect(() => {
-    const primeiraCarga = window.setTimeout(carregarDados, 0);
-    const intervalo = setInterval(carregarDados, 10000);
-    return () => {
-      window.clearTimeout(primeiraCarga);
-      clearInterval(intervalo);
-    };
-  }, [carregarDados]);
+    if (activeGroupIndex >= groups.length) setActiveGroupIndex(0);
+  }, [activeGroupIndex, groups.length]);
+  useEffect(() => {
+    if (!autoRotate || groups.length < 2) return undefined;
+    const rotationTimer = window.setInterval(() => setActiveGroupIndex((index) => (index + 1) % groups.length), 12000);
+    return () => window.clearInterval(rotationTimer);
+  }, [autoRotate, groups.length]);
+  /**
+   * Processa a interacao de toggle fullscreen e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen?.();
+    else await document.documentElement.requestFullscreen?.();
+  };
 
-  if (erro) {
+
+  /**
+   * Concentra a logica de move group para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} direction - Valor de direction consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const moveGroup = (direction) => {
+    if (groups.length < 2) return;
+    setActiveGroupIndex(index => (index + direction + groups.length) % groups.length);
+  };
+
+  if (!data && error) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f172a', color: 'white' }}>
-        <h2><AlertTriangle color="#ef4444" /> Erro de Conexão. Tentando novamente...</h2>
-      </div>
+      <main className="tv-state-page error">
+        <TermoSyncLogo size={54} color="var(--brand-core)" />
+        <WifiOff size={38} />
+        <h1>Painel temporariamente indisponível</h1>
+        <p>{error}</p>
+        <button type="button" onClick={loadData} disabled={refreshing}><RefreshCw size={18} className={refreshing ? 'spin' : ''} /> Tentar novamente</button>
+      </main>
     );
   }
 
-  if (!dados) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f172a', color: 'white' }}>
-        <h2 className="piscar-alerta">Carregando Painel TermoSync...</h2>
-      </div>
-    );
+  if (!data) {
+    return <main className="tv-state-page"><TermoSyncLogo size={58} color="var(--brand-core)" /><Loader2 size={30} className="spin" /><h1>Sincronizando painel operacional</h1><p>Carregando as leituras mais recentes da rede.</p></main>;
   }
-
-  // =======================================================================
-  // [NOVIDADE] AGRUPA OS EQUIPAMENTOS PELO NOME DA FILIAL
-  // =======================================================================
-  const equipamentosAgrupados = dados.equipamentos.reduce((grupos, eq) => {
-    const nomeFilial = eq.filial || 'Filial Não Identificada';
-    if (!grupos[nomeFilial]) {
-      grupos[nomeFilial] = [];
-    }
-    grupos[nomeFilial].push(eq);
-    return grupos;
-  }, {});
 
   return (
-    // [NOVIDADE] height: 100vh e overflowY: auto forçam a rolagem funcionar na TV
-    <div style={{ 
-      background: '#0f172a', 
-      height: '100vh', 
-      overflowY: 'auto', 
-      padding: '2rem', 
-      color: '#f8fafc', 
-      fontFamily: 'system-ui, sans-serif' 
-    }}>
-      
-      {/* CABEÇALHO DO PAINEL */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '2.5rem', color: '#38bdf8' }}>
-            {dados.unidade.toLowerCase() === 'todas' ? 'Visão Geral (Rede Completa)' : dados.unidade}
-          </h1>
-          <p style={{ margin: 0, fontSize: '1.2rem', color: '#94a3b8' }}>Monitoramento Operacional e Metrológico</p>
+    <div className="tv-board">
+      <header className="tv-topbar">
+        <div className="tv-brand"><TermoSyncLogo size={42} color="var(--brand-core)" /><span><strong>ThermoSync</strong><small>Rede térmica sincronizada</small></span></div>
+        <div className="tv-title"><small>{data.unidade?.toLowerCase() === 'todas' ? 'VISÃO CONSOLIDADA DA REDE' : 'MONITORAMENTO DA UNIDADE'}</small><h1>{data.unidade?.toLowerCase() === 'todas' ? 'Operação refrigerada' : data.unidade}</h1></div>
+        <div className="tv-clock"><Clock3 size={18} /><span><strong>{new Date(now).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong><small>{new Date(now).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}</small></span></div>
+        <div className="tv-header-actions">
+          <button type="button" onClick={loadData} disabled={refreshing} title="Atualizar agora" aria-label="Atualizar agora"><RefreshCw size={19} className={refreshing ? 'spin' : ''} /></button>
+          <button type="button" onClick={toggleFullscreen} title={isFullscreen ? 'Sair da tela cheia' : 'Abrir em tela cheia'} aria-label={isFullscreen ? 'Sair da tela cheia' : 'Abrir em tela cheia'}><Expand size={19} /></button>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>
-            <span className="live-indicator-dot" style={{ width: '15px', height: '15px' }}></span> AO VIVO
-          </div>
-          <p style={{ margin: 0, color: '#64748b' }}>Atualizado a cada 10s</p>
-        </div>
-      </div>
+      </header>
 
-      {/* AVISO SE A LISTA DE MÁQUINAS ESTIVER VAZIA */}
-      {dados.equipamentos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#1e293b', borderRadius: '24px', border: '1px dashed #334155' }}>
-          <Activity size={64} color="#64748b" style={{marginBottom: '1rem', opacity: 0.5}} />
-          <h2 style={{color: '#cbd5e1', margin: '0 0 10px 0'}}>Nenhuma máquina encontrada.</h2>
-          <p style={{color: '#94a3b8', fontSize: '1.1rem'}}>Verifique se o nome <b>"{dados.unidade}"</b> está escrito exatamente como foi cadastrado no sistema.<br/>Dica: Acesse <b>/live/Todas</b> para ver todos os equipamentos da rede.</p>
-        </div>
+      <section className="tv-summary" aria-label="Resumo da operação">
+        <div className={`tv-overall ${overallTone}`}><span className="tv-live-dot" /><div><small>ESTADO DA REDE</small><strong>{overallLabel}</strong></div></div>
+        <div><small>ATIVOS</small><strong>{summary.total}</strong></div>
+        <div className="normal"><small>NORMAIS</small><strong>{summary.normal}</strong></div>
+        <div className="critical"><small>FORA DA FAIXA</small><strong>{summary.attention}</strong></div>
+        <div className="stale"><small>SEM SINAL</small><strong>{summary.stale}</strong></div>
+        <div className="defrost"><small>EM DEGELO</small><strong>{summary.defrost}</strong></div>
+        <div className="tv-sync"><Radio size={15} /><span><small>{error ? 'ÚLTIMA SINCRONIZAÇÃO' : 'ATUALIZAÇÃO AUTOMÁTICA'}</small><strong>{lastSuccessAt ? lastSuccessAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}</strong></span></div>
+      </section>
+
+      {error && <div className="tv-connection-warning"><WifiOff size={16} /><span>{error} Exibindo a última atualização válida.</span></div>}
+
+      {activeGroup ? (
+        <main className="tv-stage">
+          <header className="tv-branch-header">
+            <div><span className="tv-branch-icon"><MapPin size={20} /></span><span><small>FILIAL EM EXIBIÇÃO</small><h2>{activeGroup.branch}</h2></span><b>{activeGroup.equipment.length} ativo(s)</b></div>
+            {groups.length > 1 && <nav className="tv-rotation" aria-label="Rotação de filiais"><button type="button" onClick={() => moveGroup(-1)} title="Filial anterior"><ChevronLeft size={18} /></button><span><strong>{activeGroupIndex + 1}</strong> / {groups.length}</span><button type="button" onClick={() => setAutoRotate(value => !value)} title={autoRotate ? 'Pausar rotação' : 'Retomar rotação'}>{autoRotate ? <Pause size={17} /> : <Play size={17} />}</button><button type="button" onClick={() => moveGroup(1)} title="Próxima filial"><ChevronRight size={18} /></button></nav>}
+          </header>
+
+          <div className="tv-equipment-grid">
+            {activeGroup.equipment.map((equipment, index) => {
+              const { state } = equipment;
+              const StateIcon = state.tone === 'normal' ? CheckCircle2 : state.tone === 'defrost' ? Snowflake : state.tone === 'stale' ? WifiOff : AlertTriangle;
+              const range = state.min !== null && state.max !== null ? state.max - state.min : null;
+              const position = range && state.temperature !== null ? Math.max(0, Math.min(100, ((state.temperature - state.min) / range) * 100)) : 50;
+              return (
+                <article className={`tv-equipment ${state.tone}`} key={`${equipment.filial}-${equipment.nome}-${index}`}>
+                  <header><div><span className="tv-equipment-icon"><StateIcon size={19} /></span><span><h3>{equipment.nome}</h3><small>{equipment.setor || 'Setor não informado'}</small></span></div><b>{state.label}</b></header>
+                  <div className="tv-temperature"><strong>{formatTemperature(state.temperature)}</strong><span>°C</span></div>
+                  <div className="tv-range"><span><small>MÍNIMO</small><strong>{formatTemperature(state.min)}°</strong></span><div><i style={{ left: `${position}%` }} /></div><span><small>MÁXIMO</small><strong>{formatTemperature(state.max)}°</strong></span></div>
+                  <footer><span>{state.defrosting ? <Snowflake size={15} /> : state.motorOn ? <Fan size={15} /> : <Power size={15} />} {state.defrosting ? 'Ciclo de degelo' : state.motorOn ? 'Motor ligado' : 'Motor em repouso'}</span><time><Clock3 size={14} /> {formatAge(state.ageMs)}</time></footer>
+                </article>
+              );
+            })}
+          </div>
+        </main>
       ) : (
-        /* ======================================================================= */
-        /* DESENHA OS BLOCOS POR FILIAL E OS CARDS DENTRO DE CADA UMA */
-        /* ======================================================================= */
-        Object.entries(equipamentosAgrupados).map(([nomeFilial, maquinasDaFilial], index) => (
-          <div key={index} style={{ marginBottom: '3.5rem' }}>
-            
-            {/* TÍTULO DA FILIAL */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', paddingBottom: '10px', borderBottom: '2px solid rgba(59, 130, 246, 0.3)' }}>
-              <MapPin size={28} color="#3b82f6" />
-              <h2 style={{ margin: 0, fontSize: '1.8rem', color: '#f1f5f9' }}>{nomeFilial}</h2>
-              <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', marginLeft: '10px' }}>
-                {maquinasDaFilial.length} ativo(s)
-              </span>
-            </div>
-
-            {/* GRID DAS MÁQUINAS DAQUELA FILIAL */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
-              {maquinasDaFilial.map((eq, idx) => {
-                const t = parseFloat(eq.ultima_temp);
-                const min = parseFloat(eq.temp_min);
-                const max = parseFloat(eq.temp_max);
-                const temDados = !isNaN(t);
-                
-                const isAcima = temDados && t > max;
-                const isAbaixo = temDados && t < min;
-                const isFalhaMecanica = !eq.motor_ligado && temDados && t >= (max + 10.0) && !eq.em_degelo;
-
-                let corCard = '#1e293b'; 
-                let corTexto = '#10b981'; 
-                let icone = <CheckCircle2 size={36} />;
-                let status = 'DENTRO DA NORMA';
-
-                if (!temDados) {
-                  corTexto = '#f59e0b'; icone = <AlertTriangle size={36} />; status = 'SEM SINAL';
-                } else if (eq.em_degelo) {
-                  corTexto = '#0ea5e9'; icone = <Snowflake size={36} />; status = 'EM DEGELO';
-                } else if (isFalhaMecanica) {
-                  corTexto = '#ef4444'; corCard = '#450a0a'; icone = <Power size={36} />; status = 'MOTOR PARADO';
-                } else if (isAcima) {
-                  corTexto = '#ef4444'; icone = <AlertTriangle size={36} />; status = 'ALTA TEMPERATURA';
-                } else if (isAbaixo) {
-                  corTexto = '#38bdf8'; icone = <Thermometer size={36} />; status = 'BAIXA TEMPERATURA';
-                } else if (!eq.motor_ligado) {
-                  status = 'EM REPOUSO (IDEAL)';
-                }
-
-                return (
-                  <div key={idx} style={{ background: corCard, border: `2px solid ${corTexto}`, borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', boxShadow: `0 8px 20px ${corTexto}15` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>{eq.nome}</h3>
-                        <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase' }}>{eq.setor}</span>
-                      </div>
-                      <div style={{ color: corTexto }}>{icone}</div>
-                    </div>
-
-                    <div style={{ textAlign: 'center', margin: '0.5rem 0' }}>
-                      <span style={{ fontSize: '4.5rem', fontWeight: '900', color: corTexto, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-                        {temDados ? t.toFixed(1) : '--'}°C
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
-                      <span style={{ fontSize: '1rem', color: '#cbd5e1' }}>Mín: <b>{min.toFixed(1)}°C</b></span>
-                      <span style={{ fontSize: '1rem', fontWeight: '900', color: corTexto }}>{status}</span>
-                      <span style={{ fontSize: '1rem', color: '#cbd5e1' }}>Máx: <b>{max.toFixed(1)}°C</b></span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))
+        <main className="tv-empty"><Thermometer size={42} /><h2>Nenhum equipamento nesta visualização</h2><p>Não há ativos vinculados à unidade <strong>{data.unidade}</strong>.</p></main>
       )}
-      
-      {/* Estilização elegante para a barra de rolagem */}
-      <style dangerouslySetInnerHTML={{__html: `
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-      `}} />
+
+      <footer className="tv-footer"><span><i /> Telemetria atualizada a cada 10 segundos</span><span>ThermoSync · Monitoramento público</span></footer>
     </div>
   );
 }

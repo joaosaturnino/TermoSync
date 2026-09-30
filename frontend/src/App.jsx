@@ -1,4 +1,18 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Component, Suspense, lazy } from 'react';
+/**
+ * Módulo: frontend/src/App.jsx
+ * Responsabilidade: Orquestra sessão, dados globais, navegação e composição das telas autenticadas.
+ */
+
+import { AUTH_SCREEN_PATHS, SCREEN_PATHS, canRoleAccessScreen, getAllowedRolesForScreen, getAuthScreenFromPathname, getAuthenticatedScreenPath, getNavigationContext, getScreenClassification, getScreenFromPathname, normalizePathname, shouldShowDeveloperEnvironmentBanner } from './config/navigationPolicy';
+import { isMobileDevice } from './config/api';
+import { startTransition, useLayoutEffect } from 'react';
+import { BookOpen } from 'lucide-react';
+import LockScreen from './components/LockScreen';
+import ErrorBoundary from './components/ErrorBoundary';
+import Documentacao from './pages/Documentacao/Documentacao';
+import Privacidade from './pages/Privacidade/Privacidade';
+import SystemFooter from './components/SystemFooter';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
 import logger from './utils/logger';
 import axios from 'axios';
 import { io } from 'socket.io-client';
@@ -14,10 +28,10 @@ import {
   Activity, Thermometer, Droplets, Leaf, History, Wrench, Archive,
   Store, Sliders, Users, X, CheckCircle, AlertTriangle,
   AlertOctagon, Edit, Save, MessageSquare, Terminal,
-  Server, Lock, LockKeyhole, Unlock, Loader2, ShieldAlert, DollarSign, Building2,
+  Server, LockKeyhole, Loader2, ShieldAlert, DollarSign, Building2,
   Bell, Wifi, Snowflake, Power, DoorOpen, ActivitySquare, ClipboardCheck, ThermometerSnowflake,
   Map, Columns, Target, Cpu, Info, Settings2, ShieldCheck, PieChart,
-  Rocket, Database, Network, Sparkles, ClipboardList, BarChart3, CalendarDays, LifeBuoy, Zap, ArrowLeft, Radio, Clock, Timer, Search
+  Rocket, Database, Network, Sparkles, ClipboardList, BarChart3, CalendarDays, KeyRound, LifeBuoy, Zap, Radio, Clock, Timer, Search
 } from 'lucide-react';
 
 // Importação dos Componentes de UI Modulares
@@ -31,6 +45,7 @@ import DevBootScreen from './components/DevBootScreen';
 const LandingPage = lazy(() => import('./pages/LandingPage/LandingPage'));
 const Register = lazy(() => import('./pages/Register/Register'));
 const Login = lazy(() => import('./pages/Login/Login'));
+const LegalDocument = lazy(() => import('./pages/Legal/LegalDocument'));
 const PortalPublico = lazy(() => import('./pages/PortalPublico/PortalPublico'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const AssistenteOperacao = lazy(() => import('./pages/AssistenteOperacao/AssistenteOperacao'));
@@ -72,26 +87,59 @@ import { useSystemCore } from './hooks/useSystemCore';
 import { useSecurity } from './hooks/useSecurity';
 import { getApiUrl, getSocketUrl } from './config/api.js';
 
+const TRIAL_GUIDE_STEPS = [
+  { screen: 'dashboard', label: 'Visão geral', description: 'Indicadores da operação' },
+  { screen: 'motores', label: 'Temperaturas', description: 'Telemetria em tempo real' },
+  { screen: 'chamados', label: 'Chamados', description: 'Atendimento e manutenção' },
+  { screen: 'relatorios', label: 'Relatórios', description: 'Histórico e análises' },
+  { screen: 'seguranca_conta', label: 'Segurança', description: 'Proteção da conta' }
+];
+
 /**
  * Busca ou monta os dados de get alert config usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} tipo_alerta - Valor de tipo alerta consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getAlertConfig = (tipo_alerta) => {
   // Mapeia cada tipo de anomalia para ícone, cor e ação sugerida exibida na UI.
   const configs = {
     'REDE': { icon: Wifi, color: 'var(--warning)', action: 'Analisar Rede', critical: true },
     'DEGELO': { icon: Snowflake, color: 'var(--secondary)', action: 'Finalizar Degelo', critical: false },
-    'MECANICA': { icon: Power, color: '#f97316', action: 'Acionar Manutenção', critical: true },
-    'PORTA': { icon: DoorOpen, color: '#e11d48', action: 'Verificar Porta', critical: true },
-    'TEMPERATURA': { icon: ThermometerSnowflake, color: '#ef4444', action: 'Normalizar Temp.', critical: true },
-    'UMIDADE': { icon: Droplets, color: '#0ea5e9', action: 'Ajustar Umidade', critical: false },
-    'METROLOGIA': { icon: ClipboardCheck, color: '#6366f1', action: 'Agendar Calibração', critical: true },
-    'PREDITIVO': { icon: ActivitySquare, color: '#8b5cf6', action: 'Prevenção', critical: false }
+    'MECANICA': { icon: Power, color: 'var(--warning)', action: 'Acionar Manutenção', critical: true },
+    'PORTA': { icon: DoorOpen, color: 'var(--danger)', action: 'Verificar Porta', critical: true },
+    'TEMPERATURA': { icon: ThermometerSnowflake, color: 'var(--danger)', action: 'Normalizar Temp.', critical: true },
+    'UMIDADE': { icon: Droplets, color: 'var(--info)', action: 'Ajustar Umidade', critical: false },
+    'METROLOGIA': { icon: ClipboardCheck, color: 'var(--accent-violet)', action: 'Agendar Calibração', critical: true },
+    'PREDITIVO': { icon: ActivitySquare, color: 'var(--accent-violet)', action: 'Prevenção', critical: false }
   };
   return configs[tipo_alerta] || { icon: AlertTriangle, color: 'var(--danger)', action: 'Investigar', critical: true };
 };
 
+
 /**
  * Prepara escape html para exibicao sem expor dados sensiveis.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -100,8 +148,21 @@ const escapeHtml = (value) => String(value ?? '')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
 
+
 /**
  * Formata format toast message para exibicao segura na interface.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} message - Valor de message consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const formatToastMessage = (message) => escapeHtml(message)
   .replace(/&lt;b&gt;/gi, '<strong>')
@@ -113,8 +174,8 @@ const formatToastMessage = (message) => escapeHtml(message)
 
 const MOBILE_PRIMARY_NAV_BY_ROLE = {
   DEV: ['dev_panel', 'bi', 'system', 'hardware', 'suporte'],
-  ADMIN: ['dashboard', 'motores', 'chamados', 'kanban', 'usuarios'],
-  MANUTENCAO: ['dashboard', 'motores', 'chamados', 'kanban', 'equipamentos'],
+  ADMIN: ['dashboard', 'motores', 'chamados', 'relatorios', 'usuarios'],
+  MANUTENCAO: ['dashboard', 'motores', 'chamados', 'equipamentos', 'checklist_turno'],
   LOJA: ['dashboard', 'assistente', 'motores', 'chamados', 'chat']
 };
 
@@ -139,39 +200,48 @@ const MOBILE_NAV_LABELS = {
 };
 
 /**
- * Agrupa o comportamento de Error Boundary para isolar estado, renderizacao e tratamento de erro.
+ * Rotas públicas e nomes amigáveis das telas internas. Os IDs continuam sendo usados no estado
+ * da aplicação, enquanto a URL expõe nomes legíveis e estáveis.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: interage com APIs do navegador
+ *
+ * @param {unknown} pathname - Valor de pathname consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-class ErrorBoundary extends Component {
-  // Barreira de falha visual: se uma tela quebrar, o usuário mantém sessão
-  // e recebe opção de recarregar sem expor stack trace na interface.
-  constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
-  static getDerivedStateFromError(_error) { return { hasError: true }; }
-  componentDidCatch(error, errorInfo) { logger.error("Crash interceptado:", error); this.setState({ errorInfo }); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="crash-recovery-screen anim-fade-in">
-          <div className="crash-box">
-            <Terminal size={56} className="crash-icon pulse-danger-icon" style={{color: 'var(--danger)', marginBottom: '1rem'}} />
-            <h2 style={{color: 'white', marginBottom: '1rem'}}>SISTEMA INTERROMPIDO</h2>
-            <p className="crash-text" style={{color: '#94a3b8', marginBottom: '1.5rem'}}>Ocorreu uma falha crítica ao renderizar este módulo. A sua sessão e os dados da rede permanecem seguros.</p>
-            <div className="crash-code" style={{background: 'rgba(0,0,0,0.5)', padding: '10px', color: '#fca5a5', fontFamily: 'Montserrat', marginBottom: '2rem'}}>ERR_UI_RENDER_FAIL</div>
-            <button className="btn btn-danger w-100" onClick={() => window.location.reload()}><Activity size={18} /> REINICIAR NÚCLEO</button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+const isTvPathname = (pathname = window.location.pathname) => /^\/(?:painel-tv|live)\//i.test(pathname);
 
 /**
- * Concentra a logica de app para manter o restante do modulo mais legivel.
+ * Renderiza a aplicação autenticada e coordena sessão, navegação, dados globais e recuperação
+ * de falhas.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador; registra ou remove listeners de eventos; publica ou consome mensagens MQTT
+ *
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function App() {
   // Estados de autenticação persistem em sessionStorage para sobreviver ao reload
   // sem manter sessão aberta indefinidamente após fechar o navegador.
-  const [authScreen, setAuthScreen] = useState('landing');
+  const initialImpersonateCode = useRef(new URLSearchParams(window.location.search).get('impersonateCode'));
+  const impersonationExchangeStarted = useRef(false);
+  const routeSyncReadyRef = useRef(false);
+  const [authScreen, setAuthScreen] = useState(() => getAuthScreenFromPathname());
+  const [isImpersonating, setIsImpersonating] = useState(Boolean(initialImpersonateCode.current));
+  const [impersonateError, setImpersonateError] = useState('');
 
   useEffect(() => {
     document.documentElement.classList.add('mobile-app', 'native-app');
@@ -182,16 +252,24 @@ export default function App() {
     };
   }, []);
 
-  const [token, setToken] = useState(sessionStorage.getItem('token') || '');
+  const [token, setToken] = useState(initialImpersonateCode.current ? '' : (sessionStorage.getItem('token') || ''));
   const [userId, setUserId] = useState(sessionStorage.getItem('userId') || '');
   const [userRole, setUserRole] = useState(sessionStorage.getItem('userRole') || 'LOJA');
   const [userFilial, setUserFilial] = useState(sessionStorage.getItem('userFilial') || 'Todas');
   const [userEmpresa, setUserEmpresa] = useState(sessionStorage.getItem('userEmpresa') || '');
+  const [trialInfo, setTrialInfo] = useState(() => ({
+    active: sessionStorage.getItem('isTrial') === 'true',
+    lifetime: sessionStorage.getItem('demoLifetime') === 'true',
+    expiresAt: sessionStorage.getItem('trialExpiresAt') || ''
+  }));
+  const [mustChangePassword, setMustChangePassword] = useState(sessionStorage.getItem('mustChangePassword') === 'true');
+  const [showTrialGuide, setShowTrialGuide] = useState(false);
+  const [trialGuideVisited, setTrialGuideVisited] = useState(() => new Set());
   const [nomeLogado, setNomeLogado] = useState(sessionStorage.getItem('nomeLogado') || '');
   const [papelLogado, setPapelLogado] = useState(sessionStorage.getItem('papelLogado') || '');
   const [loginAtivo, setLoginAtivo] = useState(sessionStorage.getItem('loginAtivo') || '');
   const [isDevAuthenticated, setIsDevAuthenticated] = useState(sessionStorage.getItem('devAuth') === 'true');
-  const [abaAtiva, setAbaAtiva] = useState(sessionStorage.getItem('abaAtiva') || 'dashboard');
+  const [abaAtiva, setAbaAtiva] = useState(() => getScreenFromPathname() || sessionStorage.getItem('abaAtiva') || 'dashboard');
 
   // [NOVIDADE] Estado para capturar e ativar a rota do Portal Público (TV)
   const [publicFilial, setPublicFilial] = useState(null);
@@ -202,7 +280,11 @@ export default function App() {
   const [bannerFechado, setBannerFechado] = useState(true);
 
   const [gruposExpandidos, setGruposExpandidos] = useState({
-    'Desenvolvedor': true, 'Operações': true, 'Serviços': true, 'Auditoria': true, 'Sistema': true, 'Edge_Computing': true
+    'Desenvolvimento': true,
+    'Operacional': true,
+    'Manutenção': true,
+    'Administração': true,
+    'Usuário': false
   });
 
   const [menuAberto, setMenuAberto] = useState(false);
@@ -217,7 +299,6 @@ export default function App() {
   const [somAtivoState, setSomAtivoState] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [latencia, setLatencia] = useState(12);
   const [systemHealth, setSystemHealth] = useState({ status: 'checking', database: 'checking', mqtt: 'checking', whatsapp: 'checking' });
 
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -229,7 +310,7 @@ export default function App() {
 
   // Estados de dados compartilhados por várias telas. As listas são carregadas
   // sob demanda e reaproveitadas entre Dashboard, Monitoramento, Chamados e BI.
-  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', onConfirm: null });
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', isPrompt: false, promptValue: '', requirePrompt: false, confirmLabel: '', onConfirm: null });
   const [formEditEquip, setFormEditEquip] = useState({});
   const [equipEditando, setEquipEditando] = useState(null);
   const [equipamentos, setEquipamentos] = useState([]);
@@ -272,6 +353,9 @@ export default function App() {
   const bufferLeiturasRef = useRef({});
   const lastApiErrorToastRef = useRef({ key: '', time: 0 });
   const mainContentRef = useRef(null);
+  const screenScrollPositionsRef = useRef(new window.Map());
+  const previousScreenRef = useRef(abaAtiva);
+  const navigationVisitRef = useRef({ screenId: abaAtiva, enteredAt: Date.now() });
   const pullToRefreshRef = useRef({ startY: 0, active: false });
   const [pullDistance, setPullDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
@@ -286,28 +370,64 @@ export default function App() {
   const totalNaoLidas = Object.values(naoLidasPorContato).reduce((a, b) => a + (Number(b) || 0), 0);
 
   // ============================================================================
-  // [NOVIDADE] INTERCEPTADOR DA URL PARA O PORTAL PÚBLICO
-  // Lê a URL e ativa o Portal TV antes do login ser solicitado
+  // Intercepta a URL do Painel TV. A própria tela confirma a sessão antes de
+  // buscar os equipamentos permitidos para o usuário.
   // ============================================================================
   useEffect(() => {
     const path = window.location.pathname;
-    if (path.startsWith('/live/')) {
-      const filialRoute = path.replace('/live/', '');
+    if (isTvPathname(path)) {
+      const filialRoute = path.replace(/^\/(?:painel-tv|live)\//i, '');
       if (filialRoute) {
         setPublicFilial(decodeURIComponent(filialRoute));
       }
     }
   }, []);
 
+  useEffect(() => {
+    /**
+     * Sincroniza o estado ao usar os botões voltar e avançar do navegador.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const handleBrowserNavigation = () => {
+      if (isTvPathname()) return;
+      if (token) {
+        setAbaAtiva(getScreenFromPathname() || 'dashboard');
+        return;
+      }
+      setAuthScreen(getAuthScreenFromPathname());
+    };
+
+    window.addEventListener('popstate', handleBrowserNavigation);
+    return () => window.removeEventListener('popstate', handleBrowserNavigation);
+  }, [token]);
+
   const fazerLogout = useCallback(() => {
     // Logout precisa limpar estado React e sessionStorage para impedir reuso de
     // token antigo depois de revogação, troca de usuário ou bloqueio de sessão.
+    const currentToken = sessionStorage.getItem('token');
+    if (currentToken) {
+      fetch(`${getApiUrl()}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentToken}` },
+        keepalive: true
+      }).catch(() => {});
+    }
     setToken(''); setUserId('');
     const chavesAuth = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva', 'terminalLocked'];
     chavesAuth.forEach(k => sessionStorage.removeItem(k));
     sessionStorage.clear();
 
-    setUserRole('LOJA'); setUserFilial(''); setUserEmpresa(''); setFilialAtiva('Todas'); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
+    setUserRole('LOJA'); setUserFilial(''); setUserEmpresa(''); setTrialInfo({ active: false, lifetime: false, expiresAt: '' }); setMustChangePassword(false); setShowTrialGuide(false); setFilialAtiva('Todas'); setNomeLogado(''); setPapelLogado(''); setLoginAtivo('');
     setAbaAtiva('dashboard'); setMenuAberto(false); setNaoLidasPorContato({}); setContatoChatAtivo(null); setShowCommandPalette(false); setIsLocked(false);
     setIsDevAuthenticated(false);
     setPopupAlerta(null);
@@ -315,20 +435,56 @@ export default function App() {
 
   const { authState } = useSecurity(token, fazerLogout);
 
-  const { sysConfig, isFeatureEnabled, isModuloOculto, updateSysConfig, getPlanoAtual } = useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAbaAtiva);
+  const { sysConfig, isFeatureEnabled, isModuloOculto, updateSysConfig, getPlanoAtual } = useSystemCore(userRole, loginAtivo, userFilial, abaAtiva, setAbaAtiva, token, socketInstance);
   const isFeatureEnabledRef = useRef(isFeatureEnabled);
   useEffect(() => { isFeatureEnabledRef.current = isFeatureEnabled; }, [isFeatureEnabled]);
 
   useEffect(() => {
-    if (userRole === 'DEV') {
-      setGruposExpandidos({ 'Desenvolvedor': true, 'Operações': false, 'Serviços': false, 'Auditoria': false, 'Sistema': false, 'Edge_Computing': true });
+    // O aviso vive no body para continuar visível também nas rotas públicas,
+    // no login, no bloqueio de tela e durante o boot do desenvolvedor.
+    const maintenanceActive = sysConfig?.maintenanceMode === true;
+    const maintenanceNoticeActive = maintenanceActive || sysConfig?.maintenanceNoticeActive === true;
+    document.body.classList.toggle('system-maintenance-notice', maintenanceNoticeActive);
+    document.body.classList.toggle('system-maintenance-active', maintenanceActive);
+    if (maintenanceNoticeActive) {
+      document.body.dataset.maintenanceLabel = maintenanceActive ? 'MANUTENÇÃO' : 'MANUTENÇÃO PROGRAMADA';
+      document.body.dataset.maintenanceMessage = sysConfig?.maintenanceMessage || 'Manutenção do sistema em andamento.';
     } else {
-      setGruposExpandidos({ 'Desenvolvedor': true, 'Operações': true, 'Serviços': true, 'Auditoria': true, 'Sistema': true, 'Edge_Computing': false });
+      delete document.body.dataset.maintenanceLabel;
+      delete document.body.dataset.maintenanceMessage;
+    }
+
+    return () => {
+      document.body.classList.remove('system-maintenance-notice');
+      document.body.classList.remove('system-maintenance-active');
+      delete document.body.dataset.maintenanceLabel;
+      delete document.body.dataset.maintenanceMessage;
+    };
+  }, [sysConfig?.maintenanceMode, sysConfig?.maintenanceNoticeActive, sysConfig?.maintenanceMessage]);
+
+  useEffect(() => {
+    if (userRole === 'DEV') {
+      setGruposExpandidos({ 'Desenvolvimento': true, 'Operacional': false, 'Manutenção': false, 'Administração': false, 'Usuário': false });
+    } else {
+      setGruposExpandidos({ 'Desenvolvimento': false, 'Operacional': true, 'Manutenção': true, 'Administração': true, 'Usuário': false });
     }
   }, [userRole]);
 
+
   /**
-   * Concentra a logica de toggle grupo para manter o restante do modulo mais legivel.
+   * Processa a interacao de toggle grupo e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} grupo - Valor de grupo consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const toggleGrupo = (grupo) => {
     setGruposExpandidos(prev => ({ ...prev, [grupo]: !prev[grupo] }));
@@ -336,15 +492,30 @@ export default function App() {
 
   useEffect(() => { if (token) sessionStorage.setItem('abaAtiva', abaAtiva); }, [abaAtiva, token]);
   useEffect(() => {
-    if (isLocked) sessionStorage.setItem('terminalLocked', 'true');
-    else sessionStorage.removeItem('terminalLocked');
+    if (isLocked) {
+      sessionStorage.setItem('terminalLocked', 'true');
+      setLockPassword('');
+      setLockError('');
+    } else sessionStorage.removeItem('terminalLocked');
   }, [isLocked]);
 
   useEffect(() => {
     if (!token || isLocked) return;
     let idleTimeout;
+
     /**
      * Concentra a logica de reset idle timer para manter o restante do modulo mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+     *
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const resetIdleTimer = () => {
       clearTimeout(idleTimeout);
@@ -366,8 +537,21 @@ export default function App() {
   }, [token, isLocked]);
 
   useEffect(() => {
+
     /**
-     * Concentra a logica de handle key down para manter o restante do modulo mais legivel.
+     * Processa a interacao de handle key down e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -396,8 +580,20 @@ export default function App() {
     }
   }, [bannerTexto]);
 
+
   /**
-   * Concentra a logica de fechar banner global para manter o restante do modulo mais legivel.
+   * Processa a interacao de fechar banner global e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const fecharBannerGlobal = () => {
     setBannerFechado(true);
@@ -405,35 +601,58 @@ export default function App() {
   };
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const impersonateToken = urlParams.get('impersonateToken');
-    const impersonateLoja = urlParams.get('impersonateLoja');
+    const accessCode = initialImpersonateCode.current;
+    if (!accessCode || impersonationExchangeStarted.current) return;
+    impersonationExchangeStarted.current = true;
 
-    if (impersonateToken && impersonateLoja) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      const chavesAuth = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva'];
-      chavesAuth.forEach(k => sessionStorage.removeItem(k));
+    window.history.replaceState({}, document.title, window.location.pathname);
 
-      const role = 'ADMIN';
-      const identityName = `Suporte Remoto (${impersonateLoja})`;
-      const roleTitle = 'Acesso Master (Impersonate)';
-      const loginName = `suporte_${impersonateLoja.toLowerCase().replace(/\s+/g, '')}`;
+    /**
+     * Troca o código efêmero por uma sessão LOJA dentro da aba de destino.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+     * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+     *
+     * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const exchangeImpersonationCode = async () => {
+      try {
+        const { data } = await axios.post(`${getApiUrl()}/auth/impersonate/exchange`, { code: accessCode });
 
-      setToken(impersonateToken); setUserId('9999'); setUserRole(role);
-      setUserFilial(impersonateLoja); setFilialAtiva(impersonateLoja);
-      setAbaAtiva('dashboard'); setMenuAberto(false);
-      setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(false);
+        const authKeys = ['token', 'userId', 'userRole', 'userFilial', 'userEmpresa', 'nomeLogado', 'papelLogado', 'loginAtivo', 'devAuth', 'abaAtiva', 'terminalLocked', 'isTrial', 'demoLifetime', 'trialExpiresAt'];
+        authKeys.forEach((key) => sessionStorage.removeItem(key));
+        const roleTitle = 'Acesso como Cliente (Impersonate)';
+        const loginName = `suporte_${data.filial.toLowerCase().replace(/\s+/g, '')}`;
 
-      sessionStorage.setItem('token', impersonateToken); sessionStorage.setItem('userId', '9999');
-      sessionStorage.setItem('userRole', role); sessionStorage.setItem('userFilial', impersonateLoja);
-      sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle);
-      sessionStorage.setItem('loginAtivo', loginName); sessionStorage.setItem('devAuth', 'false');
+        setToken(data.token); setUserId(String(data.id)); setUserRole(data.role);
+        setUserFilial(data.filial); setUserEmpresa(data.empresa || ''); setTrialInfo({ active: false, lifetime: false, expiresAt: '' }); setFilialAtiva(data.filial);
+        setAbaAtiva('dashboard'); setMenuAberto(false); setIsLocked(false);
+        setNomeLogado(data.nome); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(false);
 
-      setTimeout(() => {
-         const fakeEvent = new CustomEvent('forceToast', { detail: { msg: `<b>Modo Impersonate Ativo:</b> Controle remoto de <strong>${impersonateLoja}</strong> estabelecido com sucesso.`, type: 'warning' }});
-         window.dispatchEvent(fakeEvent);
-      }, 1000);
-    }
+        sessionStorage.setItem('token', data.token); sessionStorage.setItem('userId', String(data.id));
+        sessionStorage.setItem('userRole', data.role); sessionStorage.setItem('userFilial', data.filial);
+        sessionStorage.setItem('userEmpresa', data.empresa || ''); sessionStorage.setItem('nomeLogado', data.nome);
+        sessionStorage.setItem('papelLogado', roleTitle); sessionStorage.setItem('loginAtivo', loginName);
+        sessionStorage.setItem('devAuth', 'false'); sessionStorage.setItem('abaAtiva', 'dashboard');
+
+        window.setTimeout(() => window.dispatchEvent(new CustomEvent('forceToast', {
+          detail: { msg: `<b>Acesso remoto ativo:</b> conectado à loja <strong>${data.filial}</strong>.`, type: 'warning' }
+        })), 700);
+      } catch (error) {
+        setImpersonateError(error.response?.data?.error || 'Não foi possível abrir o acesso remoto. Gere um novo acesso.');
+      } finally {
+        setIsImpersonating(false);
+      }
+    };
+
+    exchangeImpersonationCode();
   }, []);
 
   const aplicarSessaoAutenticada = useCallback((data, usuarioInput) => {
@@ -444,7 +663,8 @@ export default function App() {
     let identityName = usuarioInput;
     let roleTitle = 'Gestor de Loja';
 
-    if (data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
+    if (data.role === 'DEV') { identityName = 'Desenvolvedor do Sistema'; roleTitle = 'SysAdmin / Root'; }
+    else if (data.role === 'ADMIN') { identityName = 'Administrador'; roleTitle = 'Acesso Master'; }
     else if (data.role === 'MANUTENCAO') { identityName = data.nome_tecnico || 'Técnico'; roleTitle = 'Manutenção Global'; }
     else if (data.role === 'LOJA') {
       if (gNome) { identityName = gNome; roleTitle = 'Gerente da Loja'; }
@@ -452,20 +672,48 @@ export default function App() {
       else { identityName = 'Equipe Geral'; roleTitle = 'Acesso da Loja'; }
     }
 
+    const initialTab = data.mustChangePassword ? 'seguranca_conta' : data.role === 'DEV' ? 'dev_panel' : 'dashboard';
+
     setToken(data.token); setUserId(data.id); setUserRole(data.role); setUserFilial(data.filial); setUserEmpresa(data.empresa);
+    setTrialInfo({ active: data.isTrial === true, lifetime: data.demoLifetime === true, expiresAt: data.trialExpiresAt || '' });
+    setMustChangePassword(data.mustChangePassword === true);
+    setShowTrialGuide(data.isTrial === true && data.mustChangePassword !== true && localStorage.getItem(`termosync_trial_guide_${data.id}`) !== 'done');
+    setIsDevAuthenticated(false);
     setFilialAtiva(data.role !== 'LOJA' ? 'Todas' : data.filial);
-    setAbaAtiva('dashboard'); setMenuAberto(false); setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(usuarioInput);
+    setAbaAtiva(initialTab); setMenuAberto(false); setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(usuarioInput);
 
     sessionStorage.setItem('token', data.token); sessionStorage.setItem('userId', data.id);
     sessionStorage.setItem('userRole', data.role); sessionStorage.setItem('userFilial', data.filial); sessionStorage.setItem('userEmpresa', data.empresa);
+    sessionStorage.setItem('isTrial', data.isTrial === true ? 'true' : 'false');
+    sessionStorage.setItem('mustChangePassword', data.mustChangePassword === true ? 'true' : 'false');
+    sessionStorage.setItem('demoLifetime', data.demoLifetime === true ? 'true' : 'false');
+    if (data.trialExpiresAt) sessionStorage.setItem('trialExpiresAt', data.trialExpiresAt); else sessionStorage.removeItem('trialExpiresAt');
     sessionStorage.setItem('nomeLogado', identityName); sessionStorage.setItem('papelLogado', roleTitle);
     sessionStorage.setItem('loginAtivo', usuarioInput);
+    sessionStorage.setItem('devAuth', 'false');
+    sessionStorage.setItem('abaAtiva', initialTab);
 
     window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: `Protocolo aceito. Bem-vindo(a), ${identityName}.`, type: 'success' }}));
   }, []);
 
+
   /**
    * Concentra a logica de fazer login para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+   *
+   * @param {unknown} usuarioInput - Valor de usuario input consumido por esta rotina.
+   * @param {unknown} senhaInput - Valor de senha input consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const fazerLogin = async (usuarioInput, senhaInput) => {
     // Fluxo de login em duas fases: credenciais primeiro; se o servidor exigir
@@ -487,7 +735,7 @@ export default function App() {
       }
 
       if (sysConfig?.maintenanceMode && res.data.role !== 'DEV') {
-        window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: 'SISTEMA EM MANUTENÇÃO. Acesso restrito.', type: 'warning' }}));
+        window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: sysConfig?.maintenanceMessage || 'Sistema em manutenção. Acesso restrito.', type: 'warning' }}));
         setIsLoginLoading(false);
         return;
       }
@@ -500,6 +748,11 @@ export default function App() {
       if (res.data.role === 'DEV') {
          identityName = 'Desenvolvedor do Sistema';
          roleTitle = 'SysAdmin / Root';
+         // Apenas o perfil ROOT recebe a segunda verificacao no mobile.
+         if (isMobileDevice() || window.localStorage.getItem('termosync_mobile_shell') === 'webview') {
+           aplicarSessaoAutenticada(res.data, usuarioInput);
+           return;
+         }
          setDevBootData({ token: res.data.token, id: res.data.id, role: res.data.role, filial: res.data.filial, empresa: res.data.empresa, identityName, roleTitle, loginName: usuarioInput });
          setIsDevBooting(true);
          setIsLoginLoading(false);
@@ -515,13 +768,32 @@ export default function App() {
 
       aplicarSessaoAutenticada(res.data, usuarioInput);
     } catch (error) {
-      setLoginErro('Credenciais inválidas.');
-      window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: 'Acesso Negado.', type: 'error' }}));
+      const responseData = error.response?.data;
+      const accessMessage = responseData?.maintenance || responseData?.trialExpired ? responseData.error : '';
+      setLoginErro(accessMessage || 'Credenciais inválidas.');
+      window.dispatchEvent(new CustomEvent('forceToast', {
+        detail: { msg: accessMessage || 'Acesso Negado.', type: accessMessage ? 'warning' : 'error' }
+      }));
     } finally { setIsLoginLoading(false); }
   };
 
+
   /**
    * Concentra a logica de concluir mfa login para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+   *
+   * @param {string} code - Código de verificação ou credencial temporária recebida pelo fluxo.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const concluirMfaLogin = async (code) => {
     if (!mfaChallenge?.challengeId) return;
@@ -529,6 +801,22 @@ export default function App() {
     setLoginErro('');
     try {
       const res = await axios.post(`${getApiUrl()}/login/mfa`, { challengeId: mfaChallenge.challengeId, code });
+      const isMobileRuntime = isMobileDevice() || window.localStorage.getItem('termosync_mobile_shell') === 'webview';
+      if (res.data.role === 'DEV' && !isMobileRuntime) {
+        setDevBootData({
+          token: res.data.token,
+          id: res.data.id,
+          role: res.data.role,
+          filial: res.data.filial,
+          empresa: res.data.empresa,
+          identityName: 'Desenvolvedor do Sistema',
+          roleTitle: 'SysAdmin / Root',
+          loginName: mfaChallenge.usuario
+        });
+        setIsDevBooting(true);
+        setMfaChallenge(null);
+        return;
+      }
       aplicarSessaoAutenticada(res.data, mfaChallenge.usuario);
       setMfaChallenge(null);
     } catch (error) {
@@ -539,14 +827,26 @@ export default function App() {
     }
   };
 
+
   /**
    * Concentra a logica de complete dev boot para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const completeDevBoot = () => {
     if (!devBootData) return;
     const { token, id, role, filial, empresa, identityName, roleTitle, loginName } = devBootData;
 
-    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); setUserEmpresa(empresa);
+    setToken(token); setUserId(id); setUserRole(role); setUserFilial(filial); setUserEmpresa(empresa); setTrialInfo({ active: false, lifetime: false, expiresAt: '' });
     setFilialAtiva('Todas'); setAbaAtiva('dev_panel'); setMenuAberto(false);
     setNomeLogado(identityName); setPapelLogado(roleTitle); setLoginAtivo(loginName); setIsDevAuthenticated(true);
 
@@ -557,8 +857,21 @@ export default function App() {
   };
 
   useEffect(() => {
+
     /**
-     * Concentra a logica de handle kill switch para manter o restante do modulo mais legivel.
+     * Processa a interacao de handle kill switch e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+     *
+     * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const handleKillSwitch = (e) => {
       if (e.key === 'termosync_force_logout' && e.newValue) {
@@ -576,8 +889,23 @@ export default function App() {
   useEffect(() => { if (sysConfig?.maintenanceMode && userRole !== 'DEV' && token && !papelLogado.includes('Impersonate')) fazerLogout(); }, [sysConfig?.maintenanceMode, userRole, token, fazerLogout, papelLogado]);
   useEffect(() => { if (isFeatureEnabled('forceDarkMode')) setIsDarkMode(true); }, [sysConfig, isFeatureEnabled]);
 
+
   /**
-   * Concentra a logica de handle unlock para manter o restante do modulo mais legivel.
+   * Processa a interacao de handle unlock e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleUnlock = async (e) => {
     e.preventDefault();
@@ -596,8 +924,22 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+
     /**
      * Concentra a logica de check system health para manter o restante do modulo mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+     * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; publica ou consome mensagens MQTT
+     *
+     * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const checkSystemHealth = async () => {
       try {
@@ -622,8 +964,20 @@ export default function App() {
     return () => { cancelled = true; clearInterval(intervalId); };
   }, []);
 
+
   /**
-   * Concentra a logica de toggle full screen para manter o restante do modulo mais legivel.
+   * Processa a interacao de toggle full screen e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => { window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: "Modo TV bloqueado.", type: 'warning' }})); }); }
@@ -657,7 +1011,10 @@ export default function App() {
       error.requestId = requestId;
       error.userMessage = requestId ? `${apiMessage} Código: ${requestId}` : apiMessage;
 
-      if (status === 401 && !papelLogado.includes('Impersonate')) {
+      if (error.response?.data?.trialExpired && !papelLogado.includes('Impersonate')) {
+        fazerLogout();
+        setLoginErro(apiMessage);
+      } else if (status === 401 && !papelLogado.includes('Impersonate')) {
         fazerLogout();
       }
 
@@ -680,17 +1037,30 @@ export default function App() {
   }, [token, fazerLogout, papelLogado]);
 
   const showToast = useCallback((message, type = 'success') => {
-    if (userRole !== 'DEV') { try { const gConf = JSON.parse(localStorage.getItem('termosync_sysconfig_saas'))?.regras?.['GLOBAL']?.features; const rConf = JSON.parse(localStorage.getItem('termosync_sysconfig_saas'))?.regras?.[userRole]?.features; if (gConf && gConf.enableToasts === false) return; if (rConf && rConf.enableToasts === false) return; } catch(error) { logger.warn('Não foi possível ler as preferências de toast.', error); } }
+    if (userRole !== 'DEV' && !isFeatureEnabled('enableToasts')) return;
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message: formatToastMessage(message), type }]);
     setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== id)); }, 4500);
-  }, [userRole]);
+  }, [isFeatureEnabled, userRole]);
   const showToastRef = useRef(showToast);
   useEffect(() => { showToastRef.current = showToast; }, [showToast]);
 
   useEffect(() => {
+
     /**
      * Concentra a logica de listen toasts para manter o restante do modulo mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const listenToasts = (e) => { showToast(e.detail.msg, e.detail.type); };
     window.addEventListener('forceToast', listenToasts);
@@ -775,7 +1145,7 @@ export default function App() {
 
   const carregarUsuarios = useCallback(async () => { if ((userRole !== 'ADMIN' && userRole !== 'DEV') || !token || isOffline) return; try { const res = await api.get('/usuarios'); setUsuariosLista(Array.isArray(res.data) ? res.data : []); } catch (error) { logger.warn('Falha ao carregar usuários.', error); } }, [api, userRole, token, isOffline]);
   const carregarLojas = useCallback(async () => { if ((userRole !== 'ADMIN' && userRole !== 'DEV') || !token || isOffline) return; try { const res = await api.get('/lojas'); setLojasCadastradas(Array.isArray(res.data) ? res.data : []); } catch (error) { logger.warn('Falha ao carregar lojas.', error); } }, [api, userRole, token, isOffline]);
-  const carregarTecnicos = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get('/tecnicos'); setTecnicosDb(Array.isArray(res.data) ? res.data : []); } catch (error) { logger.warn('Falha ao carregar técnicos.', error); } }, [api, token, isOffline]);
+  const carregarTecnicos = useCallback(async () => { if (!token || isOffline) return; if (!['DEV', 'ADMIN', 'MANUTENCAO'].includes(userRole)) { setTecnicosDb([]); return; } try { const res = await api.get('/tecnicos'); setTecnicosDb(Array.isArray(res.data) ? res.data : []); } catch (error) { logger.warn('Falha ao carregar técnicos.', error); } }, [api, token, isOffline, userRole]);
   const carregarContatos = useCallback(async () => { if (!token || isOffline) return; try { const res = await api.get('/contatos'); setContatosDb(Array.isArray(res.data) ? res.data : []); } catch (error) { logger.warn('Falha ao carregar contatos.', error); } }, [api, token, isOffline]);
   const carregarParametrosGerais = useCallback(async () => { if (!token || isOffline) return; try { const [resSetores, resTipos] = await Promise.all([ api.get('/setores').catch(() => ({ data: [] })), api.get('/tipos-refrigeracao').catch(() => ({ data: [] })) ]); setListaSetores(Array.isArray(resSetores.data) ? resSetores.data : []); setListaTipos(Array.isArray(resTipos.data) ? resTipos.data : []); } catch (error) { logger.warn('Falha ao carregar parâmetros gerais.', error); } }, [api, token, isOffline]);
 
@@ -896,12 +1266,15 @@ export default function App() {
   // WEBSOCKETS (COM PROTEÇÃO MULTI-TENANT E ESCUTA DE RESPOSTA DO SUPORTE)
   // ============================================================================
   useEffect(() => {
-    if (!token || isOffline || !isFeatureEnabledRef.current('telemetryStream')) return;
-    const socket = io(getSocketUrl(), { transports: ['websocket'], upgrade: false });
+    // A conexão permanece ativa mesmo quando a telemetria foi desabilitada,
+    // pois avisos globais, chat, suporte e manutenção também usam este canal.
+    if (!token || isOffline) return;
+    const socket = io(getSocketUrl(), { transports: ['websocket'], upgrade: false, auth: { token } });
     setSocketInstance(socket);
     if (userId && !papelLogado.includes('Impersonate')) socket.emit('registrar_usuario', userId);
 
     socket.on('nova_leitura', (dadosNovaLeitura) => {
+      if (!isFeatureEnabledRef.current('telemetryStream')) return;
       // Leituras IoT chegam em alta frequência. Em vez de setState por evento,
       // guardamos em buffer e aplicamos em lote no intervalo abaixo.
       if (userRoleRef.current !== 'DEV' && !papelLogadoRef.current.includes('Impersonate')) {
@@ -944,6 +1317,7 @@ export default function App() {
     });
 
     socket.on('novo_alerta', (alertaCompleto) => {
+      if (!isFeatureEnabledRef.current('telemetryStream')) return;
       if (userRoleRef.current !== 'DEV' && !papelLogadoRef.current.includes('Impersonate')) {
         if (alertaCompleto.empresa && alertaCompleto.empresa !== userEmpresaRef.current) return;
       }
@@ -953,12 +1327,39 @@ export default function App() {
           if (!alertaCompleto.silencioso) {
             const tiposCriticos = ['MECANICA', 'PORTA', 'TEMPERATURA', 'REDE', 'METROLOGIA'];
             if (tiposCriticos.includes(alertaCompleto.tipo_alerta)) {
+              const equipamentoLabel = alertaCompleto.equipamento_nome
+                || alertaCompleto.maquina
+                || (alertaCompleto.equipamento_id ? `#${alertaCompleto.equipamento_id}` : 'não identificado');
               tocarAlarmeRef.current();
-              showToastRef.current(`🚨 <b>ANOMALIA DETECTADA:</b> O equipamento <b>${alertaCompleto.equipamento_nome}</b> registrou uma ocorrência: ${alertaCompleto.mensagem}`, 'error');
+              showToastRef.current(`<b>ANOMALIA DETECTADA:</b> O equipamento <b>${equipamentoLabel}</b> registrou uma ocorrência: ${alertaCompleto.mensagem || 'Evento operacional recebido sem descrição.'}`, 'error');
             }
           }
         }
-        setNotificacoes(prev => { if (prev.some(n => n.id === alertaCompleto.id)) return prev; return [alertaCompleto, ...prev]; });
+        setNotificacoes(prev => {
+
+          /**
+           * Concentra a logica de same condition para manter o restante do modulo mais legivel.
+           *
+           * Responsabilidade: mantém este comportamento isolado para que validação,
+           * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+           *
+           * Fluxo principal:
+           * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+           *
+           * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+           *
+           * @param {unknown} n - Valor de n consumido por esta rotina.
+           * @returns {unknown} Resultado calculado para consumo do chamador.
+           * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+           */
+          const sameCondition = n => String(n.equipamento_id) === String(alertaCompleto.equipamento_id)
+            && n.tipo_alerta === alertaCompleto.tipo_alerta;
+          const current = prev.find(sameCondition);
+          if (current?.id === alertaCompleto.id) return prev;
+          // Mantém uma ocorrência atual por equipamento/tipo e limita o estado
+          // defensivamente caso um emissor externo gere uma tempestade de eventos.
+          return [alertaCompleto, ...prev.filter(n => !sameCondition(n))].slice(0, 1000);
+        });
       }
     });
 
@@ -982,33 +1383,34 @@ export default function App() {
       if (abaAtivaRef.current !== 'chat' || String(contatoChatAtivoRef.current?.id) !== String(msg.remetenteId)) { setNaoLidasPorContato(prev => ({ ...prev, [msg.remetenteId]: (prev[msg.remetenteId] || 0) + 1 })); }
     });
 
-    const pingInterval = setInterval(() => { setLatencia(prev => { let novo = prev + (Math.floor(Math.random() * 9) - 4); return novo < 10 ? 10 : novo > 60 ? 60 : novo; }); }, 1500);
-
-    return () => { clearTimeout(timeoutAtualizacao); clearInterval(pingInterval); socket.off('nova_leitura'); socket.off('atualizacao_dados'); socket.off('novo_alerta'); socket.off('novo_pre_cadastro'); socket.off('resposta_suporte'); socket.off('nova_mensagem_chat'); socket.disconnect(); };
+    return () => { clearTimeout(timeoutAtualizacao); socket.off('nova_leitura'); socket.off('atualizacao_dados'); socket.off('novo_alerta'); socket.off('novo_pre_cadastro'); socket.off('resposta_suporte'); socket.off('nova_mensagem_chat'); socket.disconnect(); };
   }, [token, isOffline, userId, papelLogado]);
 
   useEffect(() => {
-    // Flush do buffer IoT: atualiza os cards de equipamentos uma vez por segundo,
+    // Flush do buffer IoT: atualiza os cards de equipamentos a cada dois segundos,
     // mantendo a UI fluida mesmo com muitos sensores enviando dados.
     const iotFlushInterval = setInterval(() => {
       const keys = Object.keys(bufferLeiturasRef.current);
       if (keys.length > 0) {
-        setEquipamentos(prev => prev.map(eq => {
-          const reading = bufferLeiturasRef.current[eq.id];
-          if (reading) return {
-            ...eq,
-            ultima_temp: reading.temperatura,
-            ultima_umidade: reading.umidade,
-            motor_ligado: reading.motor_ligado === true || reading.motor_ligado == 1,
-            em_degelo: reading.em_degelo === true || reading.em_degelo == 1,
-            ultima_comunicacao: reading.ultima_comunicacao || reading.data_hora || new Date().toISOString(),
-            status_conexao: 'online'
-          };
-          return eq;
-        }));
+        const readings = { ...bufferLeiturasRef.current };
         bufferLeiturasRef.current = {};
+        startTransition(() => {
+          setEquipamentos(prev => prev.map(eq => {
+            const reading = readings[eq.id];
+            if (reading) return {
+              ...eq,
+              ultima_temp: reading.temperatura,
+              ultima_umidade: reading.umidade,
+              motor_ligado: reading.motor_ligado === true || reading.motor_ligado == 1,
+              em_degelo: reading.em_degelo === true || reading.em_degelo == 1,
+              ultima_comunicacao: reading.ultima_comunicacao || reading.data_hora || new Date().toISOString(),
+              status_conexao: reading.status_conexao || 'online'
+            };
+            return eq;
+          }));
+        });
       }
-    }, 1000);
+    }, 2000);
     return () => clearInterval(iotFlushInterval);
   }, []);
 
@@ -1024,6 +1426,37 @@ export default function App() {
 
   const listaFiliais = useMemo(() => {
     if (papelLogado.includes('Impersonate') || userRole === 'LOJA') return [userFilial];
+     /**
+      * Concentra a logica de filiais extraidas para manter o restante do modulo mais legivel.
+      *
+      * Responsabilidade: mantém este comportamento isolado para que validação,
+      * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+      *
+      * Fluxo principal:
+      * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+      *
+      * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+      *
+      * @param {unknown} b - Valor de b consumido por esta rotina.
+      * @returns {unknown} Resultado calculado para consumo do chamador.
+      * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+      */
+
+    /**
+     * Concentra a logica de filiais extraidas para manter o restante do modulo mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} b - Valor de b consumido por esta rotina.
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
     const filiaisExtraidas = (lojasCadastradas || []).map(l => l.nome);
     const combinadas = Array.from(new Set([...(filiaisDb || []), ...filiaisExtraidas]
       .map(filial => String(filial || '').trim())
@@ -1045,55 +1478,155 @@ export default function App() {
   const eqPesquisaLower = termoPesquisa.toLowerCase();
   const equipamentosFiltradosLista = useMemo(() => equipamentosDaFilial?.filter(eq => eq.nome?.toLowerCase().includes(eqPesquisaLower) || (eq.setor && eq.setor.toLowerCase().includes(eqPesquisaLower))), [equipamentosDaFilial, eqPesquisaLower]);
   const historicoFiltradoLista = useMemo(() => { let hist = filialAtiva === 'Todas' ? historicoAlertas : historicoAlertas?.filter(h => (h.filial || 'Loja Principal') === filialAtiva); return hist?.filter(h => h.equipamento_nome?.toLowerCase().includes(eqPesquisaLower) || (h.setor && h.setor.toLowerCase().includes(eqPesquisaLower))); }, [historicoAlertas, filialAtiva, eqPesquisaLower]);
-  const dadosDonutStatus = useMemo(() => [ { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: '#38bdf8' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' } ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
+  const dadosDonutStatus = useMemo(() => [ { name: 'Ok', value: qtdOperando, color: 'var(--success)' }, { name: 'Degelo', value: qtdDegelo, color: 'var(--info)' }, { name: 'Falha', value: qtdFalha, color: 'var(--danger)' } ].filter(d => d.value > 0), [qtdOperando, qtdDegelo, qtdFalha]);
+
 
   /**
    * Concentra a logica de editar equipamento para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} eq - Valor de eq consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const editarEquipamento = (eq) => { if (isOffline || isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada.', 'warning'); setEquipEditando(eq.id); setFormEditEquip({ nome: eq.nome, tipo: eq.tipo, temp_min: eq.temp_min, temp_max: eq.temp_max, umidade_min: eq.umidade_min || '', umidade_max: eq.umidade_max || '', intervalo_degelo: eq.intervalo_degelo, duracao_degelo: eq.duracao_degelo, setor: eq.setor, filial: eq.filial, data_calibracao: eq.data_calibracao ? new Date(eq.data_calibracao).toISOString().split('T')[0] : '' }); };
+
   /**
    * Concentra a logica de salvar edicao equipamento para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const salvarEdicaoEquipamento = async (e) => { e.preventDefault(); if (isOffline) return; try { await api.put(`/equipamentos/${equipEditando}/edit`, formEditEquip); showToast('Atualizado com sucesso.', 'success'); setEquipEditando(null); carregarDadosBase(); } catch (e) { showToast('Erro de sincronização.', 'error'); } };
+
   /**
-   * Concentra a logica de pedir exclusao para manter o restante do modulo mais legivel.
+   * Processa a interacao de pedir exclusao e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @param {unknown} nome - Valor de nome consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const pedirExclusao = (id, nome) => { if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning'); setModalConfig({ isOpen: true, title: 'Remover Máquina', message: `Remover "${nome}" permanentemente?`, isPrompt: false, onConfirm: async () => { try { await api.delete(`/equipamentos/${id}`); showToast('Ativo purgado do sistema.', 'success'); carregarDadosBase(); } catch (e) { showToast('Ação autorizada.', 'error'); } }}); };
 
+
   /**
-   * Concentra a logica de pedir nota resolucao para manter o restante do modulo mais legivel.
+   * Processa a interacao de pedir nota resolucao e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const pedirNotaResolucao = (id) => {
     if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning');
     setModalConfig({ isOpen: true, title: 'Registro de Manutenção', message: 'Descreva a intervenção técnica:', isPrompt: true, promptValue: '', onConfirm: async (nota) => { try { await api.put(`/notificacoes/${id}/resolver`, { nota_resolucao: nota.trim() === '' ? 'Verificado e limpo.' : nota }); showToast('Incidente arquivado.', 'success'); setNotificacoes(prev => prev.filter(n => n.id !== id)); carregarDadosBase(); } catch (e) { showToast('Erro no arquivo.', 'error'); } } });
   };
 
+
   /**
    * Concentra a logica de resolver todas notificacoes para manter o restante do modulo mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const resolverTodasNotificacoes = () => {
     if (isFeatureEnabled('readOnlyMode')) return showToast('Ação bloqueada (Leitura).', 'warning');
     setModalConfig({ isOpen: true, title: 'Limpeza do Painel', message: 'Arquivar todos os alarmes pendentes do radar?', isPrompt: false, onConfirm: async () => { try { await api.put(`/notificacoes/resolver-todas`); showToast('Painel higienizado.', 'success'); setNotificacoes([]); carregarDadosBase(); } catch (e) { showToast('Erro de sistema.', 'error'); } } });
   };
 
+
   /**
    * Gera gerar exportacao com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+   *
+   * @param {unknown} tipo - Valor de tipo consumido por esta rotina.
+   * @param {unknown} dadosExportacao - Valor de dados exportacao consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const gerarExportacao = (tipo) => {
+  const gerarExportacao = (tipo, dadosExportacao = historicoFiltradoLista) => {
     if (!isFeatureEnabled('allowExports')) return showToast('A exportação de dados foi bloqueada pelas diretrizes do sistema.', 'error');
     if (abaAtiva === 'historico') {
-      if (historicoFiltradoLista.length === 0) return showToast("Sem dados para exportar.", "warning");
+      const dados = Array.isArray(dadosExportacao) ? dadosExportacao : historicoFiltradoLista;
+      if (dados.length === 0) return showToast("Sem dados para exportar.", "warning");
       if (tipo === 'pdf') {
-        const doc = new jsPDF(); doc.setFontSize(18); doc.text("Auditoria de Ocorrências", 14, 20); doc.setFontSize(11); doc.text(`Emitido: ${new Date().toLocaleString()}`, 14, 28); let head = [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]]; let body = historicoFiltradoLista.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao]); autoTable(doc, { head, body, startY: 40, theme: 'grid' }); doc.save(`Auditoria_Ocorrencias_${new Date().getTime()}.pdf`);
+        const doc = new jsPDF(); doc.setFontSize(18); doc.text("Auditoria de Ocorrências", 14, 20); doc.setFontSize(11); doc.text(`Emitido: ${new Date().toLocaleString()}`, 14, 28); const head = [["Data", "Equipamento", "Ocorrência", "Técnico Responsável"]]; const body = dados.map(h => [new Date(h.data_hora).toLocaleString(), `${h.equipamento_nome}`, h.mensagem, h.nota_resolucao || 'Sem resolução']); autoTable(doc, { head, body, startY: 40, theme: 'grid' }); doc.save(`Auditoria_Ocorrencias_${new Date().getTime()}.pdf`);
       } else {
-        let csv = "Data,Equipamento,Setor,Ocorrencia,Tecnico\n"; historicoFiltradoLista.forEach(row => { csv += `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao}"\n`; }); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' })); link.download = `Auditoria_${new Date().getTime()}.csv`; link.click();
+        let csv = "Data,Equipamento,Setor,Ocorrencia,Resolucao\n"; dados.forEach(row => { csv += `"${new Date(row.data_hora).toLocaleString()}","${row.equipamento_nome}","${row.setor}","${row.mensagem}","${row.nota_resolucao || ''}"\n`; }); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' })); link.download = `Auditoria_${new Date().getTime()}.csv`; link.click();
       }
       showToast('Pacote de dados gerado.', 'success');
     } else { showToast('Funcionalidade de PDF não implementada no frontend (usando backend).', 'info'); }
   };
 
+
   /**
    * Gera gerar lote os com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} listaChamados - Valor de lista chamados consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarLoteOS = (listaChamados) => {
     if (!isFeatureEnabled('allowExports')) return showToast('A exportação de dados foi bloqueada pelas diretrizes do sistema.', 'error');
@@ -1103,70 +1636,189 @@ export default function App() {
   // ===============================================
   // REGISTRO DE TELAS E REGRAS DE BADGES POR ROLE
   // ===============================================
+  const chamadosAbertosCount = chamados?.filter((chamado) => {
+    const status = String(chamado.status || '').trim().toLowerCase();
+    return status && !['concluído', 'concluido', 'fechado', 'cancelado', 'resolvido'].includes(status);
+  }).length || 0;
+  const alertasTemperaturaCount = notificacoesDaFilial?.filter((item) => String(item.tipo_alerta || '').toUpperCase() !== 'UMIDADE').length || 0;
+  const alertasUmidadeCount = notificacoesDaFilial?.filter((item) => String(item.tipo_alerta || '').toUpperCase() === 'UMIDADE').length || 0;
+  const equipamentosOfflineCount = equipamentosDaFilial?.filter((item) => ['offline', 'sem-sinal'].includes(String(item.status_conexao || '').toLowerCase())).length || 0;
+
+  // Catálogo único de telas: permissões, agrupamento, badges e presença na sidebar.
+  // `sidebar: false` mantém a tela acessível apenas pelas abas da área contextual.
   const NAVIGATION = [
-    { id: 'dev_panel', label: 'Controle', icon: Terminal, roles: ['DEV'], type: 'Desenvolvedor', priority: 1 },
-    { id: 'bi', label: 'Centro de Inteligência (BI)', icon: PieChart, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'soc', label: 'Auditoria / SOC', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'atualizacoes', label: 'Atualizações / Deploy', icon: Rocket, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'sql_terminal', label: 'Console SQL', icon: Database, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'websocket_stream', label: 'Live Firehose (WS)', icon: Network, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'network_scanner', label: 'Sonda de Rede (IDS)', icon: Network, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'monitor_edge', label: 'Monitor Serial Edge', icon: Radio, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'simulador', label: 'Simulador', icon: Cpu, roles: ['DEV'], type: 'Desenvolvedor' },
-    { id: 'hardware', label: 'Hardware IoT', icon: Server, roles: ['DEV'], type: 'Desenvolvedor' },
-    { id: 'system', label: 'Operações do Sistema', icon: Settings2, roles: ['DEV'], type: 'Desenvolvedor' },
-    { id: 'empresas', label: 'Organizações', icon: Building2, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'aprovacoes', label: 'Onboarding SaaS', icon: CheckCircle, roles: ['DEV'], badge: badgeSaaS, type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'saas', label: 'Licenças SaaS', icon: ShieldAlert, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
-    { id: 'billing', label: 'Core Financeiro', icon: DollarSign, roles: ['DEV'], type: 'Desenvolvedor', devAuthRequired: true },
+    // Ferramentas de desenvolvimento: cada área técnica conserva uma única entrada lateral.
+    { id: 'dev_panel', label: 'Console DEV', icon: Terminal, roles: ['DEV'], type: 'Desenvolvimento', priority: 1 },
+    { id: 'bi', label: 'Centro de Inteligência (BI)', icon: PieChart, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'soc', label: 'Segurança', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, priority: 5 },
+    { id: 'atualizacoes', label: 'Atualizações / Deploy', icon: Rocket, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true },
+    { id: 'sql_terminal', label: 'Console SQL', icon: Database, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'websocket_stream', label: 'Live Firehose (WS)', icon: Network, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'network_scanner', label: 'Sonda de Rede (IDS)', icon: Network, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'monitor_edge', label: 'Monitor Serial Edge', icon: Radio, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'simulador', label: 'Simulador', icon: Cpu, roles: ['DEV'], type: 'Desenvolvimento', sidebar: false },
+    { id: 'hardware', label: 'Hardware IoT', icon: Server, roles: ['DEV'], type: 'Desenvolvimento', sidebar: false },
+    { id: 'system', label: 'Infraestrutura', icon: Settings2, roles: ['DEV'], type: 'Desenvolvimento', priority: 4 },
+    { id: 'empresas', label: 'Dados e SaaS', icon: Building2, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, priority: 3 },
+    { id: 'aprovacoes', label: 'Onboarding SaaS', icon: CheckCircle, roles: ['DEV'], badge: badgeSaaS, type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'saas', label: 'Licenças SaaS', icon: ShieldAlert, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
+    { id: 'billing', label: 'Core Financeiro', icon: DollarSign, roles: ['DEV'], type: 'Desenvolvimento', devAuthRequired: true, sidebar: false },
 
-    { id: 'dashboard', label: 'Dashboard Operacional', icon: Activity, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: notificacoesDaFilial?.length || 0, type: 'Operações', priority: 1 },
-    { id: 'assistente', label: 'Assistente de Operação', icon: Sparkles, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações', priority: 2 },
-    { id: 'resumo_loja', label: 'Resumo da Loja', icon: Building2, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'central_procedimentos', label: 'Central de Procedimentos', icon: ClipboardCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'checklist_turno', label: 'Checklist de Turno', icon: ClipboardList, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'resumo_turno', label: 'Resumo de Turno', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'plano_dia', label: 'Plano do Dia', icon: CalendarDays, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'resumo_executivo', label: 'Resumo Executivo', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'timeline_operacional', label: 'Timeline Operacional', icon: Clock, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'mapa', label: 'Planta Digital', icon: Map, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operações' },
-    { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
-    { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operações' },
+    // Operação diária: dashboard, rotinas de turno e monitoramento ambiental.
+    { id: 'dashboard', label: 'Dashboard Operacional', icon: Activity, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: notificacoesDaFilial?.length || 0, type: 'Operacional', priority: 1 },
+    { id: 'assistente', label: 'Assistente de Operação', icon: Sparkles, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', priority: 2 },
+    { id: 'resumo_loja', label: 'Resumo da Loja', icon: Building2, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'central_procedimentos', label: 'Central de Procedimentos', icon: ClipboardCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'checklist_turno', label: 'Checklist de Turno', icon: ClipboardList, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional' },
+    { id: 'resumo_turno', label: 'Resumo de Turno', icon: BarChart3, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'plano_dia', label: 'Plano do Dia', icon: CalendarDays, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'resumo_executivo', label: 'Resumo Executivo', icon: BarChart3, roles: ['ADMIN', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'timeline_operacional', label: 'Timeline Operacional', icon: Clock, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'mapa', label: 'Planta Digital', icon: Map, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'motores', label: 'Monitoramento Térmico', icon: Thermometer, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: alertasTemperaturaCount, type: 'Operacional' },
+    { id: 'umidade', label: 'Monitoramento de Umidade', icon: Droplets, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: alertasUmidadeCount, type: 'Operacional', sidebar: false },
 
-    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: userRole === 'DEV' ? 0 : (chamados?.filter(c => {
-      const s = String(c.status || '').trim().toLowerCase();
-      return !['concluído', 'fechado', 'cancelado', 'resolvido'].includes(s) && s !== '';
-    }).length || 0), type: 'Serviços', priority: 1 },
-    { id: 'sla_chamados', label: 'SLA de Chamados', icon: Timer, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'kanban', label: 'Gestão Ágil (Kanban)', icon: Columns, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas || 0, type: 'Serviços' },
-    { id: 'metrologia', label: 'Controle Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'inventario_iot', label: 'Inventário IoT', icon: Cpu, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'equipamentos', label: 'Equipamentos', icon: Server, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
-    { id: 'parametros', label: 'Parâmetros Globais', icon: Sliders, roles: ['ADMIN', 'DEV'], type: 'Serviços' },
-    { id: 'historico_chamados', label: 'Histórico de Chamados', icon: Archive, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Serviços' },
+    // Serviços e ativos: atendimento, inventário e parâmetros compartilhados.
+    { id: 'chamados', label: 'Chamados', icon: Wrench, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: userRole === 'DEV' ? 0 : chamadosAbertosCount, type: 'Manutenção', priority: 1 },
+    { id: 'sla_chamados', label: 'SLA de Chamados', icon: Timer, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], badge: chamadosAbertosCount, type: 'Manutenção', sidebar: false },
+    { id: 'kanban', label: 'Gestão Ágil (Kanban)', icon: Columns, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], badge: chamadosAbertosCount, type: 'Manutenção', sidebar: false },
+    { id: 'chat', label: 'Chat', icon: MessageSquare, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: totalNaoLidas || 0, type: 'Usuário', sidebar: false },
+    { id: 'metrologia', label: 'Controle Metrológico', icon: Target, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Manutenção', sidebar: false },
+    { id: 'inventario_iot', label: 'Inventário IoT', icon: Cpu, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], badge: equipamentosOfflineCount, type: 'Manutenção', sidebar: false },
+    { id: 'equipamentos', label: 'Equipamentos', icon: Server, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], badge: equipamentosOfflineCount, type: 'Manutenção' },
+    { id: 'parametros', label: 'Parâmetros Globais', icon: Sliders, roles: ['ADMIN', 'DEV'], type: 'Administração', sidebar: false },
+    { id: 'historico_chamados', label: 'Histórico de Chamados', icon: Archive, roles: ['ADMIN', 'MANUTENCAO', 'DEV'], type: 'Manutenção', sidebar: false },
 
-    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true, priority: 1 },
-    { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria' },
-    { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Auditoria', isPremium: true },
+    // Auditoria e análise histórica da operação.
+    { id: 'relatorios', label: 'Relatórios', icon: Leaf, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operacional', isPremium: true, priority: 1 },
+    { id: 'energia', label: 'Gestão Energética', icon: Zap, roles: ['ADMIN', 'LOJA', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'historico', label: 'Histórico de Logs', icon: History, roles: ['ADMIN', 'DEV'], type: 'Administração', isPremium: true, sidebar: false },
 
-    { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Sistema', priority: 1 },
-    { id: 'usuarios', label: 'Identidades e Acessos', icon: Users, roles: ['ADMIN', 'DEV'], type: 'Sistema', priority: 2 },
-    { id: 'centro_comando', label: 'Centro de Comando', icon: Target, roles: ['DEV'], type: 'Sistema' },
-    { id: 'central_saude', label: 'Saúde do Sistema', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvedor', priority: 2 },
-    { id: 'suporte', label: 'Suporte ao Sistema', icon: LifeBuoy, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: badgeSuporte, type: 'Sistema' },
-    { id: 'seguranca_conta', label: 'Segurança da Conta', icon: LockKeyhole, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' },
-    { id: 'sobre', label: 'Sobre a Plataforma', icon: Info, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Sistema' }
-  ].sort((a, b) => {
+    // Administração da plataforma e recursos institucionais.
+    { id: 'lojas', label: 'Gestão de Lojas', icon: Store, roles: ['ADMIN', 'DEV'], type: 'Administração', priority: 1 },
+    { id: 'usuarios', label: 'Identidades e Acessos', icon: Users, roles: ['ADMIN', 'DEV'], type: 'Administração', priority: 2 },
+    { id: 'centro_comando', label: 'Centro de Comando', icon: Target, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Operacional', sidebar: false },
+    { id: 'central_saude', label: 'Observabilidade', icon: ShieldCheck, roles: ['DEV'], type: 'Desenvolvimento', priority: 2 },
+    { id: 'suporte', label: 'Suporte da Plataforma', icon: LifeBuoy, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], badge: badgeSuporte, type: 'Usuário' },
+    { id: 'seguranca_conta', label: 'Segurança da Conta', icon: LockKeyhole, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Usuário', sidebar: false },
+    { id: 'documentacao', label: 'Documentação', icon: BookOpen, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Usuário', sidebar: false },
+    { id: 'privacidade', label: 'Privacidade e Dados', icon: ShieldCheck, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Usuário', sidebar: false },
+    { id: 'sobre', label: 'Sobre a Plataforma', icon: Info, roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'], type: 'Usuário', sidebar: false }
+  ].map((item) => {
+    const classification = getScreenClassification(item.id);
+    return {
+      ...item,
+      roles: getAllowedRolesForScreen(item.id),
+      type: classification?.section || item.type,
+      moduleId: classification?.moduleId || item.id,
+      moduleLabel: classification?.moduleLabel || item.label,
+      screenKind: classification?.kind || 'Tela do sistema'
+    };
+  }).sort((a, b) => {
+    // Prioridades explícitas vêm primeiro; o restante mantém ordem alfabética estável.
     const priorityA = Number.isFinite(a.priority) ? a.priority : Infinity;
     const priorityB = Number.isFinite(b.priority) ? b.priority : Infinity;
     if (priorityA !== priorityB) return priorityA - priorityB;
     return a.label.localeCompare(b.label, 'pt-BR');
   });
 
-  const NAVIGATION_ATIVA = NAVIGATION.filter(nav => !isModuloOculto(nav.id) && nav.roles.includes(userRole) && (nav.id !== 'chat' || isFeatureEnabled('enableChat')) && (!nav.devAuthRequired || isDevAuthenticated));
+  // Aplica feature flags, permissões e autenticação DEV antes de montar qualquer menu.
+  const NAVIGATION_ATIVA = NAVIGATION.filter(nav => !isModuloOculto(nav.id) && canRoleAccessScreen(userRole, nav.id) && (nav.id !== 'chat' || isFeatureEnabled('enableChat')) && (!nav.devAuthRequired || isDevAuthenticated));
   const modulosAcessiveis = useMemo(() => new Set(NAVIGATION_ATIVA.map(item => item.id)), [NAVIGATION_ATIVA]);
   const podeAcessarModulo = useCallback((id) => modulosAcessiveis.has(id), [modulosAcessiveis]);
+  const activeScreenLabel = NAVIGATION.find(item => item.id === abaAtiva)?.label || 'Central de Operações';
+  // O contexto associa telas secundárias ao item único que deve permanecer selecionado.
+  const navigationContext = getNavigationContext(abaAtiva, NAVIGATION_ATIVA);
+  const activeWorkspace = navigationContext.workspace?.tabs.length > 1 ? navigationContext.workspace : null;
+  const activeNavigationId = navigationContext.parentItem?.id || abaAtiva;
+  // O aviso acompanha a sessão DEV em qualquer módulo permitido, inclusive telas compartilhadas.
+  const showDeveloperEnvironmentBanner = shouldShowDeveloperEnvironmentBanner({
+    userRole,
+    hasSession: Boolean(token),
+    activeScreenId: abaAtiva,
+    navigation: NAVIGATION_ATIVA
+  });
+  const runtimeEnvironment = String(import.meta.env.VITE_APP_ENV || import.meta.env.MODE || 'local').toUpperCase();
+
+  useEffect(() => {
+    if (isTvPathname()) return;
+
+    const slug = SCREEN_PATHS[abaAtiva] || SCREEN_PATHS.dashboard;
+    const desiredPath = token
+      ? getAuthenticatedScreenPath({ screenId: abaAtiva, slug, userRole })
+      : AUTH_SCREEN_PATHS[authScreen] || '/';
+    const currentPath = normalizePathname(window.location.pathname);
+    const publicPageLabels = {
+      login: 'Entrar',
+      trial: 'Teste gratuito',
+      register: 'Cadastro definitivo',
+      terms: 'Termos de Uso',
+      privacyPolicy: 'Política de Privacidade'
+    };
+    const pageLabel = token ? activeScreenLabel : publicPageLabels[authScreen] || 'Monitoramento inteligente';
+
+    document.title = `${pageLabel} | ThermoSync`;
+    if (currentPath === desiredPath) {
+      routeSyncReadyRef.current = true;
+      return;
+    }
+
+    const method = routeSyncReadyRef.current ? 'pushState' : 'replaceState';
+    window.history[method]({ termoSyncScreen: token ? abaAtiva : authScreen }, '', desiredPath);
+    routeSyncReadyRef.current = true;
+  }, [abaAtiva, activeScreenLabel, authScreen, token, userRole]);
+
+  useLayoutEffect(() => {
+    const container = mainContentRef.current;
+    if (!container) return;
+
+    const previousScreen = previousScreenRef.current;
+    if (previousScreen !== abaAtiva) {
+      screenScrollPositionsRef.current.set(previousScreen, container.scrollTop);
+      container.scrollTo({ top: screenScrollPositionsRef.current.get(abaAtiva) || 0, behavior: 'auto' });
+      previousScreenRef.current = abaAtiva;
+    }
+  }, [abaAtiva]);
+
+  useEffect(() => {
+    if (!token || !abaAtiva) return;
+    const scope = `${userRole}_${userId || loginAtivo || 'usuario'}`.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase();
+    const metricsKey = `termosync_navigation_metrics_${scope}`;
+
+    try {
+      const now = Date.now();
+      const previousVisit = navigationVisitRef.current;
+      const metrics = JSON.parse(localStorage.getItem(metricsKey) || '{}');
+      if (previousVisit.screenId && previousVisit.screenId !== abaAtiva) {
+        const previousMetric = metrics[previousVisit.screenId] || { visits: 0, durationMs: 0 };
+        metrics[previousVisit.screenId] = {
+          ...previousMetric,
+          durationMs: previousMetric.durationMs + Math.max(0, now - previousVisit.enteredAt),
+          lastVisitedAt: new Date(now).toISOString()
+        };
+      }
+      const currentMetric = metrics[abaAtiva] || { visits: 0, durationMs: 0 };
+      metrics[abaAtiva] = { ...currentMetric, visits: currentMetric.visits + 1, lastVisitedAt: new Date(now).toISOString() };
+      localStorage.setItem(metricsKey, JSON.stringify(metrics));
+      navigationVisitRef.current = { screenId: abaAtiva, enteredAt: now };
+      window.dispatchEvent(new CustomEvent('termosync:navigation', { detail: { screenId: abaAtiva, path: window.location.pathname } }));
+      if (trialInfo.active) {
+        api.post('/saas/trials/usage', {
+          screenId: abaAtiva,
+          durationMs: previousVisit.screenId === abaAtiva ? 0 : Math.max(0, now - previousVisit.enteredAt)
+        }).catch(() => {});
+        setTrialGuideVisited((current) => new Set([...current, abaAtiva]));
+      }
+    } catch {
+      // As métricas são auxiliares e não devem bloquear a navegação sem armazenamento local.
+    }
+  }, [abaAtiva, api, loginAtivo, token, trialInfo.active, userId, userRole]);
+
+  useEffect(() => {
+    if (!token || !mustChangePassword || abaAtiva === 'seguranca_conta') return;
+    setAbaAtiva('seguranca_conta');
+    sessionStorage.setItem('abaAtiva', 'seguranca_conta');
+  }, [abaAtiva, mustChangePassword, token]);
 
   useEffect(() => {
     if (!token || !abaAtiva || podeAcessarModulo(abaAtiva)) return;
@@ -1191,7 +1843,7 @@ export default function App() {
     if (preferredItems.length >= 5) return preferredItems.slice(0, 5);
 
     const fallbackItems = NAVIGATION_ATIVA
-      .filter(item => !usedIds.has(item.id))
+      .filter(item => item.sidebar !== false && !usedIds.has(item.id))
       .sort((a, b) => {
         const priorityA = Number.isFinite(a.priority) ? a.priority : Infinity;
         const priorityB = Number.isFinite(b.priority) ? b.priority : Infinity;
@@ -1207,8 +1859,25 @@ export default function App() {
     if (termo.length < 2) return [];
 
     const matches = [];
+
     /**
      * Concentra a logica de push match para manter o restante do modulo mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} type - Valor de type consumido por esta rotina.
+     * @param {unknown} title - Valor de title consumido por esta rotina.
+     * @param {unknown} detail - Valor de detail consumido por esta rotina.
+     * @param {unknown} target - Valor de target consumido por esta rotina.
+     * @param {unknown} icon - Valor de icon consumido por esta rotina.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const pushMatch = (type, title, detail, target, icon = Search) => {
       if (!modulosAcessiveis.has(target)) return;
@@ -1320,7 +1989,7 @@ export default function App() {
   }, [atualizarTelaMobile, pullDistance]);
 
   // ============================================================================
-  // RENDERIZAÇÃO DA ROTA PÚBLICA (PORTAL DE TV) ANTES DE QUALQUER LOGIN
+  // RENDERIZAÇÃO DA ROTA DO PAINEL DE TV ANTES DA INTERFACE PRINCIPAL
   // ============================================================================
   if (publicFilial) {
     return (
@@ -1331,15 +2000,40 @@ export default function App() {
   }
 
   if (isDevBooting) {
-    return <DevBootScreen onComplete={completeDevBoot} />;
+    return <DevBootScreen onComplete={completeDevBoot} authToken={devBootData?.token} />;
+  }
+
+  if (isImpersonating) {
+    return <Loader message="Abrindo acesso seguro à loja..." />;
+  }
+
+  if (impersonateError && !token) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '24px', textAlign: 'center', background: 'var(--technical-canvas)', color: '#e2e8f0' }}>
+        <AlertTriangle size={42} color="var(--warning)" />
+        <h2 style={{ margin: 0 }}>Acesso à loja não iniciado</h2>
+        <p style={{ margin: 0, maxWidth: '480px', color: 'var(--text-muted)' }}>{impersonateError}</p>
+        <button type="button" className="btn-primary" onClick={() => window.close()}>Fechar esta aba</button>
+      </div>
+    );
   }
 
   if (authState.isVerifying && token) {
     return (
-      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: '#020617', color: '#38bdf8' }}>
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--technical-canvas)', color: 'var(--info)' }}>
         <Loader2 size={48} className="spin" />
         <h3 style={{ marginLeft: '15px', fontFamily: 'Montserrat' }}>Verificando Integridade Criptográfica...</h3>
       </div>
+    );
+  }
+
+  // Documentos jurídicos permanecem públicos mesmo quando já existe uma sessão.
+  // Isso permite abri-los em outra aba a partir do rodapé da área autenticada.
+  if (authScreen === 'terms' || authScreen === 'privacyPolicy') {
+    return (
+      <Suspense fallback={<Loader message="Abrindo documento..." />}>
+        <LegalDocument type={authScreen === 'terms' ? 'terms' : 'privacy'} onNavigate={setAuthScreen} />
+      </Suspense>
     );
   }
 
@@ -1354,14 +2048,7 @@ export default function App() {
 
     if (authScreen === 'login') {
       return (
-        <div style={{ position: 'relative', width: '100%', height: '100vh', background: 'var(--bg-color)' }}>
-          <button
-            onClick={() => setAuthScreen('landing')}
-            style={{ position: 'absolute', top: '30px', left: '30px', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            <ArrowLeft size={18} /> Voltar ao Início
-          </button>
-
+        <div style={{ position: 'relative', width: '100%', minHeight: '100vh', background: 'var(--bg-color)' }}>
           <Suspense fallback={<Loader message="Carregando autenticação..." />}>
             <Login
               isOffline={isOffline}
@@ -1371,41 +2058,39 @@ export default function App() {
               mfaChallenge={mfaChallenge}
               concluirMfaLogin={concluirMfaLogin}
               cancelarMfa={() => { setMfaChallenge(null); setLoginErro(''); }}
+              onBack={() => setAuthScreen('landing')}
             />
           </Suspense>
         </div>
       );
     }
 
-    if (authScreen === 'register') {
+    if (authScreen === 'trial' || authScreen === 'register') {
+      const isTrialRequest = authScreen === 'trial';
       return (
-        <Suspense fallback={<Loader message="Abrindo cadastro..." />}>
-          <Register onNavigate={setAuthScreen} isOffline={isOffline} />
+        <Suspense fallback={<Loader message={isTrialRequest ? 'Abrindo teste gratuito...' : 'Abrindo cadastro...'} />}>
+          <Register onNavigate={setAuthScreen} isOffline={isOffline} requestType={isTrialRequest ? 'TRIAL' : 'COMERCIAL'} />
         </Suspense>
       );
     }
+
   }
 
   if (isLocked) {
     return (
-      <div className={`app-container ${isDarkMode ? 'dark-theme' : ''} lock-screen-container`}>
-        <form className="lock-box anim-fade-in" onSubmit={handleUnlock}>
-          <div className={`lock-icon-wrapper ${isUnlocking ? 'pulse-blue-shadow' : ''}`}>
-            <Lock size={48} />
-          </div>
-          <h2 style={{color: 'var(--text-main)'}}>Terminal Bloqueado</h2>
-          <p style={{color: 'var(--text-muted)'}}>O painel de <strong>{nomeLogado}</strong> foi trancado por segurança.</p>
-          <div className="input-wrapper" style={{ margin: '1.5rem 0' }}>
-            <Lock size={18} className="input-icon" />
-            <input type="password" placeholder="Chave de Acesso..." value={lockPassword} onChange={(e) => { setLockPassword(e.target.value); setLockError(''); }} disabled={isUnlocking} autoFocus style={{ paddingLeft: '45px', textAlign: 'center', letterSpacing: '2px' }}/>
-          </div>
-          {lockError && <span className="lock-error-msg" style={{ marginTop: '-10px', marginBottom: '10px', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 'bold' }}>{lockError}</span>}
-          <button type="submit" className="btn btn-primary w-100 login-btn" disabled={isUnlocking}>
-            {isUnlocking ? <Loader2 size={18} className="spinner" /> : <Unlock size={18} />}
-            {isUnlocking ? 'VERIFICANDO...' : 'RESTAURAR SESSÃO'}
-          </button>
-        </form>
-      </div>
+      <LockScreen
+        password={lockPassword}
+        error={lockError}
+        isUnlocking={isUnlocking}
+        isOffline={isOffline}
+        userName={nomeLogado}
+        userLogin={loginAtivo}
+        userRole={userRole}
+        userFilial={userFilial}
+        onPasswordChange={(value) => { setLockPassword(value); setLockError(''); }}
+        onSubmit={handleUnlock}
+        onLogout={fazerLogout}
+      />
     );
   }
 
@@ -1441,8 +2126,11 @@ export default function App() {
         gruposExpandidos={gruposExpandidos}
         toggleGrupo={toggleGrupo}
         abaAtiva={abaAtiva}
+        activeNavigationId={activeNavigationId}
         setAbaAtiva={setAbaAtiva}
         NAVIGATION_ATIVA={NAVIGATION_ATIVA}
+        systemHealth={systemHealth}
+        isOffline={isOffline}
         getPlanoAtual={getPlanoAtual}
         setIsLocked={setIsLocked}
         fazerLogout={fazerLogout}
@@ -1456,6 +2144,36 @@ export default function App() {
         onTouchEnd={handleMobilePullEnd}
         onTouchCancel={handleMobilePullEnd}
       >
+
+        {trialInfo.active && (
+          <>
+            <div className="trial-environment-banner" role="status">
+              <Radio size={17} />
+              <div className="trial-environment-copy"><strong>Ambiente de demonstração</strong><span>Equipamentos e leituras virtuais, sem instalação física.</span></div>
+              <b>{trialInfo.lifetime ? 'Demonstração permanente' : trialInfo.expiresAt ? `${Math.max(0, Math.ceil((new Date(trialInfo.expiresAt).getTime() - Date.now()) / 86400000))} dia(s) restante(s)` : 'Período gratuito'}</b>
+              <button type="button" onClick={() => setShowTrialGuide((current) => !current)}><ClipboardCheck size={15} /> Roteiro</button>
+            </div>
+            {showTrialGuide && (
+              <nav className="trial-guide" aria-label="Roteiro da demonstração">
+                <div className="trial-guide-intro">
+                  <span>Roteiro recomendado</span>
+                  <strong>Conheça o ambiente</strong>
+                  <small>{trialGuideVisited.size} de {TRIAL_GUIDE_STEPS.length} etapas visitadas</small>
+                  <div className="trial-guide-progress" aria-hidden="true"><i style={{ width: `${(trialGuideVisited.size / TRIAL_GUIDE_STEPS.length) * 100}%` }} /></div>
+                </div>
+                <div className="trial-guide-steps">
+                  {TRIAL_GUIDE_STEPS.map(({ screen, label, description }, index) => {
+                    const completed = trialGuideVisited.has(screen);
+                    return <button type="button" className={completed ? 'is-complete' : ''} key={screen} onClick={() => setAbaAtiva(screen)}><i>{completed ? <CheckCircle size={18} /> : index + 1}</i><span><strong>{label}</strong><small>{description}</small></span></button>;
+                  })}
+                </div>
+                <button className="trial-guide-close" type="button" title="Concluir roteiro" aria-label="Concluir roteiro" onClick={() => { localStorage.setItem(`termosync_trial_guide_${userId}`, 'done'); setShowTrialGuide(false); }}><X size={18} /></button>
+              </nav>
+            )}
+          </>
+        )}
+
+        {mustChangePassword && <div className="password-change-required" role="alert"><KeyRound size={17} /><span><strong>Proteja seu acesso</strong> Defina uma senha pessoal antes de continuar.</span><button type="button" onClick={() => setAbaAtiva('seguranca_conta')}>Alterar senha</button></div>}
 
         {bannerTexto && !bannerFechado && (
           <div className="global-announcement-banner anim-slide-up">
@@ -1471,6 +2189,8 @@ export default function App() {
           setMenuRecolhido={setMenuRecolhido}
           NAVIGATION={NAVIGATION}
           abaAtiva={abaAtiva}
+          activeWorkspace={activeWorkspace}
+          onNavigate={setAbaAtiva}
           mostrarNotificacoes={mostrarNotificacoes}
           setMostrarNotificacoes={setMostrarNotificacoes}
           notificacoesDaFilial={notificacoesDaFilial}
@@ -1478,8 +2198,6 @@ export default function App() {
           getAlertConfig={getAlertConfig}
           isFeatureEnabled={isFeatureEnabled}
           isOffline={isOffline}
-          socketInstance={socketInstance}
-          latencia={latencia}
           systemHealth={systemHealth}
           setShowCommandPalette={setShowCommandPalette}
           alternarSom={alternarSom}
@@ -1487,11 +2205,20 @@ export default function App() {
           toggleFullScreen={toggleFullScreen}
           isFullScreen={isFullScreen}
           uiDensity={uiDensity}
+          setUiDensity={setUiDensity}
           toggleUiDensity={toggleUiDensity}
           setIsDarkMode={setIsDarkMode}
           isDarkMode={isDarkMode}
           supportContext={{ role: userRole, filial: filialAtiva, apiUrl: getApiUrl() }}
         />
+
+        {showDeveloperEnvironmentBanner && (
+          <div className={`developer-environment-banner ${runtimeEnvironment === 'PRODUCTION' ? 'production' : ''}`} role="status">
+            <span>Ambiente</span>
+            <strong>{runtimeEnvironment}</strong>
+            <p>Ações privilegiadas são auditadas. Confirme o escopo antes de executar SQL, deploy ou alterações globais.</p>
+          </div>
+        )}
 
         {(isOffline || systemHealth.status === 'degraded') && (
           <div className={`app-health-banner ${isOffline ? 'offline' : 'degraded'} anim-slide-up`} role="status" aria-live="polite">
@@ -1522,30 +2249,65 @@ export default function App() {
           <span>{isPullRefreshing ? 'Atualizando' : pullDistance >= 64 ? 'Solte para atualizar' : 'Puxe para atualizar'}</span>
         </div>
 
+        {activeWorkspace && (
+          <nav className="workspace-tabs" aria-label={activeWorkspace.label}>
+            <span className="workspace-tabs-label"><small>Módulo</small><strong>{activeWorkspace.label}</strong><em>{activeWorkspace.kind}</em></span>
+            <div className="workspace-tabs-list" role="tablist">
+              {activeWorkspace.tabs.map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = item.id === abaAtiva;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={isActive ? 'active' : ''}
+                    onClick={() => setAbaAtiva(item.id)}
+                  >
+                    <ItemIcon size={16} />
+                    <span>{item.tabLabel}</span>
+                    {Number(item.badge) > 0 && <small className="workspace-tab-badge">{item.badge > 99 ? '99+' : item.badge}</small>}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+
         <div className="content-area">
-          <ErrorBoundary>
+          <ErrorBoundary
+            key={abaAtiva}
+            forceError={import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewError') === 'module'}
+            scope="module"
+            moduleName={activeScreenLabel}
+            onGoHome={() => setAbaAtiva('dashboard')}
+            onOpenSupport={() => setAbaAtiva('suporte')}
+          >
             <Suspense fallback={<Loader message="Carregando módulo..." />}>
-            {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard equipamentosDaFilial={equipamentosDaFilial} filialAtiva={filialAtiva} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
-            {!isModuloOculto('assistente') && abaAtiva === 'assistente' && ( <AssistenteOperacao equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} onNavigate={(id) => setAbaAtiva(id)} showToast={showToast} /> )}
-            {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && ( <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} /> )}
-            {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && ( <CentralProcedimentos /> )}
-            {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && ( <ChecklistTurno api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} /> )}
-            {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && ( <ResumoTurno equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} /> )}
-            {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && ( <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} /> )}
-            {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && ( <ResumoExecutivo api={api} filialAtiva={filialAtiva} /> )}
-            {podeAcessarModulo('timeline_operacional') && abaAtiva === 'timeline_operacional' && ( <TimelineOperacional notificacoes={notificacoes} historicoAlertas={historicoAlertas} chamados={chamados} filialAtiva={filialAtiva} /> )}
-            {!isModuloOculto('suporte') && abaAtiva === 'suporte' && ( <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} /> )}
-            {!isModuloOculto('centro_comando') && abaAtiva === 'centro_comando' && userRole === 'DEV' && ( <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} /> )}
-            {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} /> )}
-            {!isModuloOculto('kanban') && abaAtiva === 'kanban' && ( <Kanban chamados={chamados} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} /> )}
-            {!isModuloOculto('metrologia') && abaAtiva === 'metrologia' && ( <Metrologia equipamentosDaFilial={equipamentosDaFilial} editarEquipamento={editarEquipamento} /> )}
-            {!isModuloOculto('simulador') && abaAtiva === 'simulador' && userRole === 'DEV' && ( <Simulador api={api} equipamentos={equipamentos} showToast={showToast} /> )}
-            {!isModuloOculto('hardware') && abaAtiva === 'hardware' && userRole === 'DEV' && ( <HardwareIoT equipamentos={equipamentos} showToast={showToast} isOffline={isOffline} /> )}
-            {!isModuloOculto('seguranca_conta') && abaAtiva === 'seguranca_conta' && ( <SegurancaConta api={api} showToast={showToast} fazerLogout={fazerLogout} /> )}
-            {!isModuloOculto('sobre') && abaAtiva === 'sobre' && ( <Sobre /> )}
+            {!isModuloOculto('dashboard') && abaAtiva === 'dashboard' && ( <Dashboard equipamentosDaFilial={equipamentosDaFilial} filialAtiva={filialAtiva} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} dadosDonutStatus={dadosDonutStatus} notificacoesDaFilial={notificacoesDaFilial} resolverTodasNotificacoes={resolverTodasNotificacoes} isOffline={isOffline} pedirNotaResolucao={pedirNotaResolucao} isDarkMode={isDarkMode} contatosDb={contatosDb} chamados={chamados} api={api} userRole={userRole} onNavigate={setAbaAtiva} showToast={showToast} irParaChat={(id) => { setAbaAtiva('chat'); if (id) { const c = contatosDb.find(x => String(x.id) === String(id)); if (c) setContatoChatAtivo(c); } }} socket={socketInstance} userId={userId} nomeLogado={nomeLogado} setHistoricoChat={setHistoricoChat} /> )}
+            {!isModuloOculto('assistente') && abaAtiva === 'assistente' && ( <AssistenteOperacao key={filialAtiva} equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} userRole={userRole} filialAtiva={filialAtiva} onNavigate={(id) => setAbaAtiva(id)} showToast={showToast} /> )}
+            {!isModuloOculto('resumo_loja') && abaAtiva === 'resumo_loja' && ( <ResumoLoja equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} onNavigate={setAbaAtiva} /> )}
+            {!isModuloOculto('central_procedimentos') && abaAtiva === 'central_procedimentos' && ( <CentralProcedimentos api={api} notificacoes={notificacoesDaFilial} onNavigate={(id) => setAbaAtiva(id)} showToast={showToast} userRole={userRole} /> )}
+            {!isModuloOculto('checklist_turno') && abaAtiva === 'checklist_turno' && ( <ChecklistTurno api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} socket={socketInstance} /> )}
+            {!isModuloOculto('resumo_turno') && abaAtiva === 'resumo_turno' && ( <ResumoTurno equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} filialAtiva={filialAtiva} userRole={userRole} api={api} socket={socketInstance} onNavigate={setAbaAtiva} /> )}
+            {!isModuloOculto('plano_dia') && abaAtiva === 'plano_dia' && ( <PlanoDia api={api} filialAtiva={filialAtiva} showToast={showToast} userRole={userRole} socket={socketInstance} /> )}
+            {!isModuloOculto('resumo_executivo') && abaAtiva === 'resumo_executivo' && ( <ResumoExecutivo api={api} filialAtiva={filialAtiva} socket={socketInstance} onNavigate={setAbaAtiva} /> )}
+            {podeAcessarModulo('timeline_operacional') && abaAtiva === 'timeline_operacional' && ( <TimelineOperacional notificacoes={notificacoes} historicoAlertas={historicoAlertas} chamados={chamados} filialAtiva={filialAtiva} onNavigate={setAbaAtiva} /> )}
+            {!isModuloOculto('suporte') && abaAtiva === 'suporte' && ( <Suporte api={api} socket={socketInstance} userRole={userRole} nomeLogado={nomeLogado} userFilial={userFilial} showToast={showToast} isOffline={isOffline} onNavigate={setAbaAtiva} /> )}
+            {podeAcessarModulo('centro_comando') && abaAtiva === 'centro_comando' && ( <CentroComando onNavigate={(id) => setAbaAtiva(id)} qtdTotal={qtdTotal} qtdOperando={qtdOperando} qtdDegelo={qtdDegelo} qtdFalha={qtdFalha} notificacoesDaFilial={notificacoesDaFilial} chamados={chamados} equipamentosDaFilial={equipamentosDaFilial} isOffline={isOffline} userRole={userRole} filialAtiva={filialAtiva} /> )}
+            {!isModuloOculto('mapa') && abaAtiva === 'mapa' && ( <MapaCalor equipamentosDaFilial={equipamentosDaFilial} notificacoesDaFilial={notificacoesDaFilial} filialAtiva={filialAtiva} showToast={showToast} onNavigate={setAbaAtiva} /> )}
+            {!isModuloOculto('kanban') && abaAtiva === 'kanban' && ( <Kanban chamados={chamados} api={api} carregarChamados={carregarChamados} showToast={showToast} isOffline={isOffline} filialAtiva={filialAtiva} /> )}
+            {!isModuloOculto('metrologia') && abaAtiva === 'metrologia' && ( <Metrologia equipamentosDaFilial={equipamentosDaFilial} editarEquipamento={editarEquipamento} userRole={userRole} filialAtiva={filialAtiva} /> )}
+            {!isModuloOculto('simulador') && abaAtiva === 'simulador' && userRole === 'DEV' && ( <Simulador api={api} equipamentos={equipamentos} showToast={showToast} socket={socketInstance} setModalConfig={setModalConfig} /> )}
+            {!isModuloOculto('hardware') && abaAtiva === 'hardware' && userRole === 'DEV' && ( <HardwareIoT showToast={showToast} isOffline={isOffline} socket={socketInstance} setModalConfig={setModalConfig} /> )}
+            {!isModuloOculto('seguranca_conta') && abaAtiva === 'seguranca_conta' && ( <SegurancaConta api={api} showToast={showToast} fazerLogout={fazerLogout} onPasswordChanged={() => { setMustChangePassword(false); sessionStorage.setItem('mustChangePassword', 'false'); if (trialInfo.active) setShowTrialGuide(true); }} /> )}
+            {podeAcessarModulo('documentacao') && abaAtiva === 'documentacao' && ( <Documentacao userRole={userRole} onNavigate={setAbaAtiva} showToast={showToast} /> )}
+            {podeAcessarModulo('privacidade') && abaAtiva === 'privacidade' && ( <Privacidade userRole={userRole} userFilial={userFilial} onNavigate={setAbaAtiva} showToast={showToast} /> )}
+            {!isModuloOculto('sobre') && abaAtiva === 'sobre' && ( <Sobre onNavigate={setAbaAtiva} isOffline={isOffline} userRole={userRole} /> )}
             {!isModuloOculto('chat') && abaAtiva === 'chat' && isFeatureEnabled('enableChat') && ( <Chat api={api} contatosDb={contatosDb} nomeLogado={nomeLogado} socket={socketInstance} userId={userId} historicoChat={historicoChat} setHistoricoChat={setHistoricoChat} contatoAtivo={contatoChatAtivo} setContatoAtivo={setContatoChatAtivo} naoLidasPorContato={naoLidasPorContato} setNaoLidasPorContato={setNaoLidasPorContato} showToast={showToast} /> )}
-            {!isModuloOculto('motores') && abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
-            {!isModuloOculto('umidade') && abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} /> )}
+            {!isModuloOculto('motores') && abaAtiva === 'motores' && ( <Monitoramento isTemp={true} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} socket={socketInstance} filialAtiva={filialAtiva} onNavigate={setAbaAtiva} /> )}
+            {!isModuloOculto('umidade') && abaAtiva === 'umidade' && ( <Monitoramento isTemp={false} listaSetores={listaSetores} equipamentosDaFilial={equipamentosDaFilial} socket={socketInstance} filialAtiva={filialAtiva} onNavigate={setAbaAtiva} /> )}
             {podeAcessarModulo('inventario_iot') && abaAtiva === 'inventario_iot' && ( <InventarioIoT equipamentos={equipamentos} filialAtiva={filialAtiva} listaSetores={listaSetores} socket={socketInstance} /> )}
             {!isModuloOculto('equipamentos') && abaAtiva === 'equipamentos' && ( <Equipamentos api={api} showToast={showToast} isOffline={isOffline} userRole={userRole} userFilial={userFilial} filiaisDb={filiaisDb} listaSetores={listaSetores} listaTipos={listaTipos} carregarDadosBase={carregarDadosBase} equipamentosFiltradosLista={equipamentosFiltradosLista} editarEquipamento={editarEquipamento} pedirExclusao={pedirExclusao} /> )}
 
@@ -1556,18 +2318,18 @@ export default function App() {
             {podeAcessarModulo('sla_chamados') && abaAtiva === 'sla_chamados' && ( <SLAChamados chamados={chamados} filialAtiva={filialAtiva} /> )}
             {!isModuloOculto('historico_chamados') && abaAtiva === 'historico_chamados' && ( <HistoricoChamados userRole={userRole} filialAtiva={filialAtiva} nomeLogado={nomeLogado} chamados={chamados} tecnicosDb={tecnicosDb} gerarLoteOS={gerarLoteOS} api={api} carregarChamados={carregarChamados} showToast={showToast} /> )}
 
-            {!isModuloOculto('aprovacoes') && abaAtiva === 'aprovacoes' && userRole === 'DEV' && ( <AprovacoesSaaS showToast={showToast} isOffline={isOffline} api={api} socket={socketInstance} /> )}
+            {!isModuloOculto('aprovacoes') && abaAtiva === 'aprovacoes' && userRole === 'DEV' && ( <AprovacoesSaaS showToast={showToast} isOffline={isOffline} api={api} socket={socketInstance} setModalConfig={setModalConfig} /> )}
 
             {!isModuloOculto('lojas') && abaAtiva === 'lojas' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoLojas api={api} showToast={showToast} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
             {!isModuloOculto('usuarios') && abaAtiva === 'usuarios' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <GestaoUsuarios api={api} showToast={showToast} usuariosLista={usuariosLista} carregarUsuarios={carregarUsuarios} filiaisDb={filiaisDb} setModalConfig={setModalConfig} /> )}
-            {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} /> )}
+            {!isModuloOculto('parametros') && abaAtiva === 'parametros' && (userRole === 'ADMIN' || userRole === 'DEV') && ( <ParametrosGlobais api={api} showToast={showToast} listaSetores={listaSetores} listaTipos={listaTipos} carregarParametrosGerais={carregarParametrosGerais} carregarDadosBase={carregarDadosBase} setModalConfig={setModalConfig} userRole={userRole} /> )}
 
-            {podeAcessarModulo('central_saude') && abaAtiva === 'central_saude' && ( <CentralSaudeSistema api={api} systemHealth={systemHealth} isOffline={isOffline} equipamentos={equipamentos} chamados={chamados} notificacoes={notificacoes} showToast={showToast} userRole={userRole} /> )}
-            {abaAtiva === 'bi' && <CentroInteligenciaBI api={api} isDarkMode={isDarkMode} sysConfig={sysConfig} filiaisDb={filiaisDb} equipamentosDaFilial={equipamentosDaFilial} />}
+            {podeAcessarModulo('central_saude') && abaAtiva === 'central_saude' && ( <CentralSaudeSistema api={api} socket={socketInstance} systemHealth={systemHealth} isOffline={isOffline} showToast={showToast} userRole={userRole} /> )}
+            {abaAtiva === 'bi' && <CentroInteligenciaBI api={api} isDarkMode={isDarkMode} showToast={showToast} />}
             {['empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream', 'network_scanner', 'monitor_edge'].includes(abaAtiva) && userRole === 'DEV' && (
                <PainelDesenvolvedor
                  api={api} socket={socketInstance} abaAtiva={abaAtiva} isDevAuthenticated={isDevAuthenticated}
-                 onAuthenticate={() => { setIsDevAuthenticated(true); sessionStorage.setItem('devAuth', 'true'); }} showToast={showToast}
+                 onAuthenticate={() => { setIsDevAuthenticated(true); sessionStorage.setItem('devAuth', 'true'); }} onLogout={fazerLogout} showToast={showToast}
                  sysConfig={sysConfig} updateSysConfig={updateSysConfig} tocarAlarme={tocarAlarme} usuariosLista={usuariosLista} filiaisDb={filiaisDb} setModalConfig={setModalConfig}
                  navigationCatalog={NAVIGATION}
                />
@@ -1575,7 +2337,7 @@ export default function App() {
 
             {((!podeAcessarModulo(abaAtiva) && !['aprovacoes', 'empresas', 'dev_panel', 'saas', 'billing', 'system', 'soc', 'atualizacoes', 'sql_terminal', 'websocket_stream', 'network_scanner', 'monitor_edge'].includes(abaAtiva)) || (abaAtiva === 'chat' && !isFeatureEnabled('enableChat'))) && (
                <div className="empty-state dashboard-empty anim-fade-in" style={{marginTop: '2rem'}}>
-                  <div className="empty-shield-box" style={{ background: 'rgba(239, 68, 68, 0.1)' }}><AlertOctagon size={48} color="var(--danger)" /></div>
+                  <div className="empty-shield-box" style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}><AlertOctagon size={48} color="var(--danger)" /></div>
                   <h3 className="empty-title" style={{ color: 'var(--danger)' }}>Acesso Restrito</h3>
                   <p className="empty-subtitle">As políticas de governação atuais impedem a visualização deste módulo.</p>
                </div>
@@ -1583,6 +2345,7 @@ export default function App() {
             </Suspense>
           </ErrorBoundary>
         </div>
+        <SystemFooter variant="desktop" systemHealth={systemHealth} isOffline={isOffline} userRole={userRole} navigation={NAVIGATION_ATIVA} onNavigate={setAbaAtiva} />
       </main>
 
       <nav className="mobile-tab-bar" aria-label="Navegação principal mobile">
@@ -1590,7 +2353,7 @@ export default function App() {
           <button
             key={item.id}
             type="button"
-            className={`mobile-tab-item ${abaAtiva === item.id ? 'active' : ''}`}
+            className={`mobile-tab-item ${activeNavigationId === item.id ? 'active' : ''}`}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1620,17 +2383,17 @@ export default function App() {
           border: '1px solid rgba(56, 189, 248, 0.4)',
           borderRadius: '16px',
           padding: '1.2rem',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.15)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px color-mix(in srgb, var(--info) 15%, transparent)',
           color: 'white'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Bell size={18} color="#38bdf8" className="pulse-blue-shadow" />
+              <Bell size={18} color="var(--info)" className="pulse-blue-shadow" />
               <strong style={{ fontSize: '0.95rem', color: '#fff' }}>{popupAlerta.titulo}</strong>
             </div>
             <button
               onClick={() => setPopupAlerta(null)}
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
             >
               <X size={16} />
             </button>
@@ -1699,13 +2462,27 @@ export default function App() {
             <h3 style={{ justifyContent: 'center', marginBottom: '1rem' }}>{modalConfig.title}</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: '1.5' }}>{modalConfig.message}</p>
             {modalConfig.isPrompt && (
-              <div className="input-wrapper" style={{ marginBottom: '1.5rem' }}>
-                <input type="text" value={modalConfig.promptValue} onChange={(e) => setModalConfig({...modalConfig, promptValue: e.target.value})} placeholder="Insira a justificativa..." autoFocus />
+              <div className="modal-prompt-field" style={{ marginBottom: '1.5rem' }}>
+                <textarea
+                  value={modalConfig.promptValue || ''}
+                  onChange={(e) => setModalConfig({...modalConfig, promptValue: e.target.value})}
+                  placeholder={modalConfig.promptPlaceholder || 'Insira a justificativa...'}
+                  maxLength={modalConfig.promptMaxLength || 280}
+                  rows={4}
+                  autoFocus
+                />
+                <small>{String(modalConfig.promptValue || '').length}/{modalConfig.promptMaxLength || 280}</small>
               </div>
             )}
             <div className="modal-actions" style={{ marginTop: '0', paddingTop: '0', border: 'none' }}>
               <button className="btn btn-outline w-100" onClick={() => setModalConfig({...modalConfig, isOpen: false})}>Cancelar</button>
-              <button className="btn btn-primary w-100" onClick={() => { modalConfig.onConfirm(modalConfig.promptValue); setModalConfig({...modalConfig, isOpen: false}); }}>Prosseguir</button>
+              <button
+                className="btn btn-primary w-100"
+                disabled={modalConfig.requirePrompt && !String(modalConfig.promptValue || '').trim()}
+                onClick={() => { modalConfig.onConfirm?.(modalConfig.promptValue); setModalConfig({...modalConfig, isOpen: false}); }}
+              >
+                {modalConfig.confirmLabel || 'Prosseguir'}
+              </button>
             </div>
           </div>
         </div>

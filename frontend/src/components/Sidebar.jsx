@@ -1,6 +1,11 @@
+/** Implementa o componente reutilizável Sidebar e seu contrato visual. */
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, UserCheck, Lock, ChevronDown, ChevronRight, LogOut, X, Pin } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, Globe2, Lock, LogOut, MapPin, Pin, Search, UserCheck, X } from 'lucide-react';
 import TermoSyncLogo from './TermoSyncLogo';
+import SystemFooter from './SystemFooter';
+import { getSidebarNavigation, getSidebarSections } from '../config/navigationPolicy';
+import './Sidebar.css';
 
 /**
  * Componente Sidebar (navegação lateral)
@@ -27,24 +32,27 @@ export default function Sidebar({
   gruposExpandidos,
   toggleGrupo,
   abaAtiva,
+  activeNavigationId = abaAtiva,
   setAbaAtiva,
   NAVIGATION_ATIVA,
+  systemHealth,
+  isOffline,
   setIsLocked,
   fazerLogout
 }) {
+  // O perfil DEV usa identidade visual fixa; os demais herdam o plano contratado.
   const isDevUser = userRole === 'DEV';
   const visualContext = isDevUser 
-    ? { nome: 'ROOT', cor: '#ef4444' } 
+    ? { nome: 'ROOT', cor: 'var(--danger)' }
     : getPlanoVisual();
 
-  // ============================================================================
-  // LÓGICA DE FAVORITOS (PINOS) - Salva as preferências por usuário e perfil
-  // ============================================================================
+  // A chave inclui perfil e usuário para não compartilhar favoritos entre sessões.
   const favoritosKey = useMemo(() => {
     const usuarioSeguro = String(nomeLogado || 'usuario').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
     return `termosync_favoritos_${userRole}_${usuarioSeguro}`;
   }, [nomeLogado, userRole]);
 
+  // O armazenamento local garante inicialização imediata e funciona como fallback offline.
   const [favoritos, setFavoritos] = useState(() => {
     const usuarioSeguro = String(nomeLogado || 'usuario').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
     const salvos = localStorage.getItem(`termosync_favoritos_${userRole}_${usuarioSeguro}`) || localStorage.getItem(`termosync_favoritos_${userRole}`);
@@ -52,7 +60,9 @@ export default function Sidebar({
     return ['dashboard', 'motores', 'chamados'];
   });
   const [preferenciasCarregadas, setPreferenciasCarregadas] = useState(false);
+  const [navQuery, setNavQuery] = useState('');
 
+  // Persiste cada alteração local antes da sincronização remota assíncrona.
   useEffect(() => {
     localStorage.setItem(favoritosKey, JSON.stringify(favoritos));
   }, [favoritos, favoritosKey]);
@@ -62,7 +72,20 @@ export default function Sidebar({
     setPreferenciasCarregadas(false);
 
     /**
-     * Renderiza o componente carregar Favoritos e encapsula sua interacao visual reutilizavel.
+     * Carrega a preferência remota sem descartar o fallback local em caso de falha.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+     * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador
+     *
+     * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const carregarFavoritos = async () => {
       if (!api) {
@@ -88,6 +111,7 @@ export default function Sidebar({
     return () => { cancelado = true; };
   }, [api, favoritosKey]);
 
+  // Agrupa alterações rápidas e reduz escritas consecutivas na API de preferências.
   useEffect(() => {
     if (!api || !preferenciasCarregadas) return;
     const timeoutId = window.setTimeout(() => {
@@ -97,7 +121,20 @@ export default function Sidebar({
   }, [api, favoritos, preferenciasCarregadas]);
 
   /**
-   * Renderiza o componente toggle Favorito e encapsula sua interacao visual reutilizavel.
+   * Alterna um favorito sem disparar a navegação do item pai.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const toggleFavorito = (e, id) => {
     e.stopPropagation(); 
@@ -106,185 +143,170 @@ export default function Sidebar({
     );
   };
 
+  // Coleções derivadas usam somente as entradas deduplicadas pela política central.
+  const normalizedQuery = navQuery.trim().toLocaleLowerCase('pt-BR');
+  const sidebarNavigation = getSidebarNavigation(NAVIGATION_ATIVA);
+  const filteredNavigation = normalizedQuery
+    ? sidebarNavigation.filter((item) => [item.label, item.moduleLabel, item.type]
+      .filter(Boolean)
+      .some((value) => value.toLocaleLowerCase('pt-BR').includes(normalizedQuery)))
+    : sidebarNavigation;
+  const sidebarSections = getSidebarSections(filteredNavigation, userRole);
+  const favoriteItems = sidebarNavigation.filter((item) => favoritos.includes(item.id));
+
+  /**
+   * Abre um módulo e fecha o drawer quando a navegação ocorre no mobile.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const navigateTo = (id) => {
+    setAbaAtiva(id);
+    if (window.matchMedia('(max-width: 768px)').matches) setMenuAberto(false);
+  };
+
+  /**
+   * Renderiza um destino de navegação com badge e controle de favorito.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} item - Valor de item consumido por esta rotina.
+   * @param {unknown} favoriteSection - Valor de favorite section consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const renderNavItem = (item, favoriteSection = false) => {
+    const isActive = activeNavigationId === item.id;
+    const isFavorite = favoritos.includes(item.id);
+    const badge = Number(item.badge) || 0;
+    const ItemIcon = item.icon;
+    const moduleLabel = item.moduleLabel || item.label;
+    const itemTitle = moduleLabel === item.label ? item.label : `${moduleLabel}: ${item.label}`;
+
+    return (
+      <div className={`sidebar-nav-row ${isActive ? 'active' : ''}`} key={`${favoriteSection ? 'fav' : 'nav'}-${item.id}`}>
+        <button
+          type="button"
+          className="nav-item sidebar-nav-link"
+          onClick={() => navigateTo(item.id)}
+          title={itemTitle}
+          aria-current={isActive ? 'page' : undefined}
+        >
+          <span className="sidebar-item-icon"><ItemIcon size={18} /></span>
+          <span className="nav-item-text hide-on-collapse">
+            <strong>{moduleLabel}</strong>
+            {moduleLabel !== item.label && <small>{item.label}</small>}
+          </span>
+          {badge > 0 && <span className="sidebar-badge" aria-label={`${badge} pendências`}>{badge > 99 ? '99+' : badge}</span>}
+        </button>
+        <button
+          type="button"
+          className={`sidebar-pin hide-on-collapse ${isFavorite ? 'active' : ''}`}
+          onClick={(event) => toggleFavorito(event, item.id)}
+          title={isFavorite ? `Desafixar ${item.label}` : `Fixar ${item.label}`}
+          aria-label={isFavorite ? `Desafixar ${item.label}` : `Fixar ${item.label}`}
+          aria-pressed={isFavorite}
+        >
+          <Pin size={13} />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
-      {menuAberto && window.innerWidth <= 768 && <div className="overlay" onClick={() => setMenuAberto(false)}></div>}
-      
-      <aside className={`sidebar ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`}>
-        <div className="sidebar-header ios-sidebar-header" style={{ padding: '1.5rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderBottom: 'none' }}>
-          <TermoSyncLogo size={36} color="var(--secondary)" className="hide-on-collapse" />
-          <h2 className="hide-on-collapse" style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, background: 'linear-gradient(90deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1px' }}>ThermoSync</h2>
-          <button className="mobile-close" onClick={() => setMenuAberto(false)}><X size={20} /></button>
-        </div>
-        
-        {/* PERFIL DO USUÁRIO */}
-        <div className="sidebar-user-section hide-on-collapse" style={{ padding: '0 1rem 1rem' }}>
-          <div className="ios-sidebar-profile-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-            <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: `radial-gradient(circle at 50% 50%, ${visualContext.cor} 0%, transparent 60%)`, opacity: isDevUser ? 0.15 : 0.05, pointerEvents: 'none' }}></div>
-            
-            <div className="user-avatar ios-sidebar-avatar" style={{ width: '42px', height: '42px', background: `color-mix(in srgb, ${visualContext.cor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${visualContext.cor} 30%, transparent)`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: visualContext.cor, fontWeight: '900', fontSize: '1.1rem', boxShadow: `0 0 15px color-mix(in srgb, ${visualContext.cor} 20%, transparent)`, flexShrink: 0, zIndex: 1 }}>
-              {nomeLogado ? nomeLogado.charAt(0).toUpperCase() : 'U'}
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, zIndex: 1 }}>
-              <span style={{ color: 'white', fontWeight: '800', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{nomeLogado}</span>
-              <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '600', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{papelLogado}</span>
-            </div>
-            
-            {!isDevUser && (
-              <div style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '0.55rem', fontWeight: '900', background: 'rgba(0,0,0,0.5)', padding: '3px 6px', borderRadius: '6px', border: `1px solid color-mix(in srgb, ${visualContext.cor} 50%, transparent)`, color: visualContext.cor, letterSpacing: '0.5px', zIndex: 1 }}>
-                 {visualContext.nome}
-              </div>
+      {/* No mobile, a camada externa fecha o drawer sem alterar a tela ativa. */}
+      {menuAberto && <button className="sidebar-overlay" type="button" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} />}
+
+      <aside className={`sidebar sidebar-shell ${menuAberto ? 'open' : ''} ${menuRecolhido ? 'collapsed' : ''}`} style={{ '--sidebar-context-color': visualContext.cor }}>
+        {/* Marca do produto e controle de fechamento do drawer móvel. */}
+        <header className="sidebar-header ios-sidebar-header">
+          <div className="sidebar-brand">
+            <span className="sidebar-brand-mark"><TermoSyncLogo size={31} color="var(--brand-core)" /></span>
+            <span className="sidebar-brand-copy hide-on-collapse"><strong>ThermoSync</strong><small>Rede térmica sincronizada</small></span>
+          </div>
+          <button type="button" className="mobile-close" onClick={() => setMenuAberto(false)} title="Fechar menu" aria-label="Fechar menu"><X size={18} /></button>
+        </header>
+
+        {/* Identidade da sessão e plano/nível operacional atual. */}
+        <section className="sidebar-user-section hide-on-collapse" aria-label="Sessão atual">
+          <div className="ios-sidebar-profile-card sidebar-profile">
+            <span className="user-avatar ios-sidebar-avatar">{nomeLogado ? nomeLogado.charAt(0).toUpperCase() : 'U'}</span>
+            <span className="sidebar-profile-copy"><strong>{nomeLogado}</strong><small>{papelLogado}</small></span>
+            <span className="sidebar-profile-plan">{visualContext.nome}</span>
+          </div>
+        </section>
+
+        {/* Escopo de dados usado por todas as telas operacionais. */}
+        <section className="sidebar-context-section hide-on-collapse" aria-label="Contexto operacional">
+          <div className="ios-sidebar-context-card sidebar-context-card">
+            <span className="sidebar-context-label">{userRole !== 'LOJA' ? <><MapPin size={13} /> Rede operacional</> : <><UserCheck size={13} /> Acesso local</>}</span>
+            {papelLogado.includes('Impersonate') ? (
+              <span className="sidebar-context-locked"><Lock size={14} />{userFilial}</span>
+            ) : userRole !== 'LOJA' ? (
+              <label className="sidebar-context-select"><Globe2 size={15} /><select value={filialAtiva} onChange={(event) => setFilialAtiva(event.target.value)} aria-label="Filial ativa">{listaFiliais?.map((filial) => <option key={filial} value={filial}>{filial === 'Todas' ? 'Visão global (todas)' : filial}</option>)}</select><ChevronDown size={14} /></label>
+            ) : (
+              <span className="sidebar-context-local"><Building2 size={14} />{userFilial}</span>
             )}
           </div>
+        </section>
+
+        {/* Busca apenas nas entradas principais; telas secundárias ficam nas abas contextuais. */}
+        <div className="sidebar-search hide-on-collapse">
+          <Search size={15} />
+          <input value={navQuery} onChange={(event) => setNavQuery(event.target.value)} placeholder="Buscar módulo" aria-label="Buscar módulo na navegação" />
+          {navQuery && <button type="button" onClick={() => setNavQuery('')} aria-label="Limpar busca"><X size={13} /></button>}
         </div>
 
-        {/* SELETOR DE CONTEXTO (FILIAL) */}
-        <div className="sidebar-context-section hide-on-collapse" style={{ padding: '0 1rem 0.5rem' }}>
-            <div className="ios-sidebar-context-card" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.6rem 0.8rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--secondary)', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.5px' }}>
-                {userRole !== 'LOJA' ? <><MapPin size={12}/> Rede Operacional</> : <><UserCheck size={12}/> Acesso Local</>}
-              </div>
-              {papelLogado.includes('Impersonate') ? (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '6px 10px', borderRadius: '6px', color: 'var(--danger)', fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lock size={14}/> {userFilial}
-                </div>
-              ) : userRole !== 'LOJA' ? (
-                <div style={{position: 'relative'}}>
-                  <select value={filialAtiva} onChange={(e) => setFilialAtiva(e.target.value)} style={{ width: '100%', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 30px 8px 10px', borderRadius: '6px', color: 'white', fontSize: '0.8rem', fontWeight: '700', outline: 'none', cursor: 'pointer', appearance: 'none', transition: 'all 0.2s' }} onFocus={e => e.target.style.borderColor = 'var(--secondary)'} onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}>
-                    {listaFiliais?.map(f => <option key={f} value={f} style={{background: '#0f172a'}}>{f === 'Todas' ? '🌐 Visão Global (Todas)' : `📍 ${f}`}</option>)}
-                  </select>
-                  <ChevronDown size={14} style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8'}} />
-                </div>
-              ) : (
-                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', color: '#cbd5e1', fontSize: '0.8rem', fontWeight: '700' }}>{userFilial}</div>
-              )}
-            </div>
-        </div>
-
-        {/* NAVEGAÇÃO PRINCIPAL */}
-        <nav className="sidebar-nav" style={{ padding: '0.5rem 0', flex: 1, overflowY: 'auto' }}>
-          
-          {/* GRUPO DE FAVORITOS (FIXADOS) */}
-          {favoritos.length > 0 && (
-            <div className="nav-group">
-              <div className="nav-group-label hide-on-collapse" style={{ padding: '0.6rem 1.2rem', margin: '0 0.8rem 0.2rem', borderRadius: '8px', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Pin size={12} fill="#38bdf8" /> Fixados
-                </span>
-              </div>
-              <div className="nav-group-items expanded">
-                {NAVIGATION_ATIVA.filter(item => favoritos.includes(item.id)).map(item => (
-                  <button 
-                    key={`fav-${item.id}`} 
-                    className={`nav-item ${abaAtiva === item.id ? 'active' : ''}`} 
-                    onClick={() => { setAbaAtiva(item.id); if(window.innerWidth <= 768) setMenuAberto(false); }} 
-                    title={item.label} 
-                    style={{ margin: '0.15rem 1rem', padding: '0.75rem 1rem', borderRadius: '10px', border: abaAtiva === item.id ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid transparent', position: 'relative', display: 'flex', alignItems: 'center', width: 'calc(100% - 2rem)', background: abaAtiva === item.id ? 'rgba(56,189,248,0.1)' : 'transparent', cursor: 'pointer', textAlign: 'left', color: 'white', transition: '0.2s' }}
-                  >
-                    <item.icon size={18} style={{ color: abaAtiva === item.id ? '#38bdf8' : '#94a3b8', marginRight: '10px', flexShrink: 0 }} />
-                    <span className="nav-item-text hide-on-collapse" style={{ fontSize: '0.85rem', fontWeight: abaAtiva === item.id ? '700' : '500', color: abaAtiva === item.id ? '#fff' : '#cbd5e1', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.label}
-                    </span>
-
-                    {/* BADGE NUMÉRICA COM VALIDAÇÃO ESTRITA > 0 */}
-                    {Number(item.badge) > 0 && !menuRecolhido && (
-                      <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
-                        {Number(item.badge) > 99 ? '99+' : Number(item.badge)}
-                      </span>
-                    )}
-
-                    {/* PONTO VERMELHO NO MENU RECOLHIDO */}
-                    {Number(item.badge) > 0 && menuRecolhido && (
-                      <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
-                    )}
-
-                    <Pin 
-                      size={14} 
-                      onClick={(e) => toggleFavorito(e, item.id)} 
-                      className="hide-on-collapse"
-                      style={{ color: '#38bdf8', fill: '#38bdf8', opacity: 0.8, transition: '0.2s', marginLeft: 'auto' }} 
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
+        <nav className="sidebar-nav" aria-label="Navegação principal">
+          {/* Atalhos persistidos pelo usuário. */}
+          {!normalizedQuery && favoriteItems.length > 0 && (
+            <section className="nav-group sidebar-favorites">
+              <div className="sidebar-section-title hide-on-collapse"><span><Pin size={12} /> Fixados</span><small>{favoriteItems.length}</small></div>
+              <div className="nav-group-items expanded">{favoriteItems.map((item) => renderNavItem(item, true))}</div>
+            </section>
           )}
 
-          {/* DEMAIS GRUPOS */}
-          {['Desenvolvedor', 'Operações', 'Serviços', 'Auditoria', 'Sistema'].map(group => {
-            const itemsInGroup = NAVIGATION_ATIVA.filter(n => n.type === group);
-            if (itemsInGroup.length === 0) return null;
-            
-            const isExpanded = gruposExpandidos[group];
+          {/* Grupos principais respeitam permissões, busca e estado de expansão. */}
+          {sidebarSections.map(({ label: group, items: itemsInGroup }) => {
+            const isExpanded = normalizedQuery || gruposExpandidos[group] || itemsInGroup.some((item) => item.id === activeNavigationId);
             return (
-              <div key={group} className="nav-group" style={{ marginTop: '0.5rem' }}>
-                <div className="nav-group-label hide-on-collapse" onClick={() => toggleGrupo(group)} style={{ padding: '0.6rem 1.2rem', margin: '0 0.8rem 0.2rem', borderRadius: '8px', background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s', border: isExpanded ? '1px solid rgba(255,255,255,0.05)' : '1px solid transparent' }}>
-                  <span style={{ fontSize: '0.65rem', fontWeight: '900', color: isExpanded ? '#f8fafc' : '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>{group}</span>
-                  {isExpanded ? <ChevronDown size={14} color="#94a3b8" /> : <ChevronRight size={14} color="#64748b" />}
-                </div>
-                
-                <div className={`nav-group-items ${isExpanded ? 'expanded' : 'collapsed'}`}>
-                  {itemsInGroup.map(item => {
-                    const isFav = favoritos.includes(item.id);
-                    return (
-                      <button 
-                        key={item.id} 
-                        className={`nav-item ${abaAtiva === item.id ? 'active' : ''}`} 
-                        onClick={() => { setAbaAtiva(item.id); if(window.innerWidth <= 768) setMenuAberto(false); }} 
-                        title={item.label} 
-                        style={{ margin: '0.15rem 1rem', padding: '0.75rem 1rem', borderRadius: '10px', border: abaAtiva === item.id ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid transparent', position: 'relative', display: 'flex', alignItems: 'center', width: 'calc(100% - 2rem)', background: abaAtiva === item.id ? 'rgba(56,189,248,0.1)' : 'transparent', cursor: 'pointer', textAlign: 'left', color: 'white', transition: '0.2s' }}
-                      >
-                        <item.icon size={18} style={{ color: abaAtiva === item.id ? '#38bdf8' : '#94a3b8', marginRight: '10px', flexShrink: 0 }} />
-                        
-                        <span className="nav-item-text hide-on-collapse" style={{ fontSize: '0.85rem', fontWeight: abaAtiva === item.id ? '700' : '500', color: abaAtiva === item.id ? '#fff' : '#cbd5e1', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.label}
-                        </span>
-                        
-                        {/* BADGE NUMÉRICA COM VALIDAÇÃO ESTRITA > 0 */}
-                        {Number(item.badge) > 0 && !menuRecolhido && (
-                          <span className="hide-on-collapse" style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)', marginRight: '6px' }}>
-                            {Number(item.badge) > 99 ? '99+' : Number(item.badge)}
-                          </span>
-                        )}
-
-                        {/* PONTO VERMELHO NO MENU RECOLHIDO */}
-                        {Number(item.badge) > 0 && menuRecolhido && (
-                          <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)', zIndex: 10 }}></span>
-                        )}
-
-                        <Pin 
-                          size={14} 
-                          onClick={(e) => toggleFavorito(e, item.id)} 
-                          className="hide-on-collapse"
-                          style={{ 
-                            color: isFav ? '#38bdf8' : '#64748b', 
-                            fill: isFav ? '#38bdf8' : 'none',
-                            opacity: isFav ? 1 : 0.3,
-                            transition: '0.2s',
-                            marginLeft: 'auto'
-                          }} 
-                          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-                          onMouseLeave={(e) => e.currentTarget.style.opacity = isFav ? 1 : 0.3}
-                        />
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              <section className="nav-group" key={group}>
+                <button type="button" className={`sidebar-group-trigger hide-on-collapse ${isExpanded ? 'expanded' : ''}`} onClick={() => toggleGrupo(group)} aria-expanded={Boolean(isExpanded)} disabled={Boolean(normalizedQuery)}>
+                  <span>{group}</span><small>{itemsInGroup.length}</small>{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                <div className={`nav-group-items ${isExpanded ? 'expanded' : 'collapsed'}`}>{itemsInGroup.map((item) => renderNavItem(item))}</div>
+              </section>
             );
           })}
+
+          {/* Estado vazio da busca lateral. */}
+          {normalizedQuery && filteredNavigation.length === 0 && <div className="sidebar-empty hide-on-collapse"><Search size={19} /><strong>Nenhum módulo encontrado</strong><span>Tente outro termo de busca.</span></div>}
         </nav>
-        
-        {/* RODAPÉ FLUTUANTE AFK/LOGOUT */}
-        <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '1rem', background: 'linear-gradient(to top, rgba(2, 6, 23, 1) 0%, rgba(2, 6, 23, 0.8) 50%, transparent 100%)', display: 'flex', gap: '8px', position: 'sticky', bottom: 0 }}>
-          <button className="btn-logout flex-1" onClick={() => setIsLocked(true)} title="Modo AFK" style={{ background: 'rgba(245, 158, 11, 0.05)', color: 'var(--warning)', padding: '10px', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} onMouseOver={(e) => {e.currentTarget.style.background='rgba(245, 158, 11, 0.15)'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseOut={(e) => {e.currentTarget.style.background='rgba(245, 158, 11, 0.05)'; e.currentTarget.style.transform='translateY(0)'}}>
-            <Lock size={18} />
-          </button>
-          <button className="btn-logout flex-1 hide-on-collapse" onClick={fazerLogout} title="Encerrar Sessão" style={{ background: 'rgba(239, 68, 68, 0.05)', color: 'var(--danger)', padding: '10px', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} onMouseOver={(e) => {e.currentTarget.style.background='rgba(239, 68, 68, 0.15)'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseOut={(e) => {e.currentTarget.style.background='rgba(239, 68, 68, 0.05)'; e.currentTarget.style.transform='translateY(0)'}}>
-            <LogOut size={18} />
-          </button>
-        </div>
+
+        {/* Links institucionais e estado resumido do ambiente. */}
+        <SystemFooter variant="sidebar" systemHealth={systemHealth} isOffline={isOffline} userRole={userRole} navigation={NAVIGATION_ATIVA} onNavigate={navigateTo} />
+
+        {/* Ações que encerram ou suspendem a sessão corrente. */}
+        <footer className="sidebar-footer">
+          <button type="button" className="sidebar-session-action sidebar-lock" onClick={() => setIsLocked(true)} title="Bloquear sessão"><Lock size={17} /><span className="hide-on-collapse">Bloquear</span></button>
+          <button type="button" className="sidebar-session-action sidebar-logout" onClick={fazerLogout} title="Encerrar sessão"><LogOut size={17} /><span className="hide-on-collapse sidebar-logout-label">Sair</span></button>
+        </footer>
       </aside>
     </>
   );

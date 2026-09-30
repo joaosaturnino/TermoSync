@@ -1,621 +1,363 @@
+/**
+ * Módulo: frontend/src/components/DevBootScreen.jsx
+ * Responsabilidade: Implementa o componente reutilizável Dev Boot Screen e seu contrato visual.
+ */
+
+import { useMemo } from 'react';
+import { Activity, CheckCircle2, Cpu, Database, HardDrive, KeyRound, Loader2, MemoryStick, Network, RefreshCw, Server, Wifi } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Lock, Terminal, Volume2, VolumeX, Palette, Monitor } from 'lucide-react';
+import { Lock, Terminal } from 'lucide-react';
 import { getApiUrl } from '../config/api';
+import './DevBootScreen.css';
+ /**
+  * Renderiza o componente format Uptime e encapsula sua interacao visual reutilizavel.
+  *
+  * Responsabilidade: mantém este comportamento isolado para que validação,
+  * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+  *
+  * Fluxo principal:
+  * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+  *
+  * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+  *
+  * @param {unknown} seconds - Valor de seconds consumido por esta rotina.
+  * @returns {unknown} Resultado calculado para consumo do chamador.
+  * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+  */
 
 /**
- * Renderiza o terminal de boot administrativo e libera a área dev após autenticação root.
+ * Renderiza o componente format Uptime e encapsula sua interacao visual reutilizavel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} seconds - Valor de seconds consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-const DevBootScreen = ({ onComplete }) => {
-  const [bootStarted, setBootStarted] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const [showInput, setShowInput] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [attempts, setBlockedAttempts] = useState(0);
-  const [countdown, setCountdown] = useState(0);
-  
-  // Telemetria real da máquina host
-  const [hostInfo, setHostInfo] = useState(null);
+const formatUptime = (seconds) => {
+  const value = Math.max(0, Number(seconds) || 0);
+  const days = Math.floor(value / 86400);
+  const hours = Math.floor((value % 86400) / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  return [days && `${days}d`, hours && `${hours}h`, `${minutes}m`].filter(Boolean).join(' ');
+};
+  /**
+   * Renderiza o componente format Gb e encapsula sua interacao visual reutilizavel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} megabytes - Valor de megabytes consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
 
-  // Histórico de comandos (setas Cima/Baixo)
-  const [cmdHistory, setCmdHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  
-  // Configurações Visuais e de Áudio
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [themeColor, setThemeColor] = useState('#10b981');
-  const [crtEnabled, setCrtEnabled] = useState(true);
-  const [clockStr, setClockStr] = useState('');
+ /**
+  * Renderiza o componente format Gb e encapsula sua interacao visual reutilizavel.
+  *
+  * Responsabilidade: mantém este comportamento isolado para que validação,
+  * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+  *
+  * Fluxo principal:
+  * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+  *
+  * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+  *
+  * @param {unknown} megabytes - Valor de megabytes consumido por esta rotina.
+  * @returns {unknown} Resultado calculado para consumo do chamador.
+  * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+  */
 
-  const inputRef = useRef(null);
-  const bottomRef = useRef(null);
-  const skipRef = useRef(false);
+/**
+ * Renderiza o componente format Gb e encapsula sua interacao visual reutilizavel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} megabytes - Valor de megabytes consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const formatGb = (megabytes) => `${(Number(megabytes || 0) / 1024).toFixed(1)} GB`;
+ /**
+  * Renderiza o componente status Label e encapsula sua interacao visual reutilizavel.
+  *
+  * Responsabilidade: mantém este comportamento isolado para que validação,
+  * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+  *
+  * Fluxo principal:
+  * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+  *
+  * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+  *
+  * @param {unknown} value - Valor de value consumido por esta rotina.
+  * @returns {unknown} Resultado calculado para consumo do chamador.
+  * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+  */
 
-  // Logo ASCII
-  const asciiLogo = `
- ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗██████╗ ███████╗██╗   ██╗███╗   ██╗ ██████╗
- ╚══██╔══╝██║  ██║██╔════╝██╔══██╗████╗ ████║██╔═══██╗██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
-    ██║   ███████║█████╗  ██████╔╝██╔████╔██║██║   ██║███████╗ ╚████╔╝ ██╔██╗ ██║██║     
-    ██║   ██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║██║   ██║╚════██║  ╚██╔╝  ██║╚██╗██║██║     
-    ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝███████║   ██║   ██║ ╚████║╚██████╗
-    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝
-`;
+/**
+ * Renderiza o componente status Label e encapsula sua interacao visual reutilizavel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const statusLabel = (value) => String(value || 'indisponível').toUpperCase();
+ /**
+  * Renderiza o componente is Healthy e encapsula sua interacao visual reutilizavel.
+  *
+  * Responsabilidade: mantém este comportamento isolado para que validação,
+  * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+  *
+  * Fluxo principal:
+  * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+  *
+  * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+  *
+  * @param {unknown} value - Valor de value consumido por esta rotina.
+  * @returns {boolean} Indica se a condição avaliada foi atendida.
+  * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+  */
 
-  // Busca dados reais do hardware ao montar o terminal
+/**
+ * Renderiza o componente is Healthy e encapsula sua interacao visual reutilizavel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const isHealthy = (value) => ['ok', 'online', 'connected', 'active'].includes(String(value || '').toLowerCase());
+
+/**
+ * Terminal pós-login do desenvolvedor alimentado exclusivamente por telemetria real.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador; publica ou consome mensagens MQTT
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {Function} props.onComplete - Callback onComplete fornecido pelo componente responsável.
+ * @param {unknown} props.authToken - Propriedade authToken usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+export default function DevBootScreen({ onComplete, authToken }) { const [host, setHost] = useState(null); const [health, setHealth] = useState(null); const [telemetryError, setTelemetryError] = useState(''); const [isLoadingTelemetry, setIsLoadingTelemetry] = useState(true); const [visibleLines, setVisibleLines] = useState(0); const [passcode, setPasscode] = useState(''); const [authError, setAuthError] = useState(''); const [isAuthenticating, setIsAuthenticating] = useState(false); const [attempts, setAttempts] = useState(0); const [lockSeconds, setLockSeconds] = useState(0); const [history, setHistory] = useState([]); const [theme, setTheme] = useState('cyan'); const terminalRef = useRef(null); const inputRef = useRef(null); const headers = useMemo(() => authToken ? { Authorization: `Bearer ${authToken}` } : {}, [authToken]); /* Carrega host e serviços usando o token DEV recém-emitido pelo login. */ const loadTelemetry = useCallback(async () => { setIsLoadingTelemetry(true); setTelemetryError(''); try { const [hostResult, healthResult] = await Promise.allSettled([ axios.get(`${getApiUrl()}/system/host-info`, { headers, timeout: 10000 }), axios.get(`${getApiUrl()}/system/health`, { headers, timeout: 10000 }) ]); if (hostResult.status === 'fulfilled' && hostResult.value.data?.success) setHost(hostResult.value.data); else setTelemetryError('A leitura do host não respondeu.'); if (healthResult.status === 'fulfilled') setHealth(healthResult.value.data); else setTelemetryError((current) => `${current}${current ? ' ' : ''}A saúde dos serviços não respondeu.`); } finally { setIsLoadingTelemetry(false); } }, [headers]);
+  const bootLines = useMemo(() => [
+    { type: isHealthy(health?.status) ? 'ok' : 'warn', text: `API ${statusLabel(health?.status)}` },
+    { type: isHealthy(health?.database) ? 'ok' : 'warn', text: `Banco de dados ${statusLabel(health?.database)}` },
+    { type: isHealthy(health?.mqtt) ? 'ok' : 'warn', text: `MQTT ${statusLabel(health?.mqtt)}` },
+    { type: host ? 'info' : 'warn', text: host ? `${host.os?.platform || 'SO'} ${host.os?.release || ''} · ${host.cpu?.model || 'CPU não identificada'}` : 'Telemetria do host indisponível' }
+  ], [health, host]);
+  const bootComplete = !isLoadingTelemetry && visibleLines >= bootLines.length;
+
+  useEffect(() => { loadTelemetry(); }, [loadTelemetry]);
   useEffect(() => {
-    /**
-     * Busca informações reais do host para personalizar o terminal de inicialização.
-     */
-    const fetchHostInfo = async () => {
-      try {
-        const res = await axios.get(`${getApiUrl()}/system/host-info`);
-        if (res.data?.success) {
-          setHostInfo(res.data);
-        }
-      } catch (err) {
-        console.warn('⚠️ [AVISO] Mantendo fallback de hardware genérico.', err.message);
-      }
-    };
-    fetchHostInfo();
-  }, []);
-
-  useEffect(() => { 
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, showInput]);
-
+    if (isLoadingTelemetry || visibleLines >= bootLines.length) return undefined;
+    const timer = window.setTimeout(() => setVisibleLines((value) => value + 1), 180);
+    return () => window.clearTimeout(timer);
+  }, [bootLines.length, isLoadingTelemetry, visibleLines]);
   useEffect(() => {
-    /**
-     * Atualiza o relógio exibido no rodapé do terminal.
-     */
-    const updateClock = () => {
-      setClockStr(new Date().toLocaleTimeString('pt-BR'));
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (lockSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => setLockSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [lockSeconds]);
+  useEffect(() => { terminalRef.current?.scrollTo?.({ top: terminalRef.current.scrollHeight }); }, [history, visibleLines]);
+  /**
+   * Renderiza o componente append History e encapsula sua interacao visual reutilizavel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} text - Valor de text consumido por esta rotina.
+   * @param {unknown} type - Valor de type consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const appendHistory = (text, type = 'output') => setHistory((current) => [...current, { id: `${Date.now()}-${current.length}`, text, type }]);
 
   /**
-   * Toca efeitos sonoros curtos do terminal quando áudio está habilitado.
+   * Executa comandos locais de diagnóstico sem inventar portas ou serviços.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; publica ou consome mensagens MQTT
+   *
+   * @param {unknown} command - Valor de command consumido por esta rotina.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const playSound = useCallback((frequency, type, duration) => {
-    if (!soundEnabled) return;
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      
-      osc.type = type;
-      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-      
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (error) {
-      console.debug('Áudio do terminal dev indisponível.', error);
-    }
-  }, [soundEnabled]);
-
-  /**
-   * Emite o som de digitação usado durante a sequência de boot.
-   */
-  const playTyping = useCallback(() => playSound(950, 'square', 0.025), [playSound]);
-  /**
-   * Emite a sequência sonora de autenticação bem-sucedida.
-   */
-  const playSuccess = useCallback(() => { 
-    playSound(523.25, 'square', 0.08); 
-    setTimeout(() => playSound(659.25, 'square', 0.08), 80);
-    setTimeout(() => playSound(783.99, 'square', 0.15), 160);
-  }, [playSound]);
-  /**
-   * Emite o som de erro para credenciais inválidas ou falhas de validação.
-   */
-  const playError = useCallback(() => playSound(130, 'sawtooth', 0.35), [playSound]);
-
-  useEffect(() => {
-    /**
-     * Permite pular a animação inicial quando o terminal ainda não aceita entrada.
-     */
-    const handleKeyDown = (e) => {
-      if (!showInput && bootStarted && (e.key === 'Enter' || e.key === 'Escape')) {
-        skipRef.current = true;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, bootStarted]);
-
-  useEffect(() => {
-    if (!bootStarted) return;
-
-    let isMounted = true;
-    /**
-     * Aguarda o intervalo da animação ou zera o atraso quando o usuário pula o boot.
-     */
-    const sleep = ms => new Promise(r => setTimeout(r, skipRef.current ? 0 : ms));
-    /**
-     * Gera identificadores visuais simulados para os shards exibidos no boot.
-     */
-    const genHex = () => Math.random().toString(16).substring(2, 10).toUpperCase();
-
-    // Textos reais da máquina host com fallbacks
-    const cpuName = hostInfo ? `${hostInfo.cpu.model} (${hostInfo.cpu.cores}-Core)` : 'AMD EPYC 9754 128-Core Processor @ 3.20GHz';
-    const totalRamMB = hostInfo ? `${hostInfo.memory.totalMB}M` : '32768M';
-    const osType = hostInfo ? `${hostInfo.os.type} ${hostInfo.os.release} (${hostInfo.os.arch})` : 'Linux thermosync-core 6.8.0-sentinel x86_64';
-    const hostName = hostInfo?.os?.hostname || 'thermosync';
-
-    /**
-     * Reproduz a sequência de inicialização e libera o prompt ao final.
-     */
-    const runBootSequence = async () => {
-      const sequence = [
-        { text: `ThermoSync Sentinel OS [Host: ${hostName}]`, delay: 50, color: '#e2e8f0', isBold: true },
-        { text: "(c) 2026 ThermoSync Enterprise Corporation. All rights reserved.\n", delay: 80, color: '#94a3b8' },
-        { text: "BIOS/UEFI MEMORY CHECK: 640K Base Memory ... OK", delay: 60, color: '#475569' },
-        { text: `EXTENDED SYSTEM RAM:  ${totalRamMB} System RAM ... TESTED OK`, delay: 80, color: '#475569' },
-        { text: asciiLogo, delay: 90, color: themeColor, isPre: true },
-        { text: "================================================================================", delay: 20, color: '#334155' },
-        { text: `CPU: ${cpuName}`, delay: 50 },
-        { text: `SYSTEM PLATFORM: ${osType}`, delay: 50 },
-        { text: "KERNEL: Loading security modules & environmental sensor drivers...", delay: 90 },
-        { text: "[  OK  ] I2C Bus Address 0x40 -> Sensor DHT22 Temp/Humi calibrated.", delay: 40, color: themeColor },
-        { text: "[  OK  ] Broker MQTT Pipeline online -> TCP/1883 [SSL/TLS 1.3]", delay: 50, color: themeColor },
-        { text: `[  OK  ] Connected to Data Core Cluster [ 104.28.192.12:3000 ]`, delay: 90, color: '#38bdf8' },
-        { text: "--------------------------------------------------------------------------------", delay: 20, color: '#334155' }
-      ];
-
-      for (let i = 0; i < 5; i++) {
-        sequence.push({ 
-          text: `[ SYNC ] Synchronizing data node shard [0x${genHex()}] -> REPLICA_ACK`, 
-          delay: 25 + Math.random() * 25, 
-          color: '#64748b' 
-        });
-      }
-
-      sequence.push(
-        { text: "--------------------------------------------------------------------------------", delay: 20, color: '#334155' },
-        { text: "[  OK  ] Relational Engine: MySQL Enterprise Pool connected.", delay: 60, color: themeColor },
-        { text: "[  OK  ] Cryptographic Vault: AES-256-GCM Keystore unsealed.", delay: 60, color: themeColor },
-        { text: "[ WARN ] NETWORK SECURITY OPERATION CENTER (SOC) ACTIVATED.", delay: 120, color: '#f59e0b', isBold: true },
-        { text: "[ALERTA] PROTOCOLO ZERO-TRUST EM VIGOR — AUDITORIA ATIVA.", delay: 120, color: '#ef4444', isBold: true },
-        { text: "\nACESSO RESTRITO — INSIRA A CREDENCIAL MASTER (OU DIGITE 'help'):", delay: 60, color: '#f8fafc', isBold: true }
-      );
-
-      for (let i = 0; i < sequence.length; i++) {
-        if (!isMounted) return;
-        await sleep(sequence[i].delay);
-        if (!skipRef.current) {
-          if (sequence[i].color === '#ef4444') playSound(280, 'sawtooth', 0.12); 
-          else playTyping();
-        }
-        setLogs(prev => [...prev, sequence[i]]);
-      }
-      if (isMounted) setShowInput(true);
-    };
-
-    runBootSequence();
-    return () => { isMounted = false; };
-  }, [bootStarted, playSound, playTyping, themeColor, hostInfo, asciiLogo]);
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (countdown === 0 && attempts >= 3) {
-      setShowInput(true);
-      setBlockedAttempts(0);
-      setLogs(prev => [...prev, { text: "[ SECURITY ] Lockout suspenso. Terminal destrancado.", color: '#38bdf8' }]);
-    }
-  }, [countdown, attempts]);
-
-  useEffect(() => { 
-    if (showInput && inputRef.current && !isProcessing && countdown === 0) {
-      inputRef.current.focus();
-    }
-  }, [showInput, isProcessing, countdown]);
-
-  /**
-   * Navega pelo histórico de comandos usando as setas do teclado.
-   */
-  const handleInputKeyDown = (e) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (cmdHistory.length > 0) {
-        const nextIdx = historyIndex + 1 < cmdHistory.length ? historyIndex + 1 : historyIndex;
-        setHistoryIndex(nextIdx);
-        setPasscode(cmdHistory[cmdHistory.length - 1 - nextIdx] || '');
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (historyIndex > 0) {
-        const nextIdx = historyIndex - 1;
-        setHistoryIndex(nextIdx);
-        setPasscode(cmdHistory[cmdHistory.length - 1 - nextIdx] || '');
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-        setPasscode('');
-      }
-    }
-  };
-
-  /**
-   * Processa comandos públicos do terminal e valida a credencial master no backend.
-   */
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    if (!passcode.trim() || isProcessing || countdown > 0) return;
-    
-    const typed = passcode.trim();
-    setPasscode('');
-    setCmdHistory(prev => [...prev, typed]);
-    setHistoryIndex(-1);
-
-    const publicCommands = ['help', 'status', 'clear', 'reboot', 'whoami', 'uname -a', 'date', 'netstat'];
-    const isPublicCommand = publicCommands.includes(typed.toLowerCase());
-
-    const hostName = hostInfo?.os?.hostname || 'thermosync';
-    const displayTyped = isPublicCommand ? typed : typed.replace(/./g, '●');
-    setLogs(prev => [...prev, { text: `root@${hostName}:~$ ${displayTyped}`, color: themeColor }]);
-
-    const cmd = typed.toLowerCase();
+  const runCommand = async (command) => {
+    const cmd = command.toLowerCase();
     if (cmd === 'help') {
-      playTyping();
-      setLogs(prev => [
-        ...prev, 
-        { text: "COMANDOS AUXILIARES DISPONÍVEIS:", color: '#f59e0b', isBold: true },
-        { text: "  status     : Inspecionar portas de rede, serviços e daemons ativos.", color: '#cbd5e1' },
-        { text: "  whoami     : Exibir o contexto de privilégios da sessão atual.", color: '#cbd5e1' },
-        { text: "  netstat    : Inspecionar portas TCP/UDP e brokers MQTT.", color: '#cbd5e1' },
-        { text: "  uname -a   : Informações reais do Host/OS do servidor.", color: '#cbd5e1' },
-        { text: "  date       : Exibir relógio do relé de temporização do host.", color: '#cbd5e1' },
-        { text: "  clear      : Limpar o histórico atual da tela do terminal.", color: '#cbd5e1' },
-        { text: "  reboot     : Reiniciar a sequência de inicialização do terminal.\n", color: '#cbd5e1' },
-        { text: "[ SEGURANÇA ] Para obter acesso SysAdmin, digite diretamente a sua CREDENCIAL MASTER secreta.", color: themeColor, isBold: true }
-      ]);
-      return;
+      appendHistory('Comandos: status, host, network, refresh, clear e help.', 'info');
+      return true;
     }
-
-    if (cmd === 'clear') {
-      playTyping();
-      setLogs([]);
-      return;
-    }
-
     if (cmd === 'status') {
-      playTyping();
-      setLogs(prev => [
-        ...prev,
-        { text: "STATUS INTEGRADO DO SISTEMA:", color: themeColor, isBold: true },
-        { text: `  [OK] Hostname     - ${hostName} (${hostInfo ? hostInfo.cpu.cores + ' CPUs' : 'Active'})`, color: '#cbd5e1' },
-        { text: "  [OK] MQTT Broker  - TCP 1883  (Latência: 12ms)", color: '#cbd5e1' },
-        { text: "  [OK] MySQL Core   - TCP 3306  (Pool: 10/10 active)", color: '#cbd5e1' },
-        { text: "  [OK] Zero-Trust   - SOC IDS   (Assinatura atualizada)\n", color: '#cbd5e1' }
-      ]);
-      return;
+      appendHistory(`API=${statusLabel(health?.status)} DB=${statusLabel(health?.database)} MQTT=${statusLabel(health?.mqtt)} sockets=${health?.runtime?.socketClients ?? 0}`, 'info');
+      return true;
     }
-
-    if (cmd === 'whoami') {
-      playTyping();
-      setLogs(prev => [...prev, { text: `root (UID: 0 — Host: ${hostName})\n`, color: '#38bdf8' }]);
-      return;
+    if (cmd === 'host' || cmd === 'uname -a') {
+      appendHistory(host ? `${host.os.kernelString} | Node ${host.runtime.nodeVersion} | uptime ${formatUptime(host.uptimeSeconds)}` : 'Informações do host indisponíveis.', 'info');
+      return true;
     }
-
-    if (cmd === 'uname -a') {
-      playTyping();
-      const kernelText = hostInfo 
-        ? `${hostInfo.os.kernelString} #1 SMP PREEMPT_DYNAMIC GNU/Linux` 
-        : "Linux thermosync-core 6.8.0-sentinel #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux";
-      setLogs(prev => [...prev, { text: `${kernelText}\n`, color: '#cbd5e1' }]);
-      return;
+    if (cmd === 'network' || cmd === 'ipconfig') {
+      const interfaces = host?.network?.interfaces || [];
+      appendHistory(interfaces.length ? interfaces.map((item) => `${item.name}: ${item.address} (${item.family})`).join('\n') : 'Interfaces de rede indisponíveis.', 'info');
+      return true;
     }
-
-    if (cmd === 'date') {
-      playTyping();
-      setLogs(prev => [...prev, { text: `${new Date().toUTCString()} [America/Sao_Paulo]\n`, color: '#cbd5e1' }]);
-      return;
+    if (cmd === 'refresh') {
+      appendHistory('Atualizando telemetria do host...', 'muted');
+      await loadTelemetry();
+      return true;
     }
-
-    if (cmd === 'netstat') {
-      playTyping();
-      setLogs(prev => [
-        ...prev,
-        { text: "Proto Recv-Q Send-Q Local Address           Foreign Address         State", color: '#94a3b8' },
-        { text: "tcp        0      0 0.0.0.0:1883            0.0.0.0:*               LISTEN", color: '#cbd5e1' },
-        { text: "tcp        0      0 0.0.0.0:3306            0.0.0.0:*               LISTEN", color: '#cbd5e1' },
-        { text: "tcp        0      0 104.28.192.12:443       192.168.1.104:52844     ESTABLISHED\n", color: '#cbd5e1' }
-      ]);
-      return;
+    if (cmd === 'clear') {
+      setHistory([]);
+      return true;
     }
-
-    if (cmd === 'reboot') {
-      playTyping();
-      setLogs([]);
-      setShowInput(false);
-      skipRef.current = false;
-      setTimeout(() => {
-        setBootStarted(false);
-        setTimeout(() => setBootStarted(true), 200);
-      }, 500);
-      return;
-    }
-
-    // ========================================================================
-    // VALIDAÇÃO SEGURA NO BANCO DE DADOS (ZERO-TRUST COMPLIANCE)
-    // ========================================================================
-    setIsProcessing(true);
-    setShowInput(false);
-    
-    await new Promise(r => setTimeout(r, 400));
-    playTyping();
-    
-    try {
-      const res = await axios.post(`${getApiUrl()}/system/verify-root-passcode`, {
-        passcode: typed
-      });
-
-      if (res.data.success) {
-        playSuccess();
-        setLogs(prev => [...prev, { text: "AUTHENTICATION SUCCESS: ROOT PRIVILEGES GRANTED (UID: 0)", color: themeColor, isBold: true }]);
-        await new Promise(r => setTimeout(r, 350));
-        setLogs(prev => [...prev, { text: "Carregando ambiente operacional SysAdmin...", color: '#94a3b8' }]);
-        await new Promise(r => setTimeout(r, 500));
-        onComplete();
-      } else {
-        throw new Error('Credencial inválida');
-      }
-    } catch (error) {
-      playError();
-      console.warn('[ROOT BOOT] Falha de autenticação:', error.response?.data?.error || error.message);
-      const nextAttempts = attempts + 1;
-      setBlockedAttempts(nextAttempts);
-      
-      setLogs(prev => [...prev, { text: `[  ERR  ] CREDENCIAL ROOT INVÁLIDA. INCIDENTE REGISTRADO NO HISTÓRICO DE AUDITORIA.`, color: '#ef4444', isBold: true }]);
-      
-      if (nextAttempts >= 3) {
-        setCountdown(15);
-        setLogs(prev => [...prev, { text: `[LOCKOUT] Alerta de Brute-Force acionado. Terminal suspenso por 15s.`, color: '#ef4444' }]);
-        setIsProcessing(false);
-      } else {
-        await new Promise(r => setTimeout(r, 350));
-        setShowInput(true);
-        setIsProcessing(false);
-      }
-    }
+    return false;
   };
 
-  const fontMonospace = 'Consolas, "Courier New", "JetBrains Mono", "Lucida Console", monospace';
+  /**
+   * Interpreta comandos permitidos ou valida a credencial ROOT no servidor.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const typed = passcode.trim();
+    if (!typed || isAuthenticating || lockSeconds > 0) return;
+    setPasscode('');
+    setAuthError('');
+    appendHistory(`root@${host?.os?.hostname || 'host'}:~$ ${['help', 'status', 'host', 'uname -a', 'network', 'ipconfig', 'refresh', 'clear'].includes(typed.toLowerCase()) ? typed : '••••••••'}`, 'command');
+    if (await runCommand(typed)) return;
 
-  // BIOS POST Screen com especificações reais
-  if (!bootStarted) {
-    const biosCpu = hostInfo ? `${hostInfo.cpu.model} (${hostInfo.cpu.cores}-Core)` : 'AMD EPYC 9754 128-Core @ 3.20GHz';
-    const biosRamKB = hostInfo ? (hostInfo.memory.totalMB * 1024) + 'K' : '33554432K';
-    const biosHost = hostInfo?.os?.hostname || 'THERMOSYNC SENTINEL UEFI';
-
-    return (
-      <div style={{ 
-        position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', justifyContent: 'center', 
-        alignItems: 'center', background: '#000000', color: '#aaaaaa', fontFamily: fontMonospace,
-        padding: '2rem'
-      }}>
-        <div style={{ maxWidth: '720px', width: '100%', fontSize: '0.9rem', lineHeight: '1.6' }}>
-          <div style={{ color: '#ffffff', fontWeight: 'bold', marginBottom: '1rem', borderBottom: '2px solid #555555', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-            <span>AMERICAN MEGATRENDS BIOS (C) 2026</span>
-            <span>{biosHost}</span>
-          </div>
-          <p>Main Processor : {biosCpu}</p>
-          <p>Memory Testing : {biosRamKB} OK</p>
-          <p>Primary Master : NVMe Multi-Tenant Array RAID-0 [OK]</p>
-          <p>Security Chip  : Zero-Trust Cryptographic Keystore [LOCKED]</p>
-          <br />
-          <p style={{ color: themeColor }}>Press [INITIALIZE] to load Linux Kernel /dev/tty1 Console...</p>
-          
-          <div style={{ marginTop: '2rem' }}>
-            <button 
-              onClick={() => setBootStarted(true)} 
-              style={{ 
-                background: themeColor, 
-                color: '#000000', 
-                fontFamily: fontMonospace, 
-                fontWeight: 'bold',
-                fontSize: '0.9rem', 
-                padding: '10px 24px', 
-                border: 'none', 
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                boxShadow: `0 0 15px ${themeColor}66`
-              }}
-            >
-              &gt; BOOT THERMOSYNC SENTINEL CLI
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const currentHost = hostInfo?.os?.hostname || 'thermosync';
+    setIsAuthenticating(true);
+    try {
+      const response = await axios.post(`${getApiUrl()}/system/verify-root-passcode`, { passcode: typed }, { headers, timeout: 10000 });
+      if (!response.data?.success) throw new Error('Credencial ROOT inválida.');
+      appendHistory(`Acesso ROOT confirmado para ${response.data.usuario || 'DEV'}. Abrindo console...`, 'success');
+      window.setTimeout(onComplete, 450);
+    } catch (error) {
+      const nextAttempts = attempts + 1;
+      setAttempts(nextAttempts);
+      const message = error.response?.data?.error || 'Não foi possível validar a credencial ROOT.';
+      setAuthError(message);
+      appendHistory(message, 'error');
+      if (nextAttempts >= 3) {
+        setLockSeconds(15);
+        setAttempts(0);
+      }
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   return (
-    <>
-      <style>{`
-        @keyframes crt-flicker {
-          0% { opacity: 0.98; }
-          50% { opacity: 1; }
-          100% { opacity: 0.97; }
-        }
-        @keyframes cursor-blink {
-          0%, 49% { opacity: 1; }
-          50%, 100% { opacity: 0; }
-        }
-        .crt-scanlines {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            rgba(18, 16, 16, 0) 50%, 
-            rgba(0, 0, 0, 0.25) 50%
-          );
-          background-size: 100% 4px;
-          z-index: 1000;
-          pointer-events: none;
-        }
-        .crt-glow {
-          text-shadow: 0 0 3px currentColor;
-        }
-      `}</style>
+    <div className={`dev-boot dev-boot-${theme}`}>
+      <header className="dev-boot-header">
+        <div><Terminal size={16} /><strong>TermoSync Developer Console</strong><span>root@{host?.os?.hostname || 'carregando'}</span></div>
+        <div className="dev-boot-themes" aria-label="Cor do terminal">{['cyan', 'green', 'amber'].map((color) => <button key={color} className={theme === color ? 'active' : ''} title={`Tema ${color}`} onClick={() => setTheme(color)} />)}</div>
+      </header>
 
-      <div 
-        onClick={() => { if (showInput && countdown === 0) inputRef.current?.focus(); }} 
-        style={{ 
-          position: 'fixed', inset: 0, background: '#030508', zIndex: 9999, 
-          display: 'flex', flexDirection: 'column', fontFamily: fontMonospace,
-          animation: crtEnabled ? 'crt-flicker 0.15s infinite' : 'none'
-        }}
-      >
-        {crtEnabled && <div className="crt-scanlines" />}
-
-        <div style={{ 
-          background: '#0d131f', borderBottom: '1px solid #1e293b', padding: '6px 14px', 
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-          userSelect: 'none', zIndex: 1001 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 'bold' }}>
-            <Terminal size={14} color={themeColor} />
-            <span>Command Prompt — root@{currentHost}:/dev/tty1 — 80x24</span>
+      <main className="dev-boot-main">
+        <section className="dev-boot-terminal" onClick={() => inputRef.current?.focus()}>
+          <div className="dev-boot-terminal-bar"><span><span /><span /><span /></span><strong>cmd.exe · sessão administrativa</strong><small>UTF-8</small></div>
+          <div className="dev-boot-host-strip" aria-label="Resumo do host">
+            <div><Server size={15} /><span>Host</span><strong>{host?.os?.hostname || 'Coletando'}</strong></div>
+            <div><Cpu size={15} /><span>CPU</span><strong>{host ? `${host.cpu.cores} núcleos · ${host.cpu.usedPercent}%` : '--'}</strong></div>
+            <div><MemoryStick size={15} /><span>Memória</span><strong>{host ? `${host.memory.usedPercent}% de ${formatGb(host.memory.totalMB)}` : '--'}</strong></div>
+            <div><HardDrive size={15} /><span>Disco</span><strong>{host?.filesystem?.available ? `${host.filesystem.usedPercent}% de ${formatGb(host.filesystem.totalMB)}` : '--'}</strong></div>
           </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', color: '#64748b', fontSize: '0.8rem' }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setCrtEnabled(!crtEnabled); }}
-              style={{ background: 'transparent', border: 'none', color: crtEnabled ? themeColor : '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
-              title="Alternar efeito Monitor CRT"
-            >
-              <Monitor size={13} />
-              <span>CRT</span>
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRight: '1px solid #334155', borderLeft: '1px solid #334155', padding: '0 10px' }}>
-              <Palette size={13} color="#94a3b8" />
-              {[
-                { color: '#10b981', title: 'Verde Hacker' },
-                { color: '#f59e0b', title: 'Âmbar Retro' },
-                { color: '#38bdf8', title: 'Ciano Cyber' },
-                { color: '#f8fafc', title: 'Branco Clássico' }
-              ].map(t => (
-                <button 
-                  key={t.color}
-                  onClick={(e) => { e.stopPropagation(); setThemeColor(t.color); }} 
-                  title={t.title}
-                  style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.color, border: themeColor === t.color ? '2px solid white' : 'none', cursor: 'pointer' }}
-                />
-              ))}
+          <div className="dev-boot-output" ref={terminalRef} aria-live="polite">
+            <div className="dev-boot-brand">
+              <h1>THERMOSYNC</h1>
+              <p>SENTINEL OS · COMMAND &amp; CONTROL RUNTIME</p>
             </div>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }}
-              style={{ background: 'transparent', border: 'none', color: soundEnabled ? themeColor : '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              title={soundEnabled ? 'Silenciar Áudio' : 'Ativar Áudio'}
-            >
-              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-            </button>
-
-            <span>─</span>
-            <span>□</span>
-            <span>✕</span>
+            {isLoadingTelemetry && <div className="dev-boot-loading"><Loader2 size={18} className="spin" /> Consultando telemetria autenticada do servidor...</div>}
+            {telemetryError && <div className="dev-boot-line warn"><b>[WARN]</b><pre>{telemetryError}</pre></div>}
+            {bootLines.slice(0, visibleLines).map((line, index) => <div className={`dev-boot-line ${line.type}`} key={`${line.text}-${index}`}><b>{line.type === 'ok' ? '[ OK ]' : line.type === 'warn' ? '[WARN]' : line.type === 'info' ? '[INFO]' : '      '}</b><pre>{line.text}</pre></div>)}
+            {history.map((line) => <div className={`dev-boot-history ${line.type}`} key={line.id}><pre>{line.text}</pre></div>)}
+            {bootComplete && <form className="dev-boot-command" onSubmit={handleSubmit}><span>root@{host?.os?.hostname || 'host'}:~$</span><div><KeyRound size={15} /><input ref={inputRef} type="password" value={passcode} onChange={(event) => setPasscode(event.target.value)} placeholder={lockSeconds ? `Terminal bloqueado por ${lockSeconds}s` : "Credencial ROOT ou comando 'help'"} disabled={isAuthenticating || lockSeconds > 0} autoComplete="off" /><i /></div></form>}
           </div>
+          <footer className="dev-boot-terminal-footer"><span>{bootComplete ? 'BOOT COMPLETO' : `CARREGANDO ${bootLines.length ? Math.round((visibleLines / bootLines.length) * 100) : 0}%`}</span><span>{host?.runtime?.nodeVersion || 'Node indisponível'}</span><span>{new Date().toLocaleString('pt-BR')}</span></footer>
+        </section>
+
+        <div className="dev-boot-actions">
+          <div>{authError ? <><Lock size={15} /> <span>{authError}</span></> : <><CheckCircle2 size={15} /><span>{bootComplete ? 'Telemetria real carregada. Terminal aguardando autenticação ROOT.' : 'Coletando dados do servidor.'}</span></>}</div>
+          {!bootComplete && !isLoadingTelemetry && <button type="button" onClick={() => setVisibleLines(bootLines.length)}>Exibir tudo</button>}
+          <button type="button" onClick={loadTelemetry} disabled={isLoadingTelemetry}><RefreshCw size={15} className={isLoadingTelemetry ? 'spin' : ''} /> Atualizar leituras</button>
         </div>
+      </main>
 
-        {!showInput && countdown === 0 && (
-          <div style={{ position: 'absolute', top: '44px', right: '20px', color: '#475569', fontSize: '0.75rem', zIndex: 10 }}>
-            [ENTER] pular inicialização
-          </div>
-        )}
-
-        <div className={crtEnabled ? 'crt-glow' : ''} style={{ background: 'transparent', padding: '1.25rem', flex: 1, overflowY: 'auto', fontSize: '0.86rem', zIndex: 1001 }}>
-          {logs.map((log, index) => (
-            <div 
-              key={index} 
-              style={{ 
-                color: log.color || '#cbd5e1', 
-                fontWeight: log.isBold ? 'bold' : 'normal', 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: '1.35',
-                marginBottom: '2px'
-              }}
-            >
-              {log.isPre ? <pre style={{ margin: 0, padding: 0, fontFamily: fontMonospace, lineHeight: '1.1' }}>{log.text}</pre> : log.text}
-            </div>
-          ))}
-          
-          {showInput && countdown === 0 && (
-            <form onSubmit={handleAuth} style={{ display: 'flex', marginTop: '10px', alignItems: 'center' }}>
-              <span style={{ color: themeColor, fontWeight: 'bold', marginRight: '8px' }}>root@{currentHost}:~$</span>
-              <div style={{ display: 'flex', flex: 1, alignItems: 'center', position: 'relative' }}>
-                <input 
-                  ref={inputRef} 
-                  type="password" 
-                  value={passcode} 
-                  onChange={e => setPasscode(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder="Digite a credencial master ou 'help'..."
-                  autoComplete="off" 
-                  disabled={isProcessing} 
-                  style={{ 
-                    background: 'transparent', 
-                    border: 'none', 
-                    color: '#ffffff', 
-                    outline: 'none', 
-                    fontFamily: fontMonospace, 
-                    fontSize: '0.86rem',
-                    width: '100%', 
-                    caretColor: 'transparent', 
-                    letterSpacing: '1px' 
-                  }} 
-                />
-                <span 
-                  style={{ 
-                    display: 'inline-block', 
-                    width: '9px', 
-                    height: '1.1em', 
-                    background: themeColor, 
-                    marginLeft: '4px',
-                    animation: 'cursor-blink 1s step-end infinite'
-                  }}
-                />
-              </div>
-            </form>
-          )}
-
-          {countdown > 0 && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid #ef4444', padding: '12px 16px', color: '#ef4444', fontSize: '0.85rem', marginTop: '16px', fontWeight: 'bold', display: 'inline-block' }}>
-              <Lock size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }} />
-              DISPOSITIVO BLOQUEADO (ANTI BRUTE-FORCE): AGUARDE {countdown}s PARA NOVA TENTATIVA...
-            </div>
-          )}
-          <div ref={bottomRef} style={{ paddingBottom: '20px' }} />
-        </div>
-
-        <div style={{ background: '#090d16', borderTop: '1px solid #1e293b', padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.72rem', zIndex: 1001 }}>
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <span>MEM: {hostInfo ? hostInfo.memory.totalMB + 'M' : '32768M'}</span>
-            <span>SEC: AES-256-GCM</span>
-            <span>STATUS: ZERO-TRUST ACTIVE</span>
-          </div>
-          <div style={{ color: '#94a3b8', fontWeight: 'bold' }}>
-            {clockStr}
-          </div>
-        </div>
-      </div>
-    </>
+      <aside className="dev-boot-services" aria-label="Serviços reais">
+        <div><Activity size={15} /><span>API</span><strong data-status={health?.status}>{statusLabel(health?.status)}</strong></div>
+        <div><Database size={15} /><span>Banco</span><strong data-status={health?.database}>{statusLabel(health?.database)}</strong></div>
+        <div><Wifi size={15} /><span>MQTT</span><strong data-status={health?.mqtt}>{statusLabel(health?.mqtt)}</strong></div>
+        <div><Network size={15} /><span>Interfaces</span><strong>{host?.network?.interfaces?.length ?? '--'}</strong></div>
+      </aside>
+    </div>
   );
-};
-
-export default DevBootScreen;
+}

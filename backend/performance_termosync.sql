@@ -44,7 +44,8 @@ ALTER TABLE `tecnicos`
 ALTER TABLE `usuarios`
   ADD INDEX `idx_usr_empresa_role` (`empresa`, `role`),
   ADD INDEX `idx_usr_filial_role` (`filial`, `role`),
-  ADD INDEX `idx_usr_manutencao` (`role`, `nome_tecnico`);
+  ADD INDEX `idx_usr_manutencao` (`role`, `nome_tecnico`),
+  ADD INDEX `idx_usuarios_role` (`role`);
 
 -- ==============================================================================
 -- 7. EQUIPAMENTOS (7/23) - [PRIORIDADE CRÍTICA]
@@ -76,7 +77,12 @@ ALTER TABLE `hardware_iot`
 -- ==============================================================================
 ALTER TABLE `sessoes_ativas`
   ADD INDEX `idx_sess_revogado_login` (`revogado`, `data_login`),
-  ADD INDEX `idx_sess_usuario` (`usuario_id`, `revogado`);
+  ADD INDEX `idx_sess_usuario` (`usuario_id`, `revogado`),
+  ADD INDEX `idx_sessoes_revogado_expira` (`revogado`, `expires_at`, `data_login`);
+
+-- Eventos de segurança usam janela temporal no SOC e precisam começar por data.
+ALTER TABLE `security_events`
+  ADD INDEX `idx_security_events_created` (`created_at`);
 
 -- ==============================================================================
 -- 11. AUDIT_LOGS (11/23)
@@ -125,7 +131,8 @@ ALTER TABLE `leituras`
 ALTER TABLE `chamados`
   ADD INDEX `idx_chamados_empresa_filial` (`empresa`, `filial`, `status`),
   ADD INDEX `idx_chamados_status_abertura` (`status`, `data_abertura`),
-  ADD INDEX `idx_chamados_tecnico` (`tecnico_id`, `status`);
+  ADD INDEX `idx_chamados_tecnico` (`tecnico_id`, `status`),
+  ADD INDEX `idx_chamados_data_abertura` (`data_abertura`);
 
 -- ==============================================================================
 -- 17. FATURAS_SAAS (17/23)

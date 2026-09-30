@@ -16,9 +16,22 @@ CREATE TABLE `empresas` (
   `contato` varchar(150) DEFAULT NULL,
   `email` varchar(150) DEFAULT NULL,
   `status` enum('Ativa','Suspensa','Bloqueada') DEFAULT 'Ativa',
+  `access_mode` varchar(20) NOT NULL DEFAULT 'CUSTOMER',
+  `trial_started_at` datetime DEFAULT NULL,
+  `trial_expires_at` datetime DEFAULT NULL,
+  `trial_auto_block` tinyint(1) NOT NULL DEFAULT '1',
+  `trial_warning_days` int NOT NULL DEFAULT '3',
+  `trial_warning_sent_at` datetime DEFAULT NULL,
+  `trial_stage` varchar(24) NOT NULL DEFAULT 'NEW',
+  `trial_paused_at` datetime DEFAULT NULL,
+  `trial_delete_at` datetime DEFAULT NULL,
+  `trial_max_users` int NOT NULL DEFAULT '3',
+  `trial_max_stores` int NOT NULL DEFAULT '1',
+  `trial_max_equipment` int NOT NULL DEFAULT '10',
   `data_cadastro` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `nome` (`nome`)
+  UNIQUE KEY `nome` (`nome`),
+  KEY `idx_empresas_trial_expira` (`access_mode`,`trial_expires_at`)
 );
 
 -- ==============================================================================
@@ -88,22 +101,25 @@ CREATE TABLE `usuarios` (
   `email` varchar(150) DEFAULT NULL,
   `telefone` varchar(50) DEFAULT NULL,
   `role` enum('ADMIN','MANUTENCAO','LOJA','DEV') DEFAULT 'LOJA',
-  `filial` varchar(100) DEFAULT NULL,
+  `filial` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `nome_gerente` varchar(150) DEFAULT NULL,
   `nome_coordenador` varchar(150) DEFAULT NULL,
   `nome_tecnico` varchar(150) DEFAULT NULL,
   `tecnico_id` int DEFAULT NULL,
-  `empresa` varchar(150) DEFAULT NULL,
+  `empresa` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `mfa_secret` varchar(80) DEFAULT NULL,
   `mfa_enabled` tinyint(1) DEFAULT '0',
   `mfa_required` tinyint(1) DEFAULT '0',
+  `security_blocked` tinyint(1) DEFAULT '0',
   `password_changed_at` datetime DEFAULT NULL,
   `password_reset_code_hash` varchar(255) DEFAULT NULL,
   `password_reset_expires_at` datetime DEFAULT NULL,
   `password_reset_attempts` int DEFAULT '0',
   `password_reset_requested_at` datetime DEFAULT NULL,
+  `must_change_password` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `usuario` (`usuario`)
+  UNIQUE KEY `usuario` (`usuario`),
+  KEY `idx_usuarios_role` (`role`)
 );
 
 -- ==============================================================================
@@ -126,7 +142,12 @@ CREATE TABLE `equipamentos` (
   `filial` varchar(100) DEFAULT NULL,
   `data_calibracao` date DEFAULT NULL,
   `empresa` varchar(150) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `is_virtual` tinyint(1) NOT NULL DEFAULT '0',
+  `demo_base_temp` decimal(5,2) DEFAULT NULL,
+  `demo_base_humidity` decimal(5,2) DEFAULT NULL,
+  `demo_base_consumption` decimal(8,2) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_equipamentos_virtual_tenant` (`is_virtual`,`empresa`,`filial`)
 );
 
 -- ==============================================================================
@@ -169,10 +190,14 @@ CREATE TABLE `sessoes_ativas` (
   `token` varchar(500) DEFAULT NULL,
   `ip_address` varchar(50) DEFAULT NULL,
   `localizacao` varchar(100) DEFAULT 'Desconhecida',
+  `user_agent` varchar(500) DEFAULT NULL,
   `data_login` datetime DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` datetime DEFAULT NULL,
+  `last_seen` datetime DEFAULT NULL,
   `revogado` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `idx_token` (`token`(255))
+  KEY `idx_token` (`token`(255)),
+  KEY `idx_sessoes_revogado_expira` (`revogado`,`expires_at`,`data_login`)
 );
 
 -- ==============================================================================
@@ -200,6 +225,9 @@ CREATE TABLE `pre_cadastros` (
   `responsavel` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `telefone` varchar(50) NOT NULL,
+  `tipo_acesso` varchar(20) NOT NULL DEFAULT 'COMERCIAL',
+  `legal_version` varchar(20) DEFAULT NULL,
+  `legal_accepted_at` datetime DEFAULT NULL,
   `status` enum('pendente','aprovado','rejeitado') DEFAULT 'pendente',
   `data_solicitacao` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -233,6 +261,7 @@ CREATE TABLE `notificacoes` (
   `data_hora` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `equipamento_id` (`equipamento_id`),
+  KEY `idx_notificacoes_equip_resolvido` (`equipamento_id`,`resolvido`),
   CONSTRAINT `notificacoes_ibfk_1` FOREIGN KEY (`equipamento_id`) REFERENCES `equipamentos` (`id`) ON DELETE CASCADE
 );
 
@@ -251,6 +280,17 @@ CREATE TABLE `leituras` (
   KEY `idx_equip_data` (`equipamento_id`,`data_hora`),
   KEY `idx_data_hora` (`data_hora`),
   CONSTRAINT `leituras_ibfk_1` FOREIGN KEY (`equipamento_id`) REFERENCES `equipamentos` (`id`) ON DELETE CASCADE
+);
+
+-- Chaves idempotentes enviadas pelo firmware. Impede duplicidade quando o
+-- ESP32 retransmite uma leitura cujo ACK MQTT foi perdido.
+CREATE TABLE `telemetria_ingestao` (
+  `leitura_uid` varchar(96) NOT NULL,
+  `equipamento_id` int NOT NULL,
+  `recebida_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`leitura_uid`),
+  KEY `idx_telemetria_ingestao_equipamento` (`equipamento_id`,`recebida_em`),
+  CONSTRAINT `telemetria_ingestao_ibfk_1` FOREIGN KEY (`equipamento_id`) REFERENCES `equipamentos` (`id`) ON DELETE CASCADE
 );
 
 -- ==============================================================================
@@ -276,6 +316,8 @@ CREATE TABLE `chamados` (
   PRIMARY KEY (`id`),
   KEY `equipamento_id` (`equipamento_id`),
   KEY `usuario_id` (`usuario_id`),
+  KEY `idx_chamados_data_abertura` (`data_abertura`),
+  KEY `idx_chamados_tenant_fila` (`empresa`,`filial`,`arquivado`,`status`,`data_abertura`),
   CONSTRAINT `chamados_ibfk_1` FOREIGN KEY (`equipamento_id`) REFERENCES `equipamentos` (`id`) ON DELETE CASCADE,
   CONSTRAINT `chamados_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
 );
@@ -326,6 +368,35 @@ CREATE TABLE `operacao_tarefas` (
 );
 
 -- ==============================================================================
+-- Tabela complementar: `operacao_procedimentos`
+-- Descrição: Biblioteca versionável de resposta operacional consumida pela UI.
+-- ==============================================================================
+CREATE TABLE `operacao_procedimentos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `chave` varchar(80) NOT NULL,
+  `titulo` varchar(180) NOT NULL,
+  `categoria` varchar(80) NOT NULL,
+  `severidade` varchar(30) NOT NULL,
+  `responsavel` varchar(120) NOT NULL,
+  `sla` varchar(100) NOT NULL,
+  `icone` varchar(50) NOT NULL,
+  `tipos_alerta` json NOT NULL,
+  `rota` varchar(80) NOT NULL,
+  `gatilho` text NOT NULL,
+  `objetivo` text NOT NULL,
+  `etapas` json NOT NULL,
+  `evidencias` json NOT NULL,
+  `escalonamento` text NOT NULL,
+  `ativo` tinyint(1) DEFAULT '1',
+  `ordem` int DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `chave` (`chave`),
+  KEY `idx_operacao_procedimentos` (`ativo`,`ordem`,`categoria`)
+);
+
+-- ==============================================================================
 -- Tabela (19/23): `suporte_artigos`
 -- Descrição: Base de conhecimento e artigos de suporte técnico.
 -- ==============================================================================
@@ -365,7 +436,8 @@ CREATE TABLE `suporte_chamados` (
   `atualizado_em` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_suporte_chamados_status` (`status`,`prioridade`),
-  KEY `idx_suporte_chamados_empresa` (`empresa`,`filial`)
+  KEY `idx_suporte_chamados_empresa` (`empresa`,`filial`),
+  KEY `idx_suporte_tenant_fila` (`empresa`,`filial`,`status`,`criado_em`)
 );
 
 -- ==============================================================================
@@ -413,4 +485,66 @@ CREATE TABLE `system_changelog` (
   `author` varchar(50) NOT NULL,
   `date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
+);
+
+-- Linha do tempo funcional dos testes gratuitos. Registra decisões do DEV,
+-- contatos, avisos automáticos e conversões sem misturar esses dados ao SOC.
+CREATE TABLE `saas_trial_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `empresa` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(40) NOT NULL,
+  `title` varchar(160) NOT NULL,
+  `detail` text,
+  `actor_id` int DEFAULT NULL,
+  `actor_label` varchar(150) DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_trial_events_company_date` (`empresa`,`created_at`),
+  KEY `idx_trial_events_type_date` (`event_type`,`created_at`)
+);
+
+CREATE TABLE `saas_trial_notifications` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `empresa` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `milestone_days` int NOT NULL,
+  `recipient` varchar(180) DEFAULT NULL,
+  `sent_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_trial_notification` (`empresa`,`milestone_days`),
+  KEY `idx_trial_notification_date` (`sent_at`)
+);
+
+CREATE TABLE `trial_usage_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `empresa` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `usuario_id` int DEFAULT NULL,
+  `screen_id` varchar(80) NOT NULL,
+  `duration_ms` int unsigned NOT NULL DEFAULT '0',
+  `occurred_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_trial_usage_company_date` (`empresa`,`occurred_at`),
+  KEY `idx_trial_usage_user_date` (`usuario_id`,`occurred_at`)
+);
+
+-- Histórico técnico das execuções de deploy e seus artefatos.
+CREATE TABLE `system_deployments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `version` varchar(40) NOT NULL,
+  `title` varchar(150) NOT NULL,
+  `type` varchar(30) NOT NULL,
+  `target` varchar(30) NOT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'PROCESSING',
+  `package_name` varchar(255) NOT NULL,
+  `package_size` bigint unsigned DEFAULT 0,
+  `package_checksum` varchar(64) DEFAULT NULL,
+  `entry_count` int unsigned DEFAULT 0,
+  `initiated_by` varchar(100) NOT NULL,
+  `error_message` varchar(500) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+  `completed_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_system_deployments_created` (`created_at`),
+  KEY `idx_system_deployments_status` (`status`,`created_at`),
+  KEY `idx_system_deployments_target` (`target`,`created_at`)
 );

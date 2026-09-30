@@ -1,261 +1,170 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * Módulo: frontend/src/pages/Sobre/Sobre.jsx
+ * Responsabilidade: Implementa a tela Sobre, seus estados, interações e integrações de dados.
+ */
+
+import { useMemo } from 'react';
+import { BookOpen, Boxes, CloudCog, Code2, ExternalLink, Layers3, LifeBuoy, LockKeyhole } from 'lucide-react';
+import React, { useState } from 'react';
 import {
   ShieldCheck, Database, Server, GraduationCap,
-  Github, Linkedin, Globe, Layers, Activity,
+  Github, Layers, Activity,
   Fingerprint, Cpu, Network, Radio, TerminalSquare,
   ArrowRight, Wifi, Zap
 } from 'lucide-react';
 import TermoSyncLogo from '../../components/TermoSyncLogo';
 import './Sobre.css';
 
+const ARCHITECTURE_STEPS = [
+  { icon: Cpu, label: 'Sensores', detail: 'Leituras em campo' },
+  { icon: Wifi, label: 'Conectividade', detail: 'Wi-Fi e MQTT' },
+  { icon: Server, label: 'Serviços', detail: 'API e processamento' },
+  { icon: Database, label: 'Dados', detail: 'Histórico e auditoria' },
+  { icon: Activity, label: 'Operação', detail: 'Painéis e alertas' }
+];
+
+const PLATFORM_AREAS = {
+  operacao: {
+    label: 'Operação',
+    description: 'Acompanhe o parque refrigerado e transforme eventos de campo em ações rastreáveis.',
+    modules: [
+      { icon: Activity, title: 'Monitoramento', text: 'Indicadores, leituras e estado dos equipamentos em tempo real.' },
+      { icon: Zap, title: 'Fila operacional', text: 'Priorização de alertas, tarefas e ocorrências que exigem resposta.' },
+      { icon: LifeBuoy, title: 'Suporte', text: 'Abertura e acompanhamento de chamados técnicos.' }
+    ]
+  },
+  gestao: {
+    label: 'Gestão',
+    description: 'Consolide dados de unidades, ativos e consumo para apoiar decisões operacionais.',
+    modules: [
+      { icon: Layers, title: 'Visão consolidada', text: 'Comparação de unidades e acompanhamento do desempenho da frota.' },
+      { icon: CloudCog, title: 'Configuração', text: 'Parâmetros e integrações organizados pelo escopo correto.' },
+      { icon: ShieldCheck, title: 'Governança', text: 'Permissões, auditoria e histórico das ações executadas.' }
+    ]
+  },
+  tecnologia: {
+    label: 'Tecnologia',
+    description: 'Ferramentas de diagnóstico preservam a disponibilidade e aceleram a investigação de falhas.',
+    modules: [
+      { icon: Network, title: 'Rede e dispositivos', text: 'Diagnóstico de conectividade entre sensores, gateways e serviços.' },
+      { icon: TerminalSquare, title: 'Observabilidade', text: 'Saúde, logs e contexto técnico para manutenção do ambiente.' },
+      { icon: Fingerprint, title: 'Segurança', text: 'Controles de acesso e rastreabilidade para operações privilegiadas.' }
+    ]
+  }
+};
+
 /**
- * Página "Sobre" do ThermoSync
+ * Renderiza a tela Sobre e concentra as regras de apresentacao desse modulo.
  *
- * Responsabilidades:
- * - Documentar a arquitetura e apresentar informações institucionais
- * - Fornecer um terminal mock para efeitos visuais e demonstrações
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; publica ou consome mensagens MQTT
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {Function} props.onNavigate - Callback onNavigate fornecido pelo componente responsável.
+ * @param {boolean} props.isOffline - Sinalizador isOffline que controla este comportamento visual.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function Sobre() {
-  const [bootLines, setBootLines] = useState([]);
-  const [showBio, setShowBio] = useState(false);
+export default function Sobre({ onNavigate, isOffline = false, userRole = 'LOJA' }) {
+  const [activeArea, setActiveArea] = useState('operacao');
+  const area = PLATFORM_AREAS[activeArea];
+  const version = import.meta.env.VITE_APP_VERSION || '1.5';
+  const environment = import.meta.env.MODE === 'production' ? 'Produção' : 'Desenvolvimento';
 
-  // Efeito do Terminal de Boot
-  useEffect(() => {
-    const sequence = [
-      { text: "root@thermosync:~# ./fetch_author_data.sh", delay: 300, type: 'cmd' },
-      { text: "[*] INITIATING SECURE CONNECTION TO NOC CLUSTER...", delay: 1000, type: 'sys' },
-      { text: "[OK] RSA-4096 HANDSHAKE ESTABLISHED.", delay: 1800, type: 'success' },
-      { text: "[*] DECRYPTING AUTHOR BIOGRAPHY DATABANKS...", delay: 2400, type: 'sys' },
-      { text: "[OK] DATASTREAM READY. PRINTING OUTPUT:", delay: 3200, type: 'success' },
-    ];
-
-    let timeouts = [];
-
-    sequence.forEach((line) => {
-      const t = setTimeout(() => {
-        setBootLines(prev => [...prev, line]);
-      }, line.delay);
-      timeouts.push(t);
-    });
-
-    const finalT = setTimeout(() => {
-      setShowBio(true);
-    }, 3800);
-    timeouts.push(finalT);
-
-    return () => timeouts.forEach(clearTimeout);
-  }, []);
+  const availableActions = useMemo(() => [
+    { label: 'Abrir suporte', description: 'Criar e acompanhar solicitações.', icon: LifeBuoy, target: 'suporte' },
+    { label: 'Segurança da conta', description: 'Revisar MFA, senha e sessões.', icon: LockKeyhole, target: 'seguranca_conta' },
+    ...(userRole === 'DEV' ? [{ label: 'Saúde do sistema', description: 'Inspecionar serviços e runtime.', icon: Activity, target: 'central_saude' }] : [])
+  ], [userRole]);
 
   return (
-    <div className="sobre-container anim-fade-in stagger-1">
-      
-      {/* SEÇÃO HERO DA PLATAFORMA */}
-      <div className="sobre-hero">
-        <div className="hero-content">
-          
-          {/* Live Diagnostics Mockup */}
-          <div className="live-diagnostics">
-             <span className="pulse-success-icon" style={{display: 'inline-block', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%'}}></span>
-             <span>UPTIME: <strong>99.999%</strong></span> | 
-             <span>LATENCY: <strong>12ms</strong></span> | 
-             <span>WSS: <strong>SECURE</strong></span>
+    <div className="about-platform anim-fade-in">
+      <section className="about-overview">
+        <div className="about-brand-mark"><TermoSyncLogo size={64} color="var(--primary)" /></div>
+        <div className="about-overview-copy">
+          <span className="about-kicker">Plataforma de monitoramento IoT</span>
+          <h2>ThermoSync</h2>
+          <p>Uma plataforma para observar ambientes refrigerados, coordenar a operação e conectar telemetria de campo às decisões da equipe.</p>
+          <div className="about-badges">
+            <span><Code2 size={14} /> Versão {version}</span>
+            <span><CloudCog size={14} /> {environment}</span>
+            <span className={isOffline ? 'offline' : 'online'}><Radio size={14} /> {isOffline ? 'Sem conexão' : 'Conectado'}</span>
           </div>
-
-          <TermoSyncLogo size={90} color="#10b981" />
-          <h1>ThermoSync</h1>
-          
-          <div className="hero-tags">
-            <span className="hero-tag tag-noc">
-              <Activity size={16}/> NOC PLATFORM
-            </span>
-            <span className="hero-tag tag-ver">
-              <Radio size={16}/> v1.5 ENTERPRISE
-            </span>
-            <span className="hero-tag tag-tcc">
-              <GraduationCap size={16}/> TCC - REDES DE COMPUTADORES
-            </span>
-          </div>
-          
-          <p>
-            <strong>Sobre o ThermoSync:</strong>
-            <br/>
-            O <strong>ThermoSync</strong> é uma plataforma inteligente para monitoramento de câmaras e balcões refrigerados e gerenciamento de dispositivos IoT. Desenvolvido com uma arquitetura totalmente assíncrona, o sistema coleta, processa e sincroniza, em tempo real, dados de telemetria enviados por dispositivos instalados na borda da infraestrutura.
-
-A plataforma oferece monitoramento contínuo de temperatura, umidade e status dos equipamentos, além de gerar alertas, históricos e indicadores que auxiliam na prevenção de falhas e na tomada de decisões.
-
-Com foco em desempenho, escalabilidade e confiabilidade, o ThermoSync integra hardware e software em uma solução completa para garantir o controle da rede refrigerada e a eficiência operacional.
-             </p>
         </div>
+        <div className="about-overview-actions">
+          <button className="btn btn-primary" onClick={() => onNavigate?.('dashboard')}><Activity size={16} /> Abrir dashboard</button>
+          <button className="btn btn-outline" onClick={() => onNavigate?.('suporte')}><LifeBuoy size={16} /> Obter suporte</button>
+        </div>
+      </section>
+
+      <section className="about-principles" aria-label="Pilares da plataforma">
+        <article><Radio size={19} /><div><strong>Tempo real</strong><span>Eventos e telemetria distribuídos para as telas operacionais.</span></div></article>
+        <article><Layers3 size={19} /><div><strong>Contexto único</strong><span>Ativos, lojas, chamados e auditoria conectados no mesmo fluxo.</span></div></article>
+        <article><ShieldCheck size={19} /><div><strong>Rastreabilidade</strong><span>Histórico para investigar eventos e acompanhar intervenções.</span></div></article>
+        <article><Boxes size={19} /><div><strong>Multiempresa</strong><span>Escopos separados por organização, filial e perfil de acesso.</span></div></article>
+      </section>
+
+      <section className="about-panel">
+        <header className="about-section-head"><div><span>Arquitetura</span><h3>Como os dados percorrem o sistema</h3><p>Da leitura física até a visualização e resposta operacional.</p></div></header>
+        <div className="about-architecture">
+          {ARCHITECTURE_STEPS.map(({ icon: Icon, label, detail }, index) => (
+            <React.Fragment key={label}>
+              <article><span><Icon size={20} /></span><strong>{label}</strong><small>{detail}</small></article>
+              {index < ARCHITECTURE_STEPS.length - 1 && <ArrowRight className="about-flow-arrow" size={18} />}
+            </React.Fragment>
+          ))}
+        </div>
+      </section>
+
+      <section className="about-capabilities">
+        <div className="about-capability-nav">
+          <div className="about-section-head"><span>Capacidades</span><h3>Uma plataforma, três frentes</h3><p>Selecione uma área para conhecer o papel de cada conjunto de ferramentas.</p></div>
+          <div className="about-tabs" role="tablist">
+            {Object.entries(PLATFORM_AREAS).map(([key, item]) => <button key={key} role="tab" aria-selected={activeArea === key} className={activeArea === key ? 'active' : ''} onClick={() => setActiveArea(key)}>{item.label}</button>)}
+          </div>
+        </div>
+        <div className="about-capability-content">
+          <p>{area.description}</p>
+          <div className="about-module-grid">
+            {area.modules.map(({ icon: Icon, title, text }) => <article key={title}><span><Icon size={19} /></span><div><strong>{title}</strong><p>{text}</p></div></article>)}
+          </div>
+        </div>
+      </section>
+
+      <div className="about-lower-grid">
+        <section className="about-panel">
+          <header className="about-section-head"><div><span>Tecnologia</span><h3>Base técnica</h3><p>Componentes principais que sustentam a aplicação.</p></div></header>
+          <div className="about-stack-list">
+            <div><span>Interface</span><strong>React + Vite</strong><small>Aplicação responsiva web e Capacitor</small></div>
+            <div><span>Serviços</span><strong>Node.js + Express</strong><small>APIs, autenticação e integrações</small></div>
+            <div><span>Dados</span><strong>MySQL</strong><small>Persistência transacional e histórica</small></div>
+            <div><span>Tempo real</span><strong>Socket.IO + MQTT</strong><small>Eventos do sistema e ingestão IoT</small></div>
+          </div>
+        </section>
+
+        <section className="about-panel">
+          <header className="about-section-head"><div><span>Próximos passos</span><h3>Encontre o lugar certo</h3><p>Acesse diretamente controles relacionados à plataforma.</p></div></header>
+          <div className="about-action-list">
+            {availableActions.map(({ label, description, icon: Icon, target }) => <button key={target} onClick={() => onNavigate?.(target)}><span><Icon size={18} /></span><div><strong>{label}</strong><small>{description}</small></div><ArrowRight size={15} /></button>)}
+          </div>
+        </section>
       </div>
 
-      {/* TRIPÉ DA INFRAESTRUTURA TÉCNICA */}
-      <div className="dev-section-title stagger-2">
-        <Layers size={28} color="#38bdf8" />
-        Especificações Arquiteturais
-      </div>
-
-      {/* DIAGRAMA VISUAL DE DADOS (NOVO) */}
-      <div className="architecture-flow stagger-2">
-        <div className="flow-node">
-          <Cpu size={24} color="#10b981" />
-          <strong>IoT / Edge Nodes</strong>
-          <span>ESP32 + Sensores</span>
+      <section className="about-authorship">
+        <div className="about-author-icon"><GraduationCap size={23} /></div>
+        <div><span className="about-kicker">Engenharia e autoria</span><h3>João Henrique</h3><p>Projeto desenvolvido a partir de uma necessidade operacional e evoluído como Trabalho de Conclusão de Curso em Redes de Computadores.</p></div>
+        <div className="about-socials">
+          <a href="https://github.com/joaosaturnino" target="_blank" rel="noopener noreferrer"><Github size={16} /> GitHub <ExternalLink size={13} /></a>
+          <a href="https://www.linkedin.com/in/jo%C3%A3o-henrique-00288621a/" target="_blank" rel="noopener noreferrer"><BookOpen size={16} /> LinkedIn <ExternalLink size={13} /></a>
         </div>
-        
-        <ArrowRight size={24} className="flow-arrow" />
-        
-        <div className="flow-node" style={{ borderColor: 'rgba(56, 189, 248, 0.4)' }}>
-          <Wifi size={24} color="#38bdf8" />
-          <strong>Mqtt / WebSockets</strong>
-          <span>Tráfego Bidirecional</span>
-        </div>
-
-        <ArrowRight size={24} className="flow-arrow" />
-
-        <div className="flow-node" style={{ borderColor: 'rgba(167, 139, 250, 0.4)' }}>
-          <Server size={24} color="#a78bfa" />
-          <strong>SaaS Core API</strong>
-          <span>Node.js + MySQL</span>
-        </div>
-
-        <ArrowRight size={24} className="flow-arrow" />
-
-        <div className="flow-node" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
-          <TerminalSquare size={24} color="#f59e0b" />
-          <strong>NOC Dashboard</strong>
-          <span>React.js Enterprise</span>
-        </div>
-      </div>
-
-      <div className="sobre-tech-grid stagger-2">
-        <div className="sobre-tech-card" style={{ '--card-color': '#10b981' }}>
-          <div className="tech-card-header">
-            <div className="tech-icon-wrapper">
-              <Zap size={26} color="#10b981" />
-            </div>
-            <strong>Edge Computing & IoT</strong>
-          </div>
-          <p>
-            Comunicação escalável em tempo real através de WebSockets bidirecionais, integrando microcontroladores IoT sob barramentos estáveis de telemetria na borda da rede.
-          </p>
-        </div>
-
-        <div className="sobre-tech-card" style={{ '--card-color': '#38bdf8' }}>
-          <div className="tech-card-header">
-            <div className="tech-icon-wrapper">
-              <ShieldCheck size={26} color="#38bdf8" />
-            </div>
-            <strong>Compliance Operacional</strong>
-          </div>
-          <p>
-            Rastreabilidade total das cadeias frias corporativas e conformidade automatizada com métricas rigorosas de preservação para ativos termolábeis e redução de quebras térmicas.
-          </p>
-        </div>
-
-        <div className="sobre-tech-card" style={{ '--card-color': '#a78bfa' }}>
-          <div className="tech-card-header">
-            <div className="tech-icon-wrapper">
-              <Database size={26} color="#a78bfa" />
-            </div>
-            <strong>SaaS Isolation Core</strong>
-          </div>
-          <p>
-            Arquitetura de banco de dados orientada ao isolamento lógico Multi-Tenant. Abstração completa de instâncias, autenticação JWT robusta e criptografia de logs de auditoria imutáveis.
-          </p>
-        </div>
-      </div>
-
-      {/* PORTFÓLIO DO DESENVOLVEDOR (ID BADGE) */}
-      <div className="dev-section-title stagger-3" style={{ marginTop: '3rem' }}>
-        <Fingerprint size={28} color="#10b981" />
-        Engenharia & Autoria
-      </div>
-
-      <div className="developer-profile-card stagger-3">
-        
-        {/* Links Sociais no Topo Direito (Desktop) */}
-        <div className="dev-social-links">
-          <a href="https://github.com/joaosaturnino" target="_blank" rel="noopener noreferrer" className="social-btn github">
-            <Github size={18} /> GitHub
-          </a>
-          <a href="https://www.linkedin.com/in/jo%C3%A3o-henrique-00288621a/" target="_blank" rel="noopener noreferrer" className="social-btn linkedin">
-            <Linkedin size={18} /> LinkedIn
-          </a>
-        </div>
-
-        <div className="dev-avatar-container">
-          <div className="dev-avatar">
-            <div className="status-online-dot" title="Status: Online e Operante"></div>
-            JH
-            <div className="clearance-badge">SYS.ROOT</div>
-          </div>
-          <span className="dev-id-serial">ID: TS-ROOT-001</span>
-        </div>
-        
-        <div className="dev-info">
-          <div>
-            <h2 className="dev-name">João Henrique</h2>
-            <div className="dev-role">
-              <TerminalSquare size={18} /> SOFTWARE ARCHITECT & FULL-STACK ENGINEER
-            </div>
-          </div>
-
-          <div className="terminal-prompt-box">
-             {bootLines.map((line, idx) => (
-                <div key={idx} className="terminal-line">
-                  {line.type === 'cmd' ? (
-                     <><span className="terminal-user">root@thermosync</span>:<span className="terminal-dir">~</span>$ {line.text.replace('root@thermosync:~# ', '')}</>
-                  ) : line.type === 'sys' ? (
-                     <span className="terminal-sys">{line.text}</span>
-                  ) : (
-                     <span className="terminal-success">{line.text}</span>
-                  )}
-                </div>
-             ))}
-             
-             {showBio ? (
-                <p className="dev-bio" style={{ animation: 'fadeIn 0.5s ease-out', marginTop: '10px' }}>
-                  Engenheiro e idealizador do ecossistema <strong>ThermoSync</strong>. A plataforma surgiu a partir de uma necessidade operacional identificada no ambiente de trabalho, onde a ausência de uma solução centralizada para o monitoramento de câmaras frigoríficas e equipamentos críticos evidenciava desafios relacionados ao controle, rastreabilidade e resposta a eventos.
-
-Com o potencial da ideia, o projeto foi expandido e estruturado como <strong>Trabalho de Conclusão de Curso (TCC) em Redes de Computadores</strong>, evoluindo de um protótipo acadêmico para uma plataforma empresarial voltada ao monitoramento inteligente e à gestão de dispositivos IoT.
-
-Atualmente, o ThermoSync integra desenvolvimento <strong>Full-Stack</strong>, arquiteturas distribuídas, APIs de alta performance, processamento de telemetria em tempo real e comunicação direta com hardware embarcado, oferecendo uma solução escalável, segura e confiável para o gerenciamento de ambientes frigorificados e da infraestrutura operacional.
-<span className="terminal-cursor"></span>
-                </p>
-             ) : (
-                <div style={{ height: '24px' }}><span className="terminal-cursor"></span></div>
-             )}
-          </div>
-
-          <div className="tech-stack-pills">
-             <span className="pill">React.js</span>
-             <span className="pill">Node.js</span>
-             <span className="pill">MySQL</span>
-             <span className="pill">WebSockets</span>
-             <span className="pill">C++ / Arduino (IoT)</span>
-          </div>
-
-          {/* GRADE ACADÊMICA COMPLETA */}
-          <div className="dev-courses-grid">
-            <div className="course-badge">
-              <Network size={22} style={{ color: '#10b981', flexShrink: 0 }} />
-              <span>Técnico em Redes de Computadores</span>
-            </div>
-            
-            <div className="course-badge">
-              <GraduationCap size={22} style={{ color: '#38bdf8', flexShrink: 0 }} />
-              <span>Técnico em Desenvolvimento de Sistemas</span>
-            </div>
-            
-            <div className="course-badge">
-              <Globe size={22} style={{ color: '#a78bfa', flexShrink: 0 }} />
-              <span>Técnico em Informática para Internet</span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
+      </section>
     </div>
   );
 }

@@ -16,8 +16,243 @@
   --ios-separator: color-mix(in srgb, var(--border) 72%, transparent);
 }
 
+/* ================================================================
+   RESPONSIVIDADE SEM ROLAGEM HORIZONTAL
+   Tabelas viram cartões no celular; abas, filtros e quadros quebram
+   ou empilham sem exigir gesto lateral.
+   ================================================================ */
+@media (max-width: 1366px) {
+  .content-area .table-responsive,
+  .content-area .table-responsive-wrapper,
+  .content-area .table-container,
+  .content-area .table-container-modern,
+  .content-area .table-wrapper,
+  .content-area .identity-table-wrapper,
+  .content-area .flex-table-container,
+  .content-area .log-table-wrapper,
+  .content-area [class*="table-scroll"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none !important;
+  }
+
+  .content-area table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+
+  .content-area th,
+  .content-area td {
+    min-width: 0 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .workspace-tabs-list,
+  .onboarding-tabs,
+  .chamados-tabs,
+  .bi-tabs-bar,
+  .docs-categories,
+  .equipment-status-filters,
+  .metrologia-filters,
+  .finance-status-tabs,
+  .sql-quick-actions,
+  .firehose-filters,
+  .serial-filters,
+  .quick-replies-container,
+  .day-filter,
+  .timeline-controls > div,
+  .privacy-tabs,
+  .sla-tabs,
+  .support-tabs {
+    flex-wrap: wrap !important;
+    overflow-x: hidden !important;
+  }
+
+  .workspace-tabs-list > *,
+  .onboarding-tabs > *,
+  .chamados-tabs > *,
+  .bi-tabs-bar > *,
+  .docs-categories > *,
+  .equipment-status-filters > *,
+  .metrologia-filters > *,
+  .finance-status-tabs > *,
+  .sql-quick-actions > *,
+  .firehose-filters > *,
+  .serial-filters > *,
+  .quick-replies-container > *,
+  .day-filter > * {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-area,
+  .content-area * {
+    max-width: 100%;
+  }
+
+  .content-area .table-responsive,
+  .content-area .table-responsive-wrapper,
+  .content-area .table-container,
+  .content-area .table-container-modern,
+  .content-area .table-wrapper,
+  .content-area .identity-table-wrapper,
+  .content-area .flex-table-container,
+  .content-area .log-table-wrapper,
+  .content-area [class*="table-scroll"] {
+    overflow: visible !important;
+  }
+
+  .content-area table:has(td[data-label]) {
+    display: block;
+    border: 0;
+    background: transparent;
+  }
+
+  .content-area table:has(td[data-label]) thead {
+    display: none;
+  }
+
+  .content-area table:has(td[data-label]) tbody {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .content-area table:has(td[data-label]) tbody tr {
+    display: grid;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+  }
+
+  .content-area table:has(td[data-label]) tbody td {
+    display: grid;
+    grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    width: 100% !important;
+    min-height: 44px;
+    padding: 9px 10px !important;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left !important;
+  }
+
+  .content-area table:has(td[data-label]) tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .content-area table:has(td[data-label]) tbody td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.25;
+    text-transform: uppercase;
+  }
+
+  .content-area table:has(td[data-label]) tbody td[colspan] {
+    display: block;
+  }
+
+  .content-area table:not(:has(td[data-label])) {
+    table-layout: fixed !important;
+  }
+
+  .content-area table:not(:has(td[data-label])) th,
+  .content-area table:not(:has(td[data-label])) td {
+    padding: 7px 5px !important;
+    font-size: .65rem !important;
+  }
+
+  .content-area .flex-table-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .content-area .saas-table-header,
+  .content-area .finance-table-header,
+  .content-area .fleet-table-head {
+    display: none !important;
+  }
+
+  .content-area .saas-client-row,
+  .content-area .finance-table-row,
+  .content-area .fleet-table-row,
+  .content-area .soc-evidence-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+    padding: 10px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    background: var(--card-bg);
+  }
+
+  .content-area .saas-client-row > *,
+  .content-area .finance-table-row > *,
+  .content-area .fleet-table-row > *,
+  .content-area .soc-evidence-row > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  .content-area .kanban-board {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .content-area .kanban-column {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+
+  .system-footer-links {
+    flex-wrap: wrap !important;
+    overflow-x: hidden !important;
+  }
+
+  pre,
+  code,
+  .terminal,
+  .crt-terminal,
+  .terminal-caos,
+  .log-console,
+  .logs-panel {
+    overflow-x: hidden !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 .mobile-title-stack,
 .mobile-tab-bar {
+  display: none;
+}
+
+.sidebar-logout-label {
   display: none;
 }
 
@@ -165,6 +400,7 @@
 }
 
 @media (max-width: 768px) {
+
   html.mobile-app,
   body.mobile-app,
   html.native-app,
@@ -261,27 +497,37 @@
     min-width: 0;
   }
 
-  .mobile-title-stack {
+  .header-page-identity {
     display: flex;
     min-width: 0;
     flex: 1;
-    flex-direction: column;
-    gap: 1px;
+    gap: 8px;
   }
 
-  .mobile-title-stack span {
+  .header-page-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 6px;
+  }
+
+  .header-page-copy {
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .header-page-copy>span {
     color: var(--text-muted);
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 700;
     line-height: 1;
-    text-transform: none;
   }
 
-  .mobile-title-stack strong {
-    max-width: 48vw;
+  .header-page-copy .page-title {
+    max-width: none;
     overflow: hidden;
     color: var(--text-main);
-    font-size: 1.08rem;
+    font-size: 1rem;
     font-weight: 800;
     line-height: 1.1;
     text-overflow: ellipsis;
@@ -423,7 +669,7 @@
     padding: 0 4px;
     border-radius: 999px;
     background: var(--danger);
-    color: #fff;
+    color: var(--neutral-0);
     font-size: 0.58rem;
     font-weight: 900;
     line-height: 16px;
@@ -451,6 +697,7 @@
     backdrop-filter: blur(34px) saturate(1.45);
     -webkit-backdrop-filter: blur(34px) saturate(1.45);
     overflow: hidden;
+    z-index: 12020;
   }
 
   .mobile-app .sidebar.open,
@@ -563,9 +810,9 @@
     max-width: 100%;
   }
 
-  .mobile-app .nav-item + .nav-item,
-  .native-app .nav-item + .nav-item,
-  .termosync-mobile-webview .nav-item + .nav-item {
+  .mobile-app .nav-item+.nav-item,
+  .native-app .nav-item+.nav-item,
+  .termosync-mobile-webview .nav-item+.nav-item {
     border-top: 0.5px solid var(--ios-separator) !important;
   }
 
@@ -678,9 +925,31 @@
     box-shadow: none !important;
   }
 
+  .mobile-app .sidebar-footer .sidebar-lock,
+  .native-app .sidebar-footer .sidebar-lock,
+  .termosync-mobile-webview .sidebar-footer .sidebar-lock {
+    flex: 0 0 46px;
+  }
+
+  .mobile-app .sidebar-footer .sidebar-logout,
+  .native-app .sidebar-footer .sidebar-logout,
+  .termosync-mobile-webview .sidebar-footer .sidebar-logout {
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+
+  .mobile-app .sidebar-logout-label,
+  .native-app .sidebar-logout-label,
+  .termosync-mobile-webview .sidebar-logout-label {
+    display: inline;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
   .mobile-app .overlay,
   .native-app .overlay,
   .termosync-mobile-webview .overlay {
+    z-index: 12010;
     background: rgba(2, 6, 23, 0.45);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -1145,24 +1414,24 @@
     box-sizing: border-box !important;
   }
 
-  .mobile-app .modal-actions > button,
-  .mobile-app .modal-actions-custom > button,
-  .mobile-app .iam-modal-footer > button,
-  .mobile-app .aprovacoes-modal-footer > button,
-  .mobile-app .bi-modal-footer > button,
-  .mobile-app .modern-modal-footer > button,
-  .native-app .modal-actions > button,
-  .native-app .modal-actions-custom > button,
-  .native-app .iam-modal-footer > button,
-  .native-app .aprovacoes-modal-footer > button,
-  .native-app .bi-modal-footer > button,
-  .native-app .modern-modal-footer > button,
-  .termosync-mobile-webview .modal-actions > button,
-  .termosync-mobile-webview .modal-actions-custom > button,
-  .termosync-mobile-webview .iam-modal-footer > button,
-  .termosync-mobile-webview .aprovacoes-modal-footer > button,
-  .termosync-mobile-webview .bi-modal-footer > button,
-  .termosync-mobile-webview .modern-modal-footer > button {
+  .mobile-app .modal-actions>button,
+  .mobile-app .modal-actions-custom>button,
+  .mobile-app .iam-modal-footer>button,
+  .mobile-app .aprovacoes-modal-footer>button,
+  .mobile-app .bi-modal-footer>button,
+  .mobile-app .modern-modal-footer>button,
+  .native-app .modal-actions>button,
+  .native-app .modal-actions-custom>button,
+  .native-app .iam-modal-footer>button,
+  .native-app .aprovacoes-modal-footer>button,
+  .native-app .bi-modal-footer>button,
+  .native-app .modern-modal-footer>button,
+  .termosync-mobile-webview .modal-actions>button,
+  .termosync-mobile-webview .modal-actions-custom>button,
+  .termosync-mobile-webview .iam-modal-footer>button,
+  .termosync-mobile-webview .aprovacoes-modal-footer>button,
+  .termosync-mobile-webview .bi-modal-footer>button,
+  .termosync-mobile-webview .modern-modal-footer>button {
     display: inline-flex !important;
     align-items: center !important;
     align-self: stretch !important;
@@ -1180,6 +1449,7 @@
 }
 
 @media (max-width: 360px) {
+
   .mobile-app .modal-actions,
   .mobile-app .modal-actions-custom,
   .mobile-app .modal-actions-chamados,
@@ -1212,6 +1482,7 @@
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+
   .mobile-app .header,
   .native-app .header,
   .termosync-mobile-webview .header {
@@ -1236,6 +1507,7 @@
 
 /* Camada final de responsividade: neutraliza larguras fixas das telas antigas no mobile. */
 @media (max-width: 768px) {
+
   .mobile-app *,
   .mobile-app *::before,
   .mobile-app *::after,
@@ -1263,9 +1535,9 @@
     overscroll-behavior-y: contain;
   }
 
-  .mobile-app .content-area > *,
-  .native-app .content-area > *,
-  .termosync-mobile-webview .content-area > *,
+  .mobile-app .content-area>*,
+  .native-app .content-area>*,
+  .termosync-mobile-webview .content-area>*,
   .mobile-app .content-area [class*="container"],
   .native-app .content-area [class*="container"],
   .termosync-mobile-webview .content-area [class*="container"],
@@ -1299,12 +1571,12 @@
     gap: 0.65rem !important;
   }
 
-  .mobile-app .content-area [class*="header"] > *,
-  .native-app .content-area [class*="header"] > *,
-  .termosync-mobile-webview .content-area [class*="header"] > *,
-  .mobile-app .content-area [class*="filters"] > *,
-  .native-app .content-area [class*="filters"] > *,
-  .termosync-mobile-webview .content-area [class*="filters"] > * {
+  .mobile-app .content-area [class*="header"]>*,
+  .native-app .content-area [class*="header"]>*,
+  .termosync-mobile-webview .content-area [class*="header"]>*,
+  .mobile-app .content-area [class*="filters"]>*,
+  .native-app .content-area [class*="filters"]>*,
+  .termosync-mobile-webview .content-area [class*="filters"]>* {
     max-width: 100%;
   }
 
@@ -1595,6 +1867,14 @@
     --mobile-tab-height: 70px;
   }
 
+  .header-page-icon {
+    display: none;
+  }
+
+  .header-page-copy .page-title {
+    font-size: 0.89rem;
+  }
+
   .mobile-app .mobile-tab-item,
   .native-app .mobile-tab-item,
   .termosync-mobile-webview .mobile-tab-item {
@@ -1611,6 +1891,7 @@
 
 /* Mobile sem scrollbar visível: mantém rolagem por toque e evita cara de webview. */
 @media (max-width: 768px) {
+
   .mobile-app,
   .native-app,
   .termosync-mobile-webview {
@@ -1726,3 +2007,56 @@
   }
 }
 
+/* Mantém estas regras por último para prevalecer sobre os ajustes nativos antigos. */
+@media (max-width: 1366px) {
+  html .content-area .table-responsive,
+  html .content-area .table-responsive-wrapper,
+  html .content-area .table-container,
+  html .content-area .table-container-modern,
+  html .content-area .table-wrapper,
+  html .content-area .identity-table-wrapper,
+  html .content-area .flex-table-container,
+  html .content-area .log-table-wrapper,
+  html .content-area [class*="table-scroll"] {
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none !important;
+  }
+
+  html .content-area table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html .content-area .table-responsive,
+  html .content-area .table-responsive-wrapper,
+  html .content-area .table-container,
+  html .content-area .table-container-modern,
+  html .content-area .table-wrapper,
+  html .content-area .identity-table-wrapper,
+  html .content-area .flex-table-container,
+  html .content-area .log-table-wrapper,
+  html .content-area [class*="table-scroll"] {
+    overflow: visible !important;
+  }
+
+  html .content-area .flex-table-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  html .content-area .kanban-board {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    overflow: visible !important;
+  }
+
+  html .content-area .kanban-column {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+}

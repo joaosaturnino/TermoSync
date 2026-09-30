@@ -1,16 +1,26 @@
+/**
+ * Módulo: frontend/src/pages/PainelDesenvolvedor/PainelDesenvolvedor.jsx
+ * Responsabilidade: Implementa a tela Painel Desenvolvedor, seus estados, interações e integrações de dados.
+ */
+
+import { Box, ChevronLeft, ChevronRight, Gauge, ListChecks, LogOut, PackageCheck, UploadCloud } from 'lucide-react';
+import LiveFirehose from './LiveFirehose';
+import NetworkProbe from './NetworkProbe';
+import SerialEdgeMonitor from './SerialEdgeMonitor';
+import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  ShieldAlert, Database, Cpu, Power, Settings2, Activity, Globe,
+  ShieldAlert, Database, Cpu, Power, Settings2, Activity,
   Server, History, FileText,
   DollarSign, Building2, ActivitySquare, Terminal, RefreshCw, Mail,
   Key, UserCheck, LineChart, ShieldCheck, Fingerprint as FingerprintIcon,
   UserX, Clock, PieChart, FileSpreadsheet, Unlock, CheckCircle2,
-  AlertTriangle, TrendingUp, DownloadCloud, Calendar, Percent, Banknote,
+  AlertTriangle, DownloadCloud, Calendar, Percent, Banknote,
   Eraser, Network, Copy, Check, AlertOctagon, Loader2,
   Receipt, Cloud, HardDrive, Radio, ServerCrash,
-  Flame, AlertCircle, Wifi, Users,
+  AlertCircle, Wifi, Users,
   UserPlus, UserCog, LockKeyhole, MonitorSmartphone,
-  Search, ShieldBan, Save, Target, X, Rocket, GitCommit, FileCode,
+  Search, ShieldBan, Save, Target, X, Rocket, GitCommit,
   Trash2, Filter, CalendarMinus, Plug, PauseCircle, PlayCircle
 } from 'lucide-react';
 
@@ -22,25 +32,38 @@ import GestaoEmpresas from '../GestaoEmpresas/GestaoEmpresas';
 import TermoSyncLogo from '../../components/TermoSyncLogo.jsx';
 
 /**
- * Concentra a logica de fetch with timeout para manter o restante do tela mais legivel.
+ * Renderiza a tela Painel Desenvolvedor e concentra as regras de apresentacao desse modulo.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador; troca eventos em tempo real
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.abaAtiva - Propriedade abaAtiva usada para configurar dados ou comportamento do componente.
+ * @param {boolean} props.isDevAuthenticated - Sinalizador isDevAuthenticated que controla este comportamento visual.
+ * @param {Function} props.onAuthenticate - Callback onAuthenticate fornecido pelo componente responsável.
+ * @param {Function} props.onLogout - Callback onLogout fornecido pelo componente responsável.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.sysConfig - Propriedade sysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.updateSysConfig - Propriedade updateSysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.tocarAlarme - Propriedade tocarAlarme usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.usuariosLista - Propriedade usuariosLista usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filiaisDb - Propriedade filiaisDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.navigationCatalog - Propriedade navigationCatalog usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-const fetchWithTimeout = async (url, options = {}, timeoutMs = 3500) => {
-  // Wrapper para chamadas diretas a dispositivos de borda. Sem timeout manual,
-  // fetch pode ficar pendurado por muito tempo quando um ESP32 está offline.
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
-};
-
-// ============================================================================
-// COMPONENTE PRINCIPAL (CONTAINER OS)
-// ============================================================================
-export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthenticated, onAuthenticate: _onAuthenticate, showToast, sysConfig, updateSysConfig, tocarAlarme: _tocarAlarme, usuariosLista, filiaisDb, setModalConfig, navigationCatalog = [] }) {
+export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthenticated, onAuthenticate, onLogout, showToast, sysConfig, updateSysConfig, tocarAlarme: _tocarAlarme, usuariosLista, filiaisDb, setModalConfig, navigationCatalog = [] }) {
   // Container mestre do modo DEV. Ele autentica o terminal root e roteia as
   // subtelas internas de NOC, SOC, SaaS, Billing, SQL, Edge e atualizações.
   const [, setTerminalLogs] = useState(() => [
@@ -48,6 +71,44 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
   ]);
   const [isOverclocked, setIsOverclocked] = useState(false);
   const [ticketsSuporteAbertos, setTicketsSuporteAbertos] = useState(0);
+  const [rootPasscode, setRootPasscode] = useState('');
+  const [rootError, setRootError] = useState('');
+  const [isVerifyingRoot, setIsVerifyingRoot] = useState(false);
+
+
+  /**
+   * Processa a interacao de handle root access e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const handleRootAccess = async (event) => {
+    event.preventDefault();
+    if (!rootPasscode.trim() || isVerifyingRoot) return;
+    setIsVerifyingRoot(true);
+    setRootError('');
+    try {
+      const response = await api.post('/system/verify-root-passcode', { passcode: rootPasscode.trim() });
+      if (!response.data?.success) throw new Error('Credencial ROOT invalida.');
+      setRootPasscode('');
+      onAuthenticate();
+    } catch (error) {
+      setRootError(error.response?.data?.error || 'Nao foi possivel validar a credencial ROOT.');
+    } finally {
+      setIsVerifyingRoot(false);
+    }
+  };
 
   const addLog = useCallback((text, status = 'info') => {
     setTerminalLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR'), text, status }]);
@@ -70,8 +131,20 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
 
   useEffect(() => {
     if (!socket) return undefined;
+
     /**
      * Concentra a logica de refresh support tickets para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const refreshSupportTickets = () => carregarTicketsSuporte();
     socket.on('atualizacao_dados', refreshSupportTickets);
@@ -80,11 +153,28 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
 
   if (!isDevAuthenticated) {
     return (
-      <div className="dev-os-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '15px', color: 'var(--danger)' }}>
-        <ShieldAlert size={64} className="pulse-icon" />
-        <h2>Acesso Rejeitado</h2>
-        <p style={{ color: '#94a3b8' }}>O terminal requer autenticação de Nível ROOT.</p>
-      </div>
+      <form className="dev-access" onSubmit={handleRootAccess}>
+        <LockKeyhole size={28} aria-hidden="true" />
+        <h2>Controle do sistema</h2>
+        <p>Informe a credencial ROOT para acessar os controles de desenvolvimento.</p>
+        <label htmlFor="dev-root-passcode">Credencial ROOT</label>
+        <input
+          id="dev-root-passcode"
+          type="password"
+          autoComplete="off"
+          value={rootPasscode}
+          onChange={(event) => { setRootPasscode(event.target.value); setRootError(''); }}
+          disabled={isVerifyingRoot}
+        />
+        {rootError && <p className="dev-access-error" role="alert">{rootError}</p>}
+        <button type="submit" className="btn btn-primary" disabled={!rootPasscode.trim() || isVerifyingRoot}>
+          {isVerifyingRoot ? <Loader2 size={18} className="spin" /> : <Unlock size={18} />}
+          {isVerifyingRoot ? 'Validando...' : 'Acessar controle'}
+        </button>
+        <button type="button" className="btn btn-outline" onClick={onLogout}>
+          <LogOut size={18} /> Sair da conta
+        </button>
+      </form>
     );
   }
 
@@ -104,38 +194,49 @@ export default function PainelDesenvolvedor({ api, socket, abaAtiva, isDevAuthen
         </div>
       )}
 
-      {sysConfig?.maintenanceMode && (
-        <div className="maintenance-banner">
-          <AlertOctagon size={18} className="pulse-icon" /> SISTEMA EM MODO DE MANUTENÇÃO (OFFLINE) <AlertOctagon size={18} className="pulse-icon" />
-        </div>
-      )}
-
       <div className="dev-os-workspace">
         <div className="dev-os-content" style={{ position: 'relative' }}>
-          {abaAtiva === 'empresas' && <GestaoEmpresas api={api} showToast={showToast} setModalConfig={setModalConfig} />}
+          {abaAtiva === 'empresas' && <GestaoEmpresas api={api} socket={socket} showToast={showToast} setModalConfig={setModalConfig} />}
           {abaAtiva === 'dev_panel' && <TelaNOC api={api} showToast={showToast} sysConfig={sysConfig} updateSysConfig={updateSysConfig} usuariosLista={usuariosLista} filiaisDb={filiaisDb} addLog={addLog} setModalConfig={setModalConfig} isOverclocked={isOverclocked} setIsOverclocked={setIsOverclocked} navigationCatalog={navigationCatalog} />}
-          {abaAtiva === 'saas' && <TelaSaaS api={api} sysConfig={sysConfig} updateSysConfig={updateSysConfig} filiaisDb={filiaisDb} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} />}
+          {abaAtiva === 'saas' && <TelaSaaS api={api} sysConfig={sysConfig} updateSysConfig={updateSysConfig} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} />}
           {abaAtiva === 'billing' && <TelaBilling api={api} socket={socket} sysConfig={sysConfig} filiaisDb={filiaisDb} showToast={showToast} addLog={addLog} updateSysConfig={updateSysConfig} setModalConfig={setModalConfig} />}
-          {abaAtiva === 'system' && <TelaSistema api={api} showToast={showToast} addLog={addLog} sysConfig={sysConfig} updateSysConfig={updateSysConfig} usuariosLista={usuariosLista} setModalConfig={setModalConfig} />}
+          {abaAtiva === 'system' && <TelaSistema api={api} socket={socket} showToast={showToast} addLog={addLog} sysConfig={sysConfig} updateSysConfig={updateSysConfig} usuariosLista={usuariosLista} setModalConfig={setModalConfig} />}
           {abaAtiva === 'soc' && <TelaSOC api={api} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} usuariosLista={usuariosLista} />}
           {abaAtiva === 'bi' && <TelaBI api={api} showToast={showToast} addLog={addLog} sysConfig={sysConfig} filiaisDb={filiaisDb} />}
           {abaAtiva === 'atualizacoes' && <TelaAtualizacoes api={api} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} isOverclocked={isOverclocked} />}
           {abaAtiva === 'sql_terminal' && <TelaTerminalSQL api={api} showToast={showToast} addLog={addLog} />}
-          {abaAtiva === 'websocket_stream' && <TelaWebSocketStream socket={socket} addLog={addLog} />}
-          {abaAtiva === 'network_scanner' && <TelaScannerRede api={api} showToast={showToast} addLog={addLog} filiaisDb={filiaisDb} />}
-          {abaAtiva === 'monitor_edge' && <MonitorFisicoESP api={api} />}
+          {abaAtiva === 'websocket_stream' && <LiveFirehose socket={socket} addLog={addLog} showToast={showToast} />}
+          {abaAtiva === 'network_scanner' && <NetworkProbe api={api} socket={socket} showToast={showToast} addLog={addLog} setModalConfig={setModalConfig} filiais={filiaisDb} />}
+          {abaAtiva === 'monitor_edge' && <SerialEdgeMonitor api={api} socket={socket} showToast={showToast} setModalConfig={setModalConfig} />}
         </div>
       </div>
     </div>
   );
 }
 
-// Componente auxiliar de Gráficos Minimizados
+/**
+ * Componente auxiliar de Gráficos Minimizados
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.dataKey - Propriedade dataKey usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.color - Propriedade color usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.data - Propriedade data usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 function RenderSparkline({ dataKey, color, data }) {
   // Mini gráfico usado nos painéis DEV para mostrar tendência sem ocupar espaço.
   return (
     <div className="sparkline-box">
-      <ResponsiveContainer width="100%" height={40}>
+      <ResponsiveContainer width="100%" height={40} minWidth={0}>
         <AreaChart data={data}>
           <defs>
             <linearGradient id={`color_${dataKey}`} x1="0" y1="0" x2="0" y2="1">
@@ -150,24 +251,39 @@ function RenderSparkline({ dataKey, color, data }) {
   );
 }
 
-/**
- * Verifica a condicao hash string e retorna um valor booleano.
- */
-const hashString = (value) => {
-  const text = String(value || '');
-  let hash = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = ((hash << 5) - hash) + text.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-};
 
 /**
  * Busca ou monta os dados de get cluster node position usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {number} index - Posição do item dentro da coleção atual.
+ * @param {unknown} total - Valor de total consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getClusterNodePosition = (index, total) => {
   const safeTotal = Math.max(total, 1);
+  /**
+   * Concentra a logica de angle para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const angle = ((index + 1) / safeTotal) * Math.PI * 2 - (Math.PI / 2);
   return {
     top: `${50 + Math.sin(angle) * 32}%`,
@@ -175,8 +291,21 @@ const getClusterNodePosition = (index, total) => {
   };
 };
 
+
 /**
  * Gera build cluster nodes com os dados necessarios para o proximo passo.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} filiais - Valor de filiais consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const buildClusterNodes = (filiais = []) => {
   const nodes = [{ id: 'master', name: 'sa-east-1a (Master Core)', role: 'BD Primário & API', status: 'online', pos: { top: '50%', left: '50%' }, ping: 10 }];
@@ -186,47 +315,66 @@ const buildClusterNodes = (filiais = []) => {
       nodes.push({
         id: `edge-${index}`,
         name: `Edge: ${filial}`,
-        role: 'Gateway IoT Local',
-        status: 'online',
+        role: 'Escopo operacional configurado',
+        status: 'configured',
         pos: getClusterNodePosition(index, filiais.length),
-        ping: 10
+        ping: null
       });
     });
-    return nodes;
   }
-
-  nodes.push({ id: 'replica', name: 'sa-east-1b (Replica)', role: 'Réplica de Leitura', status: 'online', pos: { top: '60%', left: '70%' }, ping: 10 });
   return nodes;
 };
 
 /**
- * Busca ou monta os dados de get tenant usage metric usados no fluxo atual.
+ * ============================================================================ TELA NOC
+ * (Network Operations Center) - COM TOPOLOGIA DINÂMICA
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador; publica ou consome mensagens MQTT
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.sysConfig - Propriedade sysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.updateSysConfig - Propriedade updateSysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.usuariosLista - Propriedade usuariosLista usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.filiaisDb - Propriedade filiaisDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @param {boolean} options.isOverclocked - Sinalizador isOverclocked que controla este comportamento visual.
+ * @param {unknown} options.setIsOverclocked - Propriedade setIsOverclocked usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.navigationCatalog - Propriedade navigationCatalog usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-const getTenantUsageMetric = (filial, planoAtual) => {
-  const seed = hashString(`${filial}:${planoAtual}`);
-  if (planoAtual === 'ENTERPRISE') {
-    return { nodeCount: 20 + (seed % 40), apiCalls: `${(1 + (seed % 50) / 10).toFixed(1)}M` };
-  }
-  if (planoAtual === 'PRO') {
-    return { nodeCount: 5 + (seed % 15), apiCalls: `${100 + (seed % 900)}K` };
-  }
-  return { nodeCount: 1 + (seed % 3), apiCalls: `${25 + (seed % 120)}K` };
-};
-
-// ============================================================================
-// TELA NOC (Network Operations Center) - COM TOPOLOGIA DINÂMICA
-// ============================================================================
-const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLista, filiaisDb, addLog, isOverclocked, setIsOverclocked, navigationCatalog = [] }) => {
+const TelaNOC = ({ api, showToast, sysConfig, updateSysConfig, usuariosLista, filiaisDb, addLog, setModalConfig, isOverclocked, setIsOverclocked, navigationCatalog = [] }) => {
   // Central de comando do desenvolvedor: concentra políticas globais, matriz de
-  // UI por papel/usuário e indicadores sintéticos da operação.
+  // UI por papel/usuário e métricas reais da API de saúde.
   const [scopeType, setScopeType] = useState('ROLE');
   const [activeScope, setActiveScope] = useState('GLOBAL');
-  const [metrics, setMetrics] = useState({ cpu: 12, ram: 42, ping: 14, reqs: 342, dbQps: 154, bandwidth: 24.5 });
+  const [metrics, setMetrics] = useState({ cpu: 0, ram: 0, ping: 0, reqs: 0, dbQps: 0, bandwidth: 0 });
   const [metricHistory, setMetricHistory] = useState(Array.from({ length: 20 }, () => ({ time: '', cpu: 0, ram: 0, bw: 0, db: 0 })));
   const [apiTraffic, setApiTraffic] = useState([]);
   const [threats, setThreats] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [latencyData, setLatencyData] = useState([]);
+  const [health, setHealth] = useState(null);
+  const [healthHistory, setHealthHistory] = useState([]);
+  const [hostInfo, setHostInfo] = useState(null);
+  const [securityStatus, setSecurityStatus] = useState(null);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+  const [loadingInventory, setLoadingInventory] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState(null);
   const initialClusterNodes = useMemo(() => buildClusterNodes(filiaisDb || []), [filiaisDb]);
   const [clusterNodes, setClusterNodes] = useState(initialClusterNodes);
   const [actionLoading, setActionLoading] = useState(null);
@@ -235,8 +383,6 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
   const wafContainerRef = useRef(null);
   const incidentsContainerRef = useRef(null);
 
-  const locs = useMemo(() => ['SP, BR', 'FRA, DE', 'ASH, US', 'TOK, JP', 'LON, UK', 'SYD, AU'], []);
-
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
       setClusterNodes(initialClusterNodes);
@@ -244,70 +390,122 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
     return () => window.cancelAnimationFrame(frameId);
   }, [initialClusterNodes]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const i1 = setInterval(() => {
-      if (!isMounted) return;
-      if (sysConfig.maintenanceMode) {
-        setMetrics({ cpu: 1, ram: 15, ping: 5, reqs: 0, dbQps: 0, bandwidth: 0 });
-        setMetricHistory(prev => [...prev.slice(1), { time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit' }), cpu: 1, ram: 15, bw: 0, db: 0 }]);
-        setLatencyData([]);
-        return;
-      }
+  const carregarControle = useCallback(async ({ manual = false } = {}) => {
+    if (manual) setLoadingHealth(true);
+    const startedAt = performance.now();
+    try {
+      const response = await api.get('/system/health', { validateStatus: status => status === 200 || status === 503 });
+      const snapshot = response.data || {};
+      const cpu = Math.round(Number(snapshot.cpuPercent || 0));
+      const ram = snapshot.memory?.heapTotalMb
+        ? Math.round((Number(snapshot.memory.heapUsedMb || 0) / Number(snapshot.memory.heapTotalMb)) * 100)
+        : 0;
+      const eventLoop = Math.round(Number(snapshot.eventLoopUtilization || 0));
+      const dbLatency = Math.round(Number(snapshot.databaseLatencyMs || 0));
+      const responseTime = Math.max(0, Math.round(performance.now() - startedAt));
+      const nextMetrics = {
+        cpu,
+        ram,
+        ping: dbLatency,
+        reqs: Number(snapshot.runtime?.activeRequests || 0),
+        dbQps: Number(snapshot.runtime?.activeHandles || 0),
+        bandwidth: eventLoop
+      };
+      const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      const multiplier = isOverclocked ? 4 : 1;
-      const newCpu = Math.min(100, Math.floor(Math.random() * 20 * multiplier) + (isOverclocked ? 70 : 15));
-      const newRam = Math.min(100, Math.floor(Math.random() * 10 * multiplier) + (isOverclocked ? 85 : 60));
-      const newReqs = Math.floor(Math.random() * 150 * multiplier) + (isOverclocked ? 1200 : 400);
-      const newDb = Math.floor(Math.random() * 50 * multiplier) + (isOverclocked ? 450 : 100);
-      const newBw = (Math.random() * 10 * multiplier + (isOverclocked ? 80 : 15)).toFixed(1);
-
-      setMetrics({ cpu: newCpu, ram: newRam, ping: Math.floor(Math.random() * 8) + 10, reqs: newReqs, dbQps: newDb, bandwidth: newBw });
-      setMetricHistory(prev => [...prev.slice(1), { time: new Date().toLocaleTimeString('pt-BR', { second: '2-digit' }), cpu: newCpu, ram: newRam, bw: newBw, db: newDb }]);
-      setClusterNodes(prev => prev.map(n => ({ ...n, ping: n.id === 'master' ? Math.floor(Math.random() * 5) + 2 : Math.floor(Math.random() * 20) + (isOverclocked ? 45 : 12) })));
-
+      setHealth(snapshot);
+      setMetrics(nextMetrics);
+      setLastSyncAt(new Date());
+      setMetricHistory(previous => [...previous.slice(-29), { time, cpu, ram, bw: eventLoop, db: dbLatency }]);
       setLatencyData([
-        { range: '10ms', count: Math.floor(Math.random() * 200) + 300 },
-        { range: '50ms', count: Math.floor(Math.random() * 100) + 150 },
-        { range: '100ms', count: Math.floor(Math.random() * 50) + 50 },
-        { range: '200ms', count: Math.floor(Math.random() * 20) + 10 },
-        { range: '500ms+', count: Math.floor(Math.random() * 5) }
+        { range: 'CPU', count: cpu },
+        { range: 'Heap', count: ram },
+        { range: 'Event loop', count: eventLoop },
+        { range: 'DB ms', count: Math.min(100, dbLatency) },
+        { range: 'Resposta', count: Math.min(100, responseTime) }
       ]);
-    }, 2000);
+      setApiTraffic(previous => [...previous.slice(-19), {
+        id: `${Date.now()}-${responseTime}`,
+        method: 'HEALTH',
+        color: snapshot.ok ? 'var(--success)' : 'var(--danger)',
+        route: '/api/system/health',
+        geo: `${responseTime}ms`,
+        ip: snapshot.runtime?.nodeVersion || 'Node.js'
+      }]);
+      setClusterNodes(previous => previous.map(node => ({
+        ...node,
+        status: node.id === 'master' ? (snapshot.ok ? 'online' : 'degraded') : 'configured',
+        ping: node.id === 'master' ? dbLatency : null
+      })));
 
-    const i2 = setInterval(() => {
-      if (!isMounted || sysConfig.maintenanceMode) return;
-      const rotas = [
-        { method: 'MQTT', route: 'telemetry/esp32', color: isOverclocked ? '#ef4444' : '#10b981' },
-        { method: 'POST', route: '/api/v1/auth', color: '#f59e0b' },
-        { method: 'WSS', route: '/ws/stream', color: '#a855f7' }
-      ];
-      const r = rotas[Math.floor(Math.random() * rotas.length)];
-      const geo = locs[Math.floor(Math.random() * locs.length)];
-      setApiTraffic(prev => [...prev.slice(-40), { id: Date.now() + Math.random(), method: r.method, color: r.color, route: r.route, geo, ip: `192.168.${Math.floor(Math.random()*10)}.${Math.floor(Math.random() * 255)}` }]);
-    }, isOverclocked ? 100 : 250);
+      const detectedIssues = [];
+      if (!snapshot.ok) detectedIssues.push('API reportou estado degradado.');
+      if (snapshot.database !== 'online') detectedIssues.push('Banco de dados indisponível.');
+      if (eventLoop >= 80) detectedIssues.push(`Event loop em ${eventLoop}%.`);
+      if (cpu >= 85) detectedIssues.push(`CPU em ${cpu}%.`);
+      if (dbLatency >= 200) detectedIssues.push(`Latência do banco em ${dbLatency}ms.`);
+      setThreats(detectedIssues.map((text, index) => ({ id: `${Date.now()}-${index}`, text: `[DIAGNÓSTICO] ${text}` })));
+      setIncidents(detectedIssues.map((msg, index) => ({ id: `${Date.now()}-${index}`, msg, type: snapshot.ok ? 'warning' : 'critical', time })));
 
-    const i3 = setInterval(() => {
-      if (!isMounted || sysConfig.maintenanceMode) return;
-      const atk = `[IDS] ASSINATURA: DDOS_SYN_FLOOD -> DESCARTE de 104.28.${Math.floor(Math.random() * 255)}.1`;
-      setThreats(prev => [...prev.slice(-20), { id: Date.now(), text: atk }]);
-    }, isOverclocked ? 1500 : 3500);
-
-    const i4 = setInterval(() => {
-      if (!isMounted || sysConfig.maintenanceMode) return;
-      if (Math.random() > 0.6) {
-        const errors = [
-          { msg: 'Aviso: Sobrecarga temporária na API.', type: 'warning' },
-          { msg: 'Crítico: Latência DB > 200ms.', type: 'critical' },
-          { msg: 'Aviso: Memória Redis 85%.', type: 'warning' }
-        ];
-        const err = errors[Math.floor(Math.random() * errors.length)];
-        setIncidents(prev => [...prev.slice(-15), { id: Date.now(), ...err, time: new Date().toLocaleTimeString('pt-BR') }]);
+      if (manual) {
+        addLog(`[CONTROLE] Diagnóstico atualizado em ${responseTime}ms.`, 'success');
+        showToast('Diagnóstico do controle atualizado.', 'success');
       }
-    }, 5000);
+    } catch (error) {
+      const time = new Date().toLocaleTimeString('pt-BR');
+      setHealth({ ok: false, status: 'offline', database: 'offline', mqtt: 'unknown' });
+      setThreats([{ id: Date.now(), text: `[DIAGNÓSTICO] API indisponível: ${error.message}` }]);
+      setIncidents([{ id: Date.now(), msg: 'Não foi possível consultar a saúde da plataforma.', type: 'critical', time }]);
+      if (manual) showToast('Falha ao atualizar o diagnóstico.', 'error');
+    } finally {
+      if (manual) setLoadingHealth(false);
+    }
+  }, [api, addLog, showToast]);
 
-    return () => { isMounted = false; clearInterval(i1); clearInterval(i2); clearInterval(i3); clearInterval(i4); };
-  }, [sysConfig.maintenanceMode, isOverclocked, locs]);
+  const carregarInventario = useCallback(async ({ manual = false } = {}) => {
+    if (manual) setLoadingInventory(true);
+    const [historyResult, hostResult, securityResult, sessionsResult] = await Promise.allSettled([
+      api.get('/system/health/history?minutes=60&limit=180'),
+      api.get('/system/host-info'),
+      api.get('/security/status'),
+      api.get('/soc/sessoes')
+    ]);
+
+    if (historyResult.status === 'fulfilled') {
+      const samples = Array.isArray(historyResult.value.data?.samples) ? historyResult.value.data.samples : [];
+      setHealthHistory(samples);
+      const chartSamples = samples.slice(0, 30).reverse().map(sample => ({
+        time: new Date(sample.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        cpu: Number(sample.cpuPercent || 0),
+        ram: sample.memory?.heapTotalMb ? Math.round((Number(sample.memory.heapUsedMb || 0) / Number(sample.memory.heapTotalMb)) * 100) : 0,
+        bw: Number(sample.eventLoopUtilization || 0),
+        db: Number(sample.databaseLatencyMs || 0)
+      }));
+      if (chartSamples.length) setMetricHistory(chartSamples);
+    }
+    if (hostResult.status === 'fulfilled') setHostInfo(hostResult.value.data?.success ? hostResult.value.data : null);
+    if (securityResult.status === 'fulfilled') setSecurityStatus(securityResult.value.data || null);
+    if (sessionsResult.status === 'fulfilled') setActiveSessions(Array.isArray(sessionsResult.value.data) ? sessionsResult.value.data : []);
+
+    if (manual) {
+      const failed = [historyResult, hostResult, securityResult, sessionsResult].filter(result => result.status === 'rejected').length;
+      addLog(`[CONTROLE] Inventário atualizado com ${failed} falha(s) de dependência.`, failed ? 'warning' : 'success');
+      if (failed) showToast(`${failed} fonte(s) do inventário não responderam.`, 'warning');
+      setLoadingInventory(false);
+    }
+  }, [api, addLog, showToast]);
+
+  useEffect(() => {
+    carregarControle();
+    const intervalId = window.setInterval(() => carregarControle(), isOverclocked ? 2000 : 5000);
+    return () => window.clearInterval(intervalId);
+  }, [carregarControle, isOverclocked]);
+
+  useEffect(() => {
+    carregarInventario();
+    const intervalId = window.setInterval(() => carregarInventario(), 30000);
+    return () => window.clearInterval(intervalId);
+  }, [carregarInventario]);
 
   useEffect(() => { if (trafficContainerRef.current) trafficContainerRef.current.scrollTop = trafficContainerRef.current.scrollHeight; }, [apiTraffic]);
   useEffect(() => { if (wafContainerRef.current) wafContainerRef.current.scrollTop = wafContainerRef.current.scrollHeight; }, [threats]);
@@ -318,51 +516,243 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
       const roleScopes = ['GLOBAL', 'ADMIN', 'LOJA', 'MANUTENCAO'];
       return roleScopes.includes(activeScope) ? activeScope : 'GLOBAL';
     }
+     /**
+      * Concentra a logica de usuarios elegiveis para manter o restante do tela mais legivel.
+      *
+      * Responsabilidade: mantém este comportamento isolado para que validação,
+      * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+      *
+      * Fluxo principal:
+      * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+      *
+      * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+      *
+      * @returns {unknown} Resultado calculado para consumo do chamador.
+      * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+      */
+
+    /**
+     * Concentra a logica de usuarios elegiveis para manter o restante do tela mais legivel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
     const usuariosElegiveis = (usuariosLista || []).filter((u) => u.role !== 'DEV');
     if (activeScope && usuariosElegiveis.some(u => u.usuario === activeScope)) return activeScope;
     return usuariosElegiveis?.[0]?.usuario || '';
   }, [scopeType, activeScope, usuariosLista]);
+   /**
+    * Concentra a logica de regras ativas para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @param {unknown} scopeType - Valor de scope type consumido por esta rotina.
+    * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
 
+  /**
+   * Concentra a logica de regras ativas para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} scopeType - Valor de scope type consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const regrasAtivas = (scopeType === 'USER' ? sysConfig?.regras?.USERS?.[effectiveScope] : sysConfig?.regras?.[effectiveScope]) || { modulosOcultos: [], features: {} };
+
 
   /**
    * Processa a interacao de handle toggle modulo e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleToggleModulo = (id) => {
     updateSysConfig(scopeType, effectiveScope, 'modulosOcultos', id);
     addLog(`[MATRIZ_UI] Módulo '${id}' reconfigurado.`, 'warning');
   };
 
+
   /**
    * Executa executar acao emergencia coordenando as etapas principais desse fluxo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+   *
+   * @param {unknown} acao - Valor de acao consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const executarAcaoEmergencia = (acao) => {
+  const executarAcaoEmergencia = async (acao) => {
     setActionLoading(acao);
-    addLog(`[EMERGÊNCIA] Protocolo acionado: ${acao}`, 'error');
-    setTimeout(() => {
+    if (acao === 'ATUALIZAR DIAGNÓSTICO') {
+      await Promise.all([carregarControle({ manual: true }), carregarInventario({ manual: true })]);
+    } else {
+      setApiTraffic([]);
+      setThreats([]);
+      setIncidents([]);
+      addLog('[CONTROLE] Eventos locais do console limpos.', 'warning');
+      showToast('Eventos locais limpos.', 'success');
+    }
+    window.setTimeout(() => {
       setActionLoading(null);
-      showToast(`Protocolo ${acao} executado.`, 'success');
-      addLog(`[SISTEMA] Comando '${acao}' finalizado com sucesso.`, 'success');
-      if (acao === 'LIMPAR CACHE REDIS') setIncidents([]);
-    }, 2000);
+    }, 250);
   };
+
 
   /**
    * Processa a interacao de handle toggle overclock e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleToggleOverclock = () => {
     setIsOverclocked(!isOverclocked);
-    addLog(isOverclocked ? '[SISTEMA] OVERCLOCK DESATIVADO. Retornando ao estado nominal.' : '[SISTEMA] AVISO: OVERCLOCK INICIADO. Injeção de tráfego sintético ativa.', isOverclocked ? 'success' : 'error');
-    if (!isOverclocked) showToast('ALERTA: Simulador de Stress Ativado!', 'error');
+    addLog(isOverclocked ? '[CONTROLE] Diagnóstico intensivo desativado.' : '[CONTROLE] Diagnóstico intensivo ativado (2s).', isOverclocked ? 'success' : 'warning');
+    showToast(isOverclocked ? 'Atualização normal restaurada.' : 'Diagnóstico intensivo ativado.', isOverclocked ? 'success' : 'warning');
+  };
+
+
+  /**
+   * Processa a interacao de copiar diagnostico e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: publica ou consome mensagens MQTT
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const copiarDiagnostico = async () => {
+    const diagnostic = [
+      `TermoSync Controle - ${new Date().toLocaleString('pt-BR')}`,
+      `API: ${health?.status || 'indisponível'} | DB: ${health?.database || 'indisponível'} | MQTT: ${health?.mqtt || 'indisponível'}`,
+      `CPU: ${metrics.cpu}% | Heap: ${metrics.ram}% | Event loop: ${metrics.bandwidth}% | DB: ${metrics.ping}ms`,
+      `Node: ${hostInfo?.runtime?.nodeVersion || health?.runtime?.nodeVersion || 'N/A'} | PID: ${hostInfo?.runtime?.pid || health?.runtime?.pid || 'N/A'}`,
+      `Sessões: ${activeSessions.length} | Socket clients: ${health?.runtime?.socketClients || 0}`,
+      `Segurança: ${(securityStatus?.checks || []).filter(check => check.ok).length}/${securityStatus?.checks?.length || 0} verificações aprovadas`
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(diagnostic);
+      showToast('Diagnóstico copiado.', 'success');
+    } catch {
+      showToast('Não foi possível copiar o diagnóstico.', 'error');
+    }
+  };
+
+
+  /**
+   * Processa a interacao de confirmar manutencao e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const confirmarManutencao = () => {
+    const maintenanceActive = sysConfig?.maintenanceMode === true;
+    const noticePublished = !maintenanceActive && sysConfig?.maintenanceNoticeActive === true;
+    const action = maintenanceActive ? 'finish' : noticePublished ? 'activate' : 'announce';
+    setModalConfig({
+      isOpen: true,
+      title: action === 'announce' ? 'Publicar aviso de manutenção' : action === 'activate' ? 'Entrar em manutenção' : 'Encerrar manutenção',
+      message: action === 'announce'
+        ? 'Escreva o aviso que aparecerá em todas as telas. Nesta etapa ninguém será desconectado.'
+        : action === 'activate'
+          ? `O aviso já foi publicado: “${sysConfig?.maintenanceMessage}”. Ao continuar, as sessões dos usuários serão encerradas.`
+          : 'O aviso será removido e a operação normal será restaurada. Confirmar?',
+      isPrompt: action === 'announce',
+      promptValue: action === 'announce' ? (sysConfig?.maintenanceMessage || '') : '',
+      promptPlaceholder: 'Ex.: Manutenção programada até 22h para atualização do servidor.',
+      promptMaxLength: 280,
+      requirePrompt: action === 'announce',
+      confirmLabel: action === 'announce' ? 'Publicar aviso' : action === 'activate' ? 'Entrar em manutenção' : 'Encerrar manutenção',
+      onConfirm: (message) => {
+        const maintenanceMessage = String(message || '').trim();
+        if (action === 'announce' && !maintenanceMessage) {
+          showToast('Informe a mensagem de manutenção.', 'warning');
+          return;
+        }
+        if (action === 'announce') {
+          updateSysConfig('ROLE', 'GLOBAL', 'maintenanceNotice', maintenanceMessage, true);
+          showToast('Aviso publicado. Os usuários continuam conectados.', 'success');
+          return;
+        }
+        if (action === 'activate') {
+          updateSysConfig('ROLE', 'GLOBAL', 'maintenanceMode', sysConfig?.maintenanceMessage, true);
+          showToast('Modo manutenção ativado. As sessões dos usuários serão encerradas.', 'warning');
+          return;
+        }
+        updateSysConfig('ROLE', 'GLOBAL', 'maintenanceMode', null, false);
+        showToast('Modo manutenção encerrado.', 'success');
+      }
+    });
   };
 
   const TODOS_MODULOS = useMemo(() => {
     const fallbackModules = [
-      { id: 'dashboard', label: 'Dashboard Operacional', type: 'Operações', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
-      { id: 'assistente', label: 'Assistente de Operação', type: 'Operações', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
-      { id: 'chamados', label: 'Chamados', type: 'Serviços', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
-      { id: 'equipamentos', label: 'Equipamentos', type: 'Serviços', roles: ['ADMIN', 'MANUTENCAO', 'DEV'] },
-      { id: 'usuarios', label: 'Identidades e Acessos', type: 'Sistema', roles: ['ADMIN', 'DEV'] }
+      { id: 'dashboard', label: 'Dashboard Operacional', type: 'Operacional', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
+      { id: 'assistente', label: 'Assistente de Operação', type: 'Operacional', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
+      { id: 'chamados', label: 'Chamados', type: 'Manutenção', roles: ['ADMIN', 'LOJA', 'MANUTENCAO', 'DEV'] },
+      { id: 'equipamentos', label: 'Equipamentos', type: 'Manutenção', roles: ['ADMIN', 'MANUTENCAO', 'DEV'] },
+      { id: 'usuarios', label: 'Identidades e Acessos', type: 'Administração', roles: ['ADMIN', 'DEV'] }
     ];
     const source = navigationCatalog.length > 0 ? navigationCatalog : fallbackModules;
     return source
@@ -387,64 +777,128 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
     [regrasAtivas?.modulosOcultos, modulosControlaveisIds]
   );
 
-  const defconLevel = isOverclocked ? 'MÁXIMO' : (threats.length > 15 ? 'CRÍTICO' : (threats.length > 8 ? 'ELEVADO' : 'SEGURO'));
-  const colorPrimary = isOverclocked ? '#ef4444' : '#10b981';
-  const colorSec = isOverclocked ? '#f59e0b' : '#38bdf8';
-  const defconColor = isOverclocked ? '#ef4444' : (threats.length > 15 ? '#ef4444' : (threats.length > 8 ? '#f59e0b' : '#10b981'));
+  const defconLevel = !health ? 'CARREGANDO' : (!health.ok ? 'CRÍTICO' : (threats.length ? 'ATENÇÃO' : 'SEGURO'));
+  const colorPrimary = health?.ok === false ? 'var(--danger)' : 'var(--success)';
+  const colorSec = metrics.bandwidth >= 80 ? 'var(--warning)' : 'var(--info)';
+  const defconColor = !health?.ok ? 'var(--danger)' : (threats.length ? 'var(--warning)' : 'var(--success)');
+  const securityChecks = securityStatus?.checks || [];
+  const securityMetrics = securityStatus?.metrics || {};
+  const approvedSecurityChecks = securityChecks.filter(check => check.ok).length;
+  const hostMemoryPercent = hostInfo?.memory?.totalMB
+    ? Math.round(((hostInfo.memory.totalMB - hostInfo.memory.freeMB) / hostInfo.memory.totalMB) * 100)
+    : 0;
+
+  /**
+   * Formata format duration para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} seconds - Valor de seconds consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatDuration = (seconds = 0) => {
+    const totalMinutes = Math.floor(Number(seconds) / 60);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    return days > 0 ? `${days}d ${hours}h` : `${hours}h ${minutes}min`;
+  };
+  const capacityMetrics = [
+    { label: 'CPU do processo', value: metrics.cpu, detail: `${metrics.cpu}%`, tone: metrics.cpu >= 85 ? 'danger' : metrics.cpu >= 65 ? 'warning' : 'ok' },
+    { label: 'Heap do Node', value: metrics.ram, detail: `${metrics.ram}%`, tone: metrics.ram >= 85 ? 'danger' : metrics.ram >= 70 ? 'warning' : 'ok' },
+    { label: 'Event loop', value: metrics.bandwidth, detail: `${metrics.bandwidth}%`, tone: metrics.bandwidth >= 80 ? 'danger' : metrics.bandwidth >= 60 ? 'warning' : 'ok' },
+    { label: 'Memória do host', value: hostMemoryPercent, detail: `${hostMemoryPercent}%`, tone: hostMemoryPercent >= 90 ? 'danger' : hostMemoryPercent >= 75 ? 'warning' : 'ok' }
+  ];
+  const dependencyRows = [
+    { label: 'API HTTP', status: health?.status || 'unknown', meta: `${health?.runtime?.activeRequests || 0} requisições ativas` },
+    { label: 'MySQL', status: health?.database || 'unknown', meta: `${metrics.ping}ms de latência` },
+    { label: 'Broker MQTT', status: health?.mqtt || 'unknown', meta: 'ingestão de telemetria' },
+    { label: 'WhatsApp', status: health?.whatsapp || health?.whatsappStatus || 'unknown', meta: 'canal de mensagens' },
+    { label: 'Socket.IO', status: health?.ok ? 'online' : 'unknown', meta: `${health?.runtime?.socketClients || 0} cliente(s)` }
+  ];
+
+  /**
+   * Busca ou monta os dados de get status tone usados no fluxo atual.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} status - Valor de status consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const getStatusTone = (status) => {
+    const normalized = String(status || '').toLowerCase();
+    if (['online', 'connected', 'healthy', 'ok', 'ready'].includes(normalized)) return 'ok';
+    if (['offline', 'error', 'failed', 'degraded'].includes(normalized)) return 'danger';
+    return 'warning';
+  };
 
   return (
     <div className="noc-dashboard-wrapper dev-tela-scroll control-screen">
       <div className="noc-defcon-bar anim-stagger-1">
-        <div className="defcon-title glitch-hover"><TermoSyncLogo size={18} color={defconColor} /> THERMOSYNC</div>
+        <div className="defcon-title"><TermoSyncLogo size={18} color={defconColor} /> CONTROLE DA PLATAFORMA</div>
         <div className="defcon-status-group">
-          <button className="btn btn-outline" style={{ padding: '4px 12px', minHeight: 'auto', fontSize: '0.7rem', color: isOverclocked ? '#ef4444' : 'white', borderColor: isOverclocked ? '#ef4444' : 'rgba(255,255,255,0.2)' }} onClick={handleToggleOverclock}>
-             <Flame size={14} style={{ marginRight: '6px' }}/> {isOverclocked ? 'DESATIVAR OVERCLOCK' : 'FORÇAR OVERCLOCK'}
+          <button className="btn btn-outline" style={{ padding: '4px 12px', minHeight: 'auto', fontSize: '0.7rem', color: isOverclocked ? 'var(--warning)' : 'white', borderColor: isOverclocked ? 'var(--warning)' : 'rgba(255,255,255,0.2)' }} onClick={handleToggleOverclock}>
+             <Activity size={14} style={{ marginRight: '6px' }}/> {isOverclocked ? 'DESATIVAR MODO INTENSIVO' : 'DIAGNÓSTICO INTENSIVO'}
           </button>
-          <div className="defcon-badge" style={{ color: colorPrimary, borderColor: `rgba(${isOverclocked?'239,68,68':'16,185,129'},0.3)` }}><Wifi size={14} /> CLUSTER: {isOverclocked ? 'SOBRECARGA' : 'ONLINE'}</div>
-          <div className="defcon-badge" style={{ color: colorSec, borderColor: `rgba(${isOverclocked?'245,158,11':'56,189,248'},0.3)` }}><Server size={14} /> NÓS ATIVOS: {clusterNodes.length}</div>
-          <div className="defcon-badge" style={{ color: defconColor, borderColor: defconColor, boxShadow: isOverclocked ? `0 0 15px #ef4444` : 'none' }}><ShieldAlert size={14} /> DEFCON: {defconLevel}</div>
+          <div className="defcon-badge" style={{ color: colorPrimary, borderColor: colorPrimary }}><Wifi size={14} /> API: {health?.status || 'CONSULTANDO'}</div>
+          <div className="defcon-badge" style={{ color: colorSec, borderColor: colorSec }}><Clock size={14} /> {lastSyncAt ? lastSyncAt.toLocaleTimeString('pt-BR') : '--:--:--'}</div>
+          <div className="defcon-badge" style={{ color: defconColor, borderColor: defconColor }}><ShieldAlert size={14} /> ESTADO: {defconLevel}</div>
         </div>
       </div>
 
       <div className="noc-hud-grid anim-stagger-1">
         <div className="noc-hud-card" style={{'--card-color': colorPrimary}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Cpu size={14}/> USO DE CPU</span></div>
+          <div className="noc-mini-header"><span className="noc-kpi-title"><Cpu size={14}/> CPU DO PROCESSO</span></div>
           <div className="noc-kpi-value">{metrics.cpu}<span className="noc-kpi-unit">%</span></div>
           <RenderSparkline dataKey="cpu" color={colorPrimary} data={metricHistory} />
         </div>
         <div className="noc-hud-card" style={{'--card-color': colorSec}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><HardDrive size={14}/> MEMÓRIA (RAM)</span></div>
+          <div className="noc-mini-header"><span className="noc-kpi-title"><HardDrive size={14}/> HEAP DO NODE</span></div>
           <div className="noc-kpi-value" style={{color: colorSec}}>{metrics.ram}<span className="noc-kpi-unit">%</span></div>
           <RenderSparkline dataKey="ram" color={colorSec} data={metricHistory} />
         </div>
         <div className="noc-hud-card" style={{'--card-color': colorSec}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Globe size={14}/> TRÁFEGO</span></div>
-          <div className="noc-kpi-value" style={{color: colorSec}}>{metrics.bandwidth}<span className="noc-kpi-unit">Mb/s</span></div>
+          <div className="noc-mini-header"><span className="noc-kpi-title"><Activity size={14}/> EVENT LOOP</span></div>
+          <div className="noc-kpi-value" style={{color: colorSec}}>{metrics.bandwidth}<span className="noc-kpi-unit">%</span></div>
           <RenderSparkline dataKey="bw" color={colorSec} data={metricHistory} />
         </div>
-        <div className="noc-hud-card" style={{'--card-color': '#a855f7'}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Database size={14}/> QUERIES DB</span></div>
-          <div className="noc-kpi-value" style={{color: '#a855f7'}}>{metrics.dbQps}<span className="noc-kpi-unit">QPS</span></div>
-          <RenderSparkline dataKey="db" color="#a855f7" data={metricHistory} />
+        <div className="noc-hud-card" style={{'--card-color': 'var(--accent-violet)'}}>
+          <div className="noc-mini-header"><span className="noc-kpi-title"><Database size={14}/> LATÊNCIA DO BANCO</span></div>
+          <div className="noc-kpi-value" style={{color: 'var(--accent-violet)'}}>{metrics.ping}<span className="noc-kpi-unit">ms</span></div>
+          <RenderSparkline dataKey="db" color="var(--accent-violet)" data={metricHistory} />
         </div>
       </div>
 
       <div className="noc-main-grid anim-stagger-2">
         <div className="cyber-panel">
           <div className="cyber-panel-header glitch-hover">
-             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>Osciloscópio de Rede</div>
-             <span style={{ fontSize: '0.8rem', color: '#000', fontWeight: 'bold', fontFamily: 'Montserrat', background: 'var(--theme-main)', padding: '4px 10px', borderRadius: '6px' }}>{sysConfig.maintenanceMode ? '0' : metrics.reqs} REQ/s</span>
+             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>Runtime da aplicação</div>
+             <span style={{ fontSize: '0.8rem', color: '#000', fontWeight: 'bold', fontFamily: 'Montserrat', background: 'var(--theme-main)', padding: '4px 10px', borderRadius: '6px' }}>{metrics.reqs} REQUESTS ATIVAS</span>
           </div>
           <div className="noc-chart-grid">
             <div className="noc-chart-box">
-              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <AreaChart data={metricHistory} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCpuBig" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={colorPrimary} stopOpacity={0.6}/><stop offset="95%" stopColor={colorPrimary} stopOpacity={0}/></linearGradient>
                     <linearGradient id="colorRamBig" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={colorSec} stopOpacity={0.6}/><stop offset="95%" stopColor={colorSec} stopOpacity={0}/></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                   <RechartsTooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '0', color: 'white', fontSize: '10px' }} />
                   <Area type="monotone" dataKey="cpu" stroke={colorPrimary} strokeWidth={2} fillOpacity={1} fill="url(#colorCpuBig)" isAnimationActive={false} />
                   <Area type="monotone" dataKey="ram" stroke={colorSec} strokeWidth={2} fillOpacity={1} fill="url(#colorRamBig)" isAnimationActive={false} />
@@ -452,14 +906,14 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
               </ResponsiveContainer>
             </div>
             <div className="noc-histogram-box">
-               <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Distribuição (API)</span>
-               <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+               <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pressão atual dos recursos</span>
+               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <BarChart data={latencyData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="range" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                   <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                    {latencyData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={index > 2 ? '#ef4444' : colorSec} /> ))}
+                    {latencyData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={index > 2 ? 'var(--danger)' : colorSec} /> ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -468,50 +922,153 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
         </div>
 
         <div className="cyber-panel">
-          <div className="cyber-panel-header glitch-hover"><div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Target size={18} /> Topologia Avançada (Sonar)</div></div>
+          <div className="cyber-panel-header"><div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Target size={18} /> Escopos operacionais</div></div>
           <div className="cluster-topology-grid">
-            {clusterNodes.map(node => (
-              <div key={node.id} className="cluster-data-block" style={{'--status-color': node.status === 'online' ? colorPrimary : '#ef4444'}}>
+            {clusterNodes.map(node => {
+              const nodeColor = node.status === 'online' ? colorPrimary : (node.status === 'configured' ? colorSec : 'var(--danger)');
+              return (
+              <div key={node.id} className="cluster-data-block" style={{'--status-color': nodeColor}}>
                 <div className="block-header">
                   <span className="block-name"><Server size={14} color="var(--status-color)"/> {node.name}</span>
-                  <span className="block-ping" style={{ color: 'var(--status-color)' }}>{node.ping}ms</span>
+                  <span className="block-ping" style={{ color: 'var(--status-color)' }}>{node.ping == null ? 'CONFIGURADO' : `${node.ping}ms`}</span>
                 </div>
                 <span className="block-role" style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>{node.role}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="radar-container">
             <div className="radar-grid"></div><div className="radar-sweep"></div>
             {clusterNodes.map((node, i) => (
-              <div key={node.id} className="radar-node" data-tooltip={`${node.name}: ${node.ping}ms`} style={{ top: node.pos.top, left: node.pos.left, background: node.id === 'master' ? colorPrimary : 'var(--theme-sec)', boxShadow: node.id === 'master' ? `0 0 15px ${colorPrimary}` : '0 0 10px var(--theme-sec)', animation: node.id === 'master' ? 'none' : `blink 2s infinite ${i * 0.5}s` }}></div>
+              <div key={node.id} className="radar-node" data-tooltip={`${node.name}: ${node.ping == null ? 'escopo configurado' : `${node.ping}ms`}`} style={{ top: node.pos.top, left: node.pos.left, background: node.id === 'master' ? colorPrimary : colorSec, boxShadow: node.id === 'master' ? `0 0 15px ${colorPrimary}` : `0 0 10px ${colorSec}`, animation: node.id === 'master' ? 'none' : `blink 2s infinite ${i * 0.5}s` }}></div>
             ))}
           </div>
         </div>
       </div>
 
+      <div className="control-engineering-grid anim-stagger-2">
+        <section className="control-engineering-panel">
+          <div className="control-panel-heading"><Server size={15}/><span>Runtime e host</span></div>
+          <div className="control-fact-grid">
+            <div className="control-fact"><span>Hostname</span><strong title={hostInfo?.os?.hostname}>{hostInfo?.os?.hostname || 'Indisponível'}</strong></div>
+            <div className="control-fact"><span>Ambiente</span><strong>{hostInfo?.runtime?.environment || 'N/A'}</strong></div>
+            <div className="control-fact"><span>Node.js</span><strong>{hostInfo?.runtime?.nodeVersion || health?.runtime?.nodeVersion || 'N/A'}</strong></div>
+            <div className="control-fact"><span>PID</span><strong>{hostInfo?.runtime?.pid || health?.runtime?.pid || 'N/A'}</strong></div>
+            <div className="control-fact"><span>Sistema</span><strong>{hostInfo?.os ? `${hostInfo.os.type} ${hostInfo.os.release}` : 'N/A'}</strong></div>
+            <div className="control-fact"><span>Arquitetura</span><strong>{hostInfo?.os?.arch || 'N/A'}</strong></div>
+            <div className="control-fact"><span>CPU lógica</span><strong>{hostInfo?.cpu?.cores ? `${hostInfo.cpu.cores} núcleos` : 'N/A'}</strong></div>
+            <div className="control-fact"><span>Uptime host</span><strong>{hostInfo?.uptimeSeconds ? formatDuration(hostInfo.uptimeSeconds) : 'N/A'}</strong></div>
+          </div>
+        </section>
+
+        <section className="control-engineering-panel">
+          <div className="control-panel-heading"><ShieldCheck size={15}/><span>Postura de segurança</span><strong className={`control-heading-score ${securityStatus?.ok ? 'ok' : 'warning'}`}>{approvedSecurityChecks}/{securityChecks.length}</strong></div>
+          <div className="control-security-summary">
+            <div><strong>{securityMetrics.activeSessions || 0}</strong><span>Sessões ativas</span></div>
+            <div><strong>{securityMetrics.failedLogins24h || 0}</strong><span>Falhas 24h</span></div>
+            <div><strong>{securityMetrics.mfaEnabled || 0}/{securityMetrics.usersTotal || 0}</strong><span>MFA habilitado</span></div>
+          </div>
+          <div className="control-policy-line"><span>Limite login</span><strong>{securityStatus?.policy?.loginRateLimit || 'N/A'}/janela</strong></div>
+          <div className="control-policy-line"><span>Limite API</span><strong>{securityStatus?.policy?.apiRateLimit || 'N/A'}/janela</strong></div>
+          <div className="control-policy-line"><span>Expiração JWT</span><strong>{securityStatus?.policy?.jwtExpiresHours || 'N/A'}h</strong></div>
+        </section>
+
+        <section className="control-engineering-panel">
+          <div className="control-panel-heading"><Activity size={15}/><span>Capacidade atual</span></div>
+          <div className="control-capacity-list">
+            {capacityMetrics.map(item => (
+              <div className="control-capacity-row" key={item.label}>
+                <div><span>{item.label}</span><strong>{item.detail}</strong></div>
+                <div className="control-progress-track"><span className={item.tone} style={{ width: `${Math.min(100, Math.max(0, item.value))}%` }}/></div>
+              </div>
+            ))}
+          </div>
+          <div className="control-host-memory">
+            {hostInfo?.memory ? `${hostInfo.memory.totalMB - hostInfo.memory.freeMB} MB usados de ${hostInfo.memory.totalMB} MB` : 'Memória física indisponível'}
+          </div>
+        </section>
+
+        <section className="control-engineering-panel">
+          <div className="control-panel-heading"><Plug size={15}/><span>Dependências</span></div>
+          <div className="control-dependency-list">
+            {dependencyRows.map(item => (
+              <div className="control-dependency-row" key={item.label}>
+                <span className={`control-status-dot ${getStatusTone(item.status)}`} aria-hidden="true"/>
+                <div><strong>{item.label}</strong><small>{item.meta}</small></div>
+                <span className={`control-service-status ${getStatusTone(item.status)}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="control-observability-grid anim-stagger-3">
+        <section className="control-observability-panel">
+          <div className="control-panel-heading"><History size={15}/><span>Histórico persistido</span><strong>{healthHistory.length} amostras</strong></div>
+          <div className="control-data-scroll">
+            {healthHistory.length === 0 && <div className="control-empty-state">Nenhuma amostra disponível na última hora.</div>}
+            {healthHistory.slice(0, 12).map(sample => (
+              <div className="control-health-row" key={sample.id}>
+                <span className={`control-status-dot ${getStatusTone(sample.status)}`} aria-hidden="true"/>
+                <div><strong>{new Date(sample.at).toLocaleTimeString('pt-BR')}</strong><small>API {sample.status} · DB {sample.database}</small></div>
+                <div className="control-row-metrics"><strong>{sample.responseTimeMs ?? '--'}ms</strong><small>DB {sample.databaseLatencyMs ?? '--'}ms</small></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="control-observability-panel">
+          <div className="control-panel-heading"><LockKeyhole size={15}/><span>Verificações de segurança</span><strong>{approvedSecurityChecks} aprovadas</strong></div>
+          <div className="control-data-scroll">
+            {securityChecks.length === 0 && <div className="control-empty-state">Postura de segurança indisponível.</div>}
+            {securityChecks.map(check => (
+              <div className="control-security-row" key={check.id}>
+                {check.ok ? <CheckCircle2 size={16} className="is-ok"/> : <AlertTriangle size={16} className={`is-${check.severity || 'warning'}`}/>}
+                <div><strong>{check.label}</strong><small>Impacto {check.severity || 'informativo'}</small></div>
+                <span className={check.ok ? 'ok' : 'warning'}>{check.ok ? 'OK' : 'REVISAR'}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="control-observability-panel">
+          <div className="control-panel-heading"><Users size={15}/><span>Sessões ativas</span><strong>{activeSessions.length} conectadas</strong></div>
+          <div className="control-data-scroll">
+            {activeSessions.length === 0 && <div className="control-empty-state">Nenhuma sessão ativa encontrada.</div>}
+            {activeSessions.slice(0, 12).map(session => (
+              <div className="control-session-row" key={session.id}>
+                <div className="control-session-avatar">{String(session.usuario || '?').slice(0, 1).toUpperCase()}</div>
+                <div><strong>{session.usuario || 'Usuário'}</strong><small>{session.role || 'Sem perfil'} · {session.ip || 'IP indisponível'}</small></div>
+                <div className="control-row-metrics"><strong>{session.lastSeen ? new Date(session.lastSeen).toLocaleTimeString('pt-BR') : '--:--'}</strong><small>última atividade</small></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
       <div className="noc-terminals-grid anim-stagger-3">
         <div className="cyber-terminal">
-          <div className="cyber-terminal-header"><div className="cyber-terminal-title">BASH - ROTEAMENTO (LIVE)</div></div>
+          <div className="cyber-terminal-header"><div className="cyber-terminal-title">VERIFICAÇÕES DA API</div></div>
           <div className="terminal-scroll" ref={trafficContainerRef}>
             {sysConfig.maintenanceMode ? <div style={{ color: 'var(--dim-text)', textAlign: 'center', margin: 'auto', fontStyle: 'italic' }}>Rotas BGP Suspensas</div> : apiTraffic.map((pkt) => (
-              <div key={pkt.id} className="terminal-line"><span className="log-method" style={{ color: isOverclocked ? 'white' : pkt.color, background: isOverclocked ? '#ef4444' : 'rgba(255,255,255,0.05)' }}>{pkt.method}</span><span className="log-geo">[{pkt.geo}]</span><span className="log-route text-truncate">{pkt.route}</span></div>
+              <div key={pkt.id} className="terminal-line"><span className="log-method" style={{ color: pkt.color, background: 'rgba(255,255,255,0.05)' }}>{pkt.method}</span><span className="log-geo">[{pkt.geo}]</span><span className="log-route text-truncate">{pkt.route}</span></div>
             ))}
           </div>
         </div>
-        <div className="cyber-terminal" style={{ borderColor: 'rgba(245, 158, 11, 0.4)', boxShadow: 'inset 0 0 30px rgba(245, 158, 11, 0.1)' }}>
-          <div className="cyber-terminal-header" style={{ borderBottomColor: 'rgba(245, 158, 11, 0.4)' }}><div className="cyber-terminal-title" style={{ color: '#f59e0b' }}><AlertCircle size={14} /> ALERTAS ATIVOS</div></div>
+        <div className="cyber-terminal" style={{ borderColor: 'rgba(245, 158, 11, 0.4)', boxShadow: 'inset 0 0 30px color-mix(in srgb, var(--warning) 10%, transparent)' }}>
+          <div className="cyber-terminal-header" style={{ borderBottomColor: 'rgba(245, 158, 11, 0.4)' }}><div className="cyber-terminal-title" style={{ color: 'var(--warning)' }}><AlertCircle size={14} /> ALERTAS ATIVOS</div></div>
           <div className="terminal-scroll" ref={incidentsContainerRef}>
-            {incidents.length === 0 ? <div style={{ color: '#10b981', textAlign: 'center', margin: 'auto', fontWeight: 'bold', fontSize: '0.8rem' }}>Nenhum incidente crítico no momento.</div> : incidents.map((inc) => (
+            {incidents.length === 0 ? <div style={{ color: 'var(--success)', textAlign: 'center', margin: 'auto', fontWeight: 'bold', fontSize: '0.8rem' }}>Nenhum incidente crítico no momento.</div> : incidents.map((inc) => (
               <div key={inc.id} className={`incident-card ${inc.type}`}><div className="incident-header"><span>{inc.time}</span><span>{inc.type === 'critical' ? 'CRÍTICO' : 'AVISO'}</span></div><div className="incident-desc">{inc.msg}</div></div>
             ))}
           </div>
         </div>
-        <div className="cyber-terminal" style={{ borderColor: '#ef4444', boxShadow: isOverclocked ? 'inset 0 0 50px rgba(239,68,68,0.3)' : 'inset 0 0 30px rgba(0,0,0,0.8)' }}>
+        <div className="cyber-terminal" style={{ borderColor: 'var(--danger)', boxShadow: isOverclocked ? 'inset 0 0 50px color-mix(in srgb, var(--danger) 30%, transparent)' : 'inset 0 0 30px rgba(0,0,0,0.8)' }}>
           <div className="cyber-terminal-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.4)' }}>
-            <div className="cyber-terminal-title" style={{ color: '#ef4444', display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>LOGS SEGURANÇA WAF</span><span className="defcon-badge" style={{ background: `rgba(239,68,68,0.2)`, color: '#ef4444', border: `1px solid #ef4444` }}>NÍVEL: {defconLevel}</span></div>
+            <div className="cyber-terminal-title" style={{ color: 'var(--danger)', display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>DIAGNÓSTICOS ATIVOS</span><span className="defcon-badge" style={{ background: 'rgba(239,68,68,0.2)', color: defconColor, border: `1px solid ${defconColor}` }}>ESTADO: {defconLevel}</span></div>
           </div>
-          <div className="terminal-scroll" ref={wafContainerRef} style={{ color: '#ef4444' }}>
-            {threats.map((pkt) => <div key={pkt.id} className="terminal-line log-error"><span style={{ marginRight: '4px' }}>✖</span> {pkt.text}</div>)}
+          <div className="terminal-scroll" ref={wafContainerRef} style={{ color: 'var(--danger)' }}>
+            {threats.length === 0 ? <div style={{ color: 'var(--success)', textAlign: 'center', margin: 'auto', fontWeight: 'bold', fontSize: '0.8rem' }}>Nenhuma degradação detectada.</div> : threats.map((pkt) => <div key={pkt.id} className="terminal-line log-error"><span style={{ marginRight: '4px' }}>!</span> {pkt.text}</div>)}
           </div>
         </div>
       </div>
@@ -561,13 +1118,19 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
           </div>
         </div>
         <div className="switch-panel">
-          <div className="switch-panel-title" style={{ color: '#ef4444' }}><Flame size={14}/> PROTOCOLOS DE EMERGÊNCIA</div>
+          <div className="switch-panel-title" style={{ color: 'var(--info)' }}><Activity size={14}/> AÇÕES DO CONSOLE</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center', height: '100%' }}>
-            <button className="btn-emergency warning" onClick={() => executarAcaoEmergencia('LIMPAR CACHE REDIS')} disabled={actionLoading !== null || sysConfig.maintenanceMode}>
-              {actionLoading === 'LIMPAR CACHE REDIS' ? <Loader2 size={16} className="spin"/> : <RefreshCw size={16}/>} {actionLoading === 'LIMPAR CACHE REDIS' ? 'A EXECUTAR...' : 'LIMPAR CACHE REDIS'}
+            <button className="btn-emergency warning" onClick={() => executarAcaoEmergencia('ATUALIZAR DIAGNÓSTICO')} disabled={actionLoading !== null || loadingHealth || loadingInventory}>
+              {actionLoading === 'ATUALIZAR DIAGNÓSTICO' ? <Loader2 size={16} className="spin"/> : <RefreshCw size={16}/>} {actionLoading === 'ATUALIZAR DIAGNÓSTICO' ? 'ATUALIZANDO...' : 'ATUALIZAR DIAGNÓSTICO'}
             </button>
-            <button className="btn-emergency" onClick={() => executarAcaoEmergencia('REINICIAR PODS DOCKER')} disabled={actionLoading !== null || sysConfig.maintenanceMode}>
-              {actionLoading === 'REINICIAR PODS DOCKER' ? <Loader2 size={16} className="spin"/> : <ServerCrash size={16}/>} {actionLoading === 'REINICIAR PODS DOCKER' ? 'A REINICIAR NOS...' : 'REINICIAR PODS DOCKER'}
+            <button className="btn-emergency" onClick={copiarDiagnostico} disabled={actionLoading !== null}>
+              <Copy size={16}/> COPIAR DIAGNÓSTICO
+            </button>
+            <button className={`btn-emergency ${sysConfig?.maintenanceMode ? '' : 'warning'}`} onClick={confirmarManutencao} disabled={actionLoading !== null}>
+              {sysConfig?.maintenanceMode ? <PlayCircle size={16}/> : sysConfig?.maintenanceNoticeActive ? <ServerCrash size={16}/> : <PauseCircle size={16}/>} {sysConfig?.maintenanceMode ? 'ENCERRAR MANUTENÇÃO' : sysConfig?.maintenanceNoticeActive ? 'ENTRAR EM MANUTENÇÃO' : 'AVISAR MANUTENÇÃO'}
+            </button>
+            <button className="btn-emergency" onClick={() => executarAcaoEmergencia('LIMPAR EVENTOS')} disabled={actionLoading !== null}>
+              <Eraser size={16}/> LIMPAR EVENTOS LOCAIS
             </button>
           </div>
         </div>
@@ -576,69 +1139,162 @@ const TelaNOC = ({ api: _api, showToast, sysConfig, updateSysConfig, usuariosLis
   );
 };
 
-// ============================================================================
-// TELA OPERAÇÕES DO SISTEMA
-// ============================================================================
+/**
+ * ============================================================================ TELA OPERAÇÕES
+ * DO SISTEMA ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.sysConfig - Propriedade sysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.updateSysConfig - Propriedade updateSysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.usuariosLista - Propriedade usuariosLista usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, usuariosLista, setModalConfig }) => {
-  // Tela de governança do sistema: saúde, manutenção, recursos globais,
-  // sessões, segurança de conta e ações administrativas sensíveis.
+  // Consolida runtime, host, segurança e políticas globais em uma única central.
   const [health, setHealth] = useState(null);
-  const [loadingHealth, setLoadingHealth] = useState(false);
+  const [hostInfo, setHostInfo] = useState(null);
+  const [security, setSecurity] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loadingHealth, setLoadingHealth] = useState(true);
+  const [actionLoading, setActionLoading] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const featureLabels = useMemo(() => ([
-    { key: 'telemetryStream', label: 'Stream de telemetria', icon: Radio },
-    { key: 'enableAudioAlerts', label: 'Alertas sonoros', icon: AlertTriangle },
-    { key: 'enableToasts', label: 'Notificações internas', icon: AlertCircle },
-    { key: 'enableChat', label: 'Chat operacional', icon: Mail },
-    { key: 'allowExports', label: 'Exportações', icon: DownloadCloud },
-    { key: 'readOnlyMode', label: 'Modo somente leitura', icon: LockKeyhole },
-    { key: 'forceDarkMode', label: 'Forçar modo escuro', icon: Settings2 }
+    { key: 'telemetryStream', label: 'Stream de telemetria', description: 'Recepção contínua de eventos IoT e WebSocket.', icon: Radio },
+    { key: 'enableAudioAlerts', label: 'Alertas sonoros', description: 'Sinalização audível para ocorrências críticas.', icon: AlertTriangle },
+    { key: 'enableToasts', label: 'Notificações internas', description: 'Mensagens de estado e confirmação na interface.', icon: AlertCircle },
+    { key: 'enableChat', label: 'Chat operacional', description: 'Comunicação entre lojas, suporte e operação.', icon: Mail },
+    { key: 'allowExports', label: 'Exportações', description: 'Geração de relatórios e arquivos operacionais.', icon: DownloadCloud },
+    { key: 'readOnlyMode', label: 'Modo somente leitura', description: 'Bloqueia alterações sem suspender consultas.', icon: LockKeyhole },
+    { key: 'forceDarkMode', label: 'Forçar modo escuro', description: 'Aplica o tema técnico a todos os perfis.', icon: Settings2 }
   ]), []);
 
   const globalFeatures = sysConfig?.regras?.GLOBAL?.features || {};
   const modulosOcultosGlobal = sysConfig?.regras?.GLOBAL?.modulosOcultos || [];
   const totalUsuarios = Array.isArray(usuariosLista) ? usuariosLista.length : 0;
 
-  const carregarHealth = useCallback(async () => {
-    setLoadingHealth(true);
-    try {
-      const res = await api.get('/system/health');
-      setHealth(res.data || null);
-      addLog('[SYSTEM] Health check atualizado.', 'success');
-    } catch (error) {
-      setHealth({ ok: false, status: 'offline', database: 'offline', mqtt: 'unknown', whatsapp: 'unknown', error: error?.message || 'Falha ao consultar o servidor.' });
-      addLog(`[SYSTEM ERRO] Health check falhou: ${error?.message || 'erro desconhecido'}`, 'error');
-      showToast('Falha ao consultar a saúde do sistema.', 'error');
-    } finally {
-      setLoadingHealth(false);
+  // Busca as quatro fontes do painel sem derrubar toda a tela se uma delas falhar.
+  const carregarSystemOverview = useCallback(async (silent = false) => {
+    if (!silent) setLoadingHealth(true);
+    const [healthResult, hostResult, securityResult, historyResult] = await Promise.allSettled([
+      api.get('/system/health', { validateStatus: (status) => status === 200 || status === 503 }),
+      api.get('/system/host-info'),
+      api.get('/security/status'),
+      api.get('/system/health/history?minutes=60&limit=120')
+    ]);
+
+    if (healthResult.status === 'fulfilled') setHealth(healthResult.value.data);
+    if (hostResult.status === 'fulfilled') setHostInfo(hostResult.value.data);
+    if (securityResult.status === 'fulfilled') setSecurity(securityResult.value.data);
+    if (historyResult.status === 'fulfilled') {
+      const payload = historyResult.value.data;
+      setHistory(Array.isArray(payload) ? payload : (payload?.samples || []));
     }
-  }, [api, addLog, showToast]);
+
+    if (!silent && healthResult.status === 'rejected') {
+      showToast('Não foi possível carregar o diagnóstico do sistema.', 'error');
+    }
+    setLastUpdated(new Date());
+    setLoadingHealth(false);
+  }, [api, showToast]);
 
   useEffect(() => {
-    carregarHealth();
-  }, [carregarHealth]);
+    carregarSystemOverview();
+  }, [carregarSystemOverview]);
 
+  useEffect(() => {
+    if (!autoRefresh) return undefined;
+    const intervalId = window.setInterval(() => carregarSystemOverview(true), 15000);
+    return () => window.clearInterval(intervalId);
+  }, [autoRefresh, carregarSystemOverview]);
   /**
    * Processa a interacao de confirmar modo manutencao e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const confirmarModoManutencao = () => {
-    const nextValue = !sysConfig?.maintenanceMode;
+    const maintenanceActive = sysConfig?.maintenanceMode === true;
+    const noticePublished = !maintenanceActive && sysConfig?.maintenanceNoticeActive === true;
+    const action = maintenanceActive ? 'finish' : noticePublished ? 'activate' : 'announce';
     setModalConfig({
       isOpen: true,
-      title: nextValue ? 'Ativar modo manutenção' : 'Desativar modo manutenção',
-      message: nextValue
-        ? 'O modo manutenção bloqueia usuários não desenvolvedores e sinaliza o sistema como offline. Confirmar?'
-        : 'O sistema voltará a aceitar operação normal dos usuários. Confirmar?',
-      onConfirm: () => {
-        updateSysConfig('ROLE', 'GLOBAL', 'maintenanceMode', null, nextValue);
-        addLog(nextValue ? '[SYSTEM] Modo manutenção ativado.' : '[SYSTEM] Modo manutenção desativado.', nextValue ? 'error' : 'success');
-        showToast(nextValue ? 'Modo manutenção ativado.' : 'Modo manutenção desativado.', nextValue ? 'warning' : 'success');
+      title: action === 'announce' ? 'Publicar aviso de manutenção' : action === 'activate' ? 'Entrar em manutenção' : 'Encerrar manutenção',
+      message: action === 'announce'
+        ? 'Escreva o aviso que aparecerá em todas as telas. Nesta etapa ninguém será desconectado.'
+        : action === 'activate'
+          ? `O aviso já foi publicado: “${sysConfig?.maintenanceMessage}”. Ao continuar, as sessões dos usuários serão encerradas.`
+          : 'O aviso será removido e o sistema voltará a aceitar a operação normal dos usuários. Confirmar?',
+      isPrompt: action === 'announce',
+      promptValue: action === 'announce' ? (sysConfig?.maintenanceMessage || '') : '',
+      promptPlaceholder: 'Ex.: Manutenção programada até 22h para atualização do servidor.',
+      promptMaxLength: 280,
+      requirePrompt: action === 'announce',
+      confirmLabel: action === 'announce' ? 'Publicar aviso' : action === 'activate' ? 'Entrar em manutenção' : 'Encerrar manutenção',
+      onConfirm: (message) => {
+        const maintenanceMessage = String(message || '').trim();
+        if (action === 'announce' && !maintenanceMessage) {
+          showToast('Informe a mensagem de manutenção.', 'warning');
+          return;
+        }
+        if (action === 'announce') {
+          updateSysConfig('ROLE', 'GLOBAL', 'maintenanceNotice', maintenanceMessage, true);
+          addLog('[SYSTEM] Aviso prévio de manutenção publicado.', 'warning');
+          showToast('Aviso publicado. Os usuários continuam conectados.', 'success');
+          return;
+        }
+        if (action === 'activate') {
+          updateSysConfig('ROLE', 'GLOBAL', 'maintenanceMode', sysConfig?.maintenanceMessage, true);
+          addLog('[SYSTEM] Modo manutenção ativado após aviso prévio.', 'error');
+          showToast('Modo manutenção ativado. As sessões dos usuários serão encerradas.', 'warning');
+          return;
+        }
+        updateSysConfig('ROLE', 'GLOBAL', 'maintenanceMode', null, false);
+        addLog('[SYSTEM] Modo manutenção desativado.', 'success');
+        showToast('Modo manutenção encerrado.', 'success');
       }
     });
   };
 
+
   /**
    * Processa a interacao de alternar feature e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} key - Valor de key consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const alternarFeature = (key) => {
     const nextValue = !(globalFeatures[key] ?? true);
@@ -647,8 +1303,20 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, usuar
     showToast('Configuração global atualizada.', 'success');
   };
 
+
   /**
    * Limpa limpar cache interface para manter o estado consistente.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: lê ou grava preferências no armazenamento do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const limparCacheInterface = () => {
     const preservadas = new Set(['termosync_sysconfig_saas', 'termosync_server']);
@@ -660,17 +1328,71 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, usuar
     showToast('Cache local limpo.', 'success');
   };
 
+
   /**
-   * Concentra a logica de recarregar clientes para manter o restante do tela mais legivel.
+   * Processa a interacao de confirmar limpeza cache e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const recarregarClientes = () => {
-    localStorage.setItem('termosync_force_reload', Date.now().toString());
-    addLog('[SYSTEM] Sinal de recarregamento emitido para clientes abertos.', 'warning');
-    showToast('Sinal de recarregamento enviado.', 'success');
+  const confirmarLimpezaCache = () => {
+    setModalConfig({
+      isOpen: true,
+      title: 'Limpar cache desta interface',
+      message: 'Preferências e caches locais do TermoSync serão removidos neste dispositivo. A configuração do servidor será preservada.',
+      onConfirm: limparCacheInterface
+    });
   };
 
   /**
+   * Recarrega somente o console atual e deixa um marcador para a próxima inicialização.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const confirmarRecarregamento = () => {
+    setModalConfig({
+      isOpen: true,
+      title: 'Recarregar console atual',
+      message: 'A interface será recarregada agora. Operações não salvas nesta aba serão descartadas.',
+      onConfirm: () => {
+        localStorage.setItem('termosync_force_reload', Date.now().toString());
+        window.location.reload();
+      }
+    });
+  };
+
+
+  /**
    * Formata format uptime para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} seconds - Valor de seconds consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const formatUptime = (seconds) => {
     const safeSeconds = Number(seconds || 0);
@@ -679,347 +1401,696 @@ const TelaSistema = ({ api, showToast, addLog, sysConfig, updateSysConfig, usuar
     return `${hours}h ${minutes}min`;
   };
 
-  const statusColor = health?.ok ? '#10b981' : '#ef4444';
+  /**
+   * Copia um resumo sem segredos para facilitar diagnóstico e abertura de incidente.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: publica ou consome mensagens MQTT
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const copiarDiagnostico = async () => {
+    const diagnostic = {
+      generatedAt: new Date().toISOString(),
+      status: health?.status,
+      database: health?.database,
+      mqtt: health?.mqtt,
+      whatsapp: health?.whatsapp,
+      responseTimeMs: health?.responseTimeMs,
+      databaseLatencyMs: health?.databaseLatencyMs,
+      cpuPercent: health?.cpuPercent,
+      eventLoopUtilization: health?.eventLoopUtilization,
+      memory: health?.memory,
+      runtime: health?.runtime,
+      host: hostInfo?.os,
+      securityChecks: security?.checks?.map(({ id, ok, severity }) => ({ id, ok, severity }))
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diagnostic, null, 2));
+      showToast('Diagnóstico técnico copiado.', 'success');
+      addLog('[SYSTEM] Diagnóstico técnico copiado.', 'success');
+    } catch {
+      showToast('Não foi possível copiar o diagnóstico.', 'error');
+    }
+  };
+
+  /**
+   * Solicita ao backend um backup portátil sem expor o conteúdo na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const baixarBackup = async () => {
+    setActionLoading('backup');
+    try {
+      const response = await api.get('/system/backup-json', { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `termosync-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup técnico gerado.', 'success');
+      addLog('[SYSTEM] Backup JSON solicitado.', 'success');
+    } catch (error) {
+      showToast(error.response?.data?.error || 'Falha ao gerar o backup.', 'error');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+
+  /**
+   * Concentra a logica de status tone para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const statusTone = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (['ok', 'online', 'ready', 'connected', 'development', 'production', 'test'].includes(normalized)) return 'is-ok';
+    if (['disabled', 'unknown', 'degraded'].includes(normalized)) return 'is-warning';
+    return 'is-danger';
+  };
+
+  /**
+   * Concentra a logica de status label para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const statusLabel = (value) => String(value || 'indisponível').replace('_', ' ');
+  const heapPercent = health?.memory?.heapTotalMb ? Math.min(100, Math.round((health.memory.heapUsedMb / health.memory.heapTotalMb) * 100)) : 0;
+  const hostMemoryPercent = hostInfo?.memory?.totalMB ? Math.min(100, Math.round(((hostInfo.memory.totalMB - hostInfo.memory.freeMB) / hostInfo.memory.totalMB) * 100)) : 0;
+  const failedChecks = security?.checks?.filter((check) => !check.ok) || [];
+  const availability = history.length ? Math.round((history.filter((sample) => sample.status === 'ok').length / history.length) * 1000) / 10 : 0;
+  const chartData = history.slice(-60).map((sample) => ({
+    time: new Date(sample.timestamp || sample.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    latency: Number(sample.responseTimeMs || 0),
+    cpu: Number(sample.cpuPercent || 0),
+    eventLoop: Number(sample.eventLoopUtilization || 0)
+  }));
 
   return (
-    <div className="dev-tela-scroll system-ops-screen">
-      <div className="dev-card glass-card" style={{ borderTop: `4px solid ${statusColor}` }}>
-        <div className="dev-card-header flex-between" style={{ color: statusColor, gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Settings2 size={22} />
-            <h3>Operações do Sistema</h3>
-          </div>
-          <button className="btn btn-outline" onClick={carregarHealth} disabled={loadingHealth} style={{ minHeight: '36px', padding: '8px 14px' }}>
-            {loadingHealth ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
-            Atualizar
-          </button>
+    <div className="dev-tela-scroll system-ops-screen system-command-page">
+      <header className="system-command-header">
+        <div><span className="system-command-eyebrow"><Settings2 size={14} /> Administração de runtime</span><h2>Operações do Sistema</h2><p>Estado do processo, dependências, políticas globais e ferramentas administrativas.</p></div>
+        <div className="system-command-header-actions">
+          <label><input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} /><span>Tempo real</span></label>
+          <small>{lastUpdated ? `Atualizado às ${lastUpdated.toLocaleTimeString('pt-BR')}` : 'Sincronizando...'}</small>
+          <button type="button" title="Atualizar diagnóstico" onClick={() => carregarSystemOverview()} disabled={loadingHealth}>{loadingHealth ? <Loader2 size={17} className="spin" /> : <RefreshCw size={17} />}</button>
         </div>
-        <p style={{ color: '#94a3b8', margin: 0 }}>
-          Controle operacional da plataforma, flags globais e ações de manutenção da interface.
-        </p>
+      </header>
+
+      <section className="system-command-kpis" aria-label="Resumo operacional">
+        <article className={health?.ok ? 'is-ok' : 'is-danger'}><span><Activity size={15} /> Plataforma</span><strong>{loadingHealth && !health ? '...' : statusLabel(health?.status)}</strong><small>{availability}% de disponibilidade na última hora</small></article>
+        <article className="is-latency"><span><Database size={15} /> Banco de dados</span><strong>{health?.databaseLatencyMs ?? '--'} ms</strong><small>{statusLabel(health?.database)} · resposta total {health?.responseTimeMs ?? '--'} ms</small></article>
+        <article className="is-runtime"><span><Gauge size={15} /> Event loop</span><strong>{Number(health?.eventLoopUtilization || 0).toFixed(1)}%</strong><small>CPU do processo em {Number(health?.cpuPercent || 0).toFixed(1)}%</small></article>
+        <article className={failedChecks.length ? 'is-warning' : 'is-ok'}><span><ShieldCheck size={15} /> Baseline</span><strong>{security ? `${security.checks.length - failedChecks.length}/${security.checks.length}` : '--'}</strong><small>{failedChecks.length} verificação(ões) exigem atenção</small></article>
+      </section>
+
+      {sysConfig?.maintenanceNoticeActive && <div className="system-command-maintenance"><ServerCrash size={18} /><div><strong>{sysConfig?.maintenanceMode ? 'Modo manutenção ativo' : 'Aviso de manutenção publicado'}</strong><span>{sysConfig?.maintenanceMessage}</span></div><button type="button" onClick={confirmarModoManutencao}>{sysConfig?.maintenanceMode ? 'Encerrar manutenção' : 'Entrar em manutenção'}</button></div>}
+
+      <div className="system-command-overview">
+        <section className="system-command-panel system-services-panel">
+          <div className="system-command-title"><div><Network size={16} /><span>Serviços e dependências</span></div><small>Leitura em tempo real</small></div>
+          <div className="system-service-grid">
+            {[
+              { label: 'API principal', value: health?.status, icon: Server, detail: `PID ${health?.runtime?.pid || '--'}` },
+              { label: 'MySQL', value: health?.database, icon: Database, detail: `${health?.databaseLatencyMs ?? '--'} ms` },
+              { label: 'Broker MQTT', value: health?.mqtt, icon: Radio, detail: 'Ingestão IoT' },
+              { label: 'WhatsApp', value: health?.whatsapp, icon: Mail, detail: 'Canal assistido' },
+              { label: 'WebSocket', value: health ? 'online' : 'unknown', icon: Wifi, detail: `${health?.runtime?.socketClients || 0} cliente(s)` },
+              { label: 'Ambiente', value: health?.runtime?.environment || hostInfo?.runtime?.environment, icon: Cloud, detail: health?.runtime?.nodeVersion || '--' }
+            ].map((service) => { const Icon = service.icon; return <article key={service.label}><span className={`system-service-icon ${statusTone(service.value)}`}><Icon size={17} /></span><div><strong>{service.label}</strong><small>{service.detail}</small></div><b className={statusTone(service.value)}>{statusLabel(service.value)}</b></article>; })}
+          </div>
+        </section>
+
+        <section className="system-command-panel system-runtime-panel">
+          <div className="system-command-title"><div><Cpu size={16} /><span>Pressão do runtime</span></div><small>{formatUptime(health?.uptime)} ativos</small></div>
+          <div className="system-meter-list">
+            <div><span><b>Heap Node.js</b><small>{health?.memory?.heapUsedMb || 0} de {health?.memory?.heapTotalMb || 0} MB</small></span><strong>{heapPercent}%</strong><i><em style={{ width: `${heapPercent}%` }} /></i></div>
+            <div><span><b>Memória do host</b><small>{hostInfo?.memory ? `${hostInfo.memory.totalMB - hostInfo.memory.freeMB} de ${hostInfo.memory.totalMB} MB` : '--'}</small></span><strong>{hostMemoryPercent}%</strong><i><em style={{ width: `${hostMemoryPercent}%` }} /></i></div>
+            <div><span><b>Event loop</b><small>{health?.runtime?.activeHandles || 0} handles · {health?.runtime?.activeRequests || 0} requests</small></span><strong>{Number(health?.eventLoopUtilization || 0).toFixed(0)}%</strong><i><em className="is-event" style={{ width: `${Math.min(100, Number(health?.eventLoopUtilization || 0))}%` }} /></i></div>
+          </div>
+          <dl className="system-host-facts"><div><dt>Host</dt><dd>{hostInfo?.os?.hostname || '--'}</dd></div><div><dt>Sistema</dt><dd>{hostInfo?.os ? `${hostInfo.os.type} ${hostInfo.os.arch}` : '--'}</dd></div><div><dt>CPU</dt><dd>{hostInfo?.cpu ? `${hostInfo.cpu.cores} cores · ${hostInfo.cpu.speed} MHz` : '--'}</dd></div><div><dt>Node</dt><dd>{hostInfo?.runtime?.nodeVersion || '--'}</dd></div></dl>
+        </section>
       </div>
 
-      <div className="noc-hud-grid">
-        <div className="noc-hud-card" style={{ '--card-color': statusColor }}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Activity size={14} /> STATUS</span></div>
-          <div className="noc-kpi-value" style={{ color: statusColor }}>{health?.status || '...'}</div>
+      <section className="system-command-panel system-chart-panel">
+        <div className="system-command-title"><div><ActivitySquare size={16} /><span>Janela operacional</span></div><small>{history.length} amostras · última hora</small></div>
+        <div className="system-chart-wrap">
+          {chartData.length ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}><AreaChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.1)" /><XAxis dataKey="time" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} minTickGap={32} /><YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} /><RechartsTooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }} /><Area type="monotone" dataKey="eventLoop" name="Event loop %" stroke="var(--accent-violet)" fill="var(--accent-violet)" fillOpacity={0.08} strokeWidth={2} isAnimationActive={false} /><Area type="monotone" dataKey="cpu" name="CPU %" stroke="var(--info)" fill="var(--info)" fillOpacity={0.08} strokeWidth={2} isAnimationActive={false} /><Area type="monotone" dataKey="latency" name="Latência ms" stroke="var(--warning)" fill="var(--warning)" fillOpacity={0.04} strokeWidth={1.5} isAnimationActive={false} /></AreaChart></ResponsiveContainer> : <div className="system-command-empty"><Loader2 size={19} className={loadingHealth ? 'spin' : ''} /> Aguardando amostras do monitor.</div>}
         </div>
-        <div className="noc-hud-card" style={{ '--card-color': '#38bdf8' }}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Database size={14} /> BANCO</span></div>
-          <div className="noc-kpi-value" style={{ color: health?.database === 'online' ? '#10b981' : '#ef4444' }}>{health?.database || '...'}</div>
-        </div>
-        <div className="noc-hud-card" style={{ '--card-color': '#a855f7' }}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Clock size={14} /> UPTIME</span></div>
-          <div className="noc-kpi-value" style={{ color: '#a855f7' }}>{health ? formatUptime(health.uptime) : '...'}</div>
-        </div>
-        <div className="noc-hud-card" style={{ '--card-color': '#f59e0b' }}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Users size={14} /> USUÁRIOS</span></div>
-          <div className="noc-kpi-value" style={{ color: '#f59e0b' }}>{totalUsuarios}</div>
-        </div>
-      </div>
+      </section>
 
-      <div className="switchboard-grid">
-        <div className="switch-panel">
-          <div className="switch-panel-title">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Cloud size={14} /> Núcleo operacional</span>
-          </div>
-          <div className="modulos-list">
-            <div className={`hardware-toggle ${sysConfig?.maintenanceMode ? '' : 'disabled'}`}>
-              <span>Modo manutenção</span>
-              <button className={`btn-toggle-ui ${sysConfig?.maintenanceMode ? 'off' : 'on'}`} onClick={confirmarModoManutencao}>
-                {sysConfig?.maintenanceMode ? 'ON' : 'OFF'}
-              </button>
-            </div>
-            <div className="hardware-toggle">
-              <span>Banco de dados</span>
-              <span className={`status-badge ${health?.database === 'online' ? 'success' : 'danger'}`}>{health?.database || '...'}</span>
-            </div>
-            <div className="hardware-toggle">
-              <span>MQTT</span>
-              <span className="status-badge success">{health?.mqtt || '...'}</span>
-            </div>
-            <div className="hardware-toggle">
-              <span>WhatsApp</span>
-              <span className="status-badge">{health?.whatsapp || '...'}</span>
-            </div>
-          </div>
-        </div>
+      <div className="system-command-lower-grid">
+        <section className="system-command-panel system-security-panel">
+          <div className="system-command-title"><div><ShieldCheck size={16} /><span>Postura de segurança</span></div><small>{security?.metrics?.activeSessions || 0} sessões ativas</small></div>
+          <div className="system-security-metrics"><div><span>Falhas de login</span><strong>{security?.metrics?.failedLogins24h || 0}</strong><small>últimas 24h</small></div><div><span>Adoção MFA</span><strong>{security?.metrics?.usersTotal ? Math.round((security.metrics.mfaEnabled / security.metrics.usersTotal) * 100) : 0}%</strong><small>{security?.metrics?.mfaEnabled || 0} de {security?.metrics?.usersTotal || totalUsuarios}</small></div><div><span>Sessão JWT</span><strong>{security?.policy?.jwtExpiresHours || '--'}h</strong><small>limite configurado</small></div></div>
+          <div className="system-check-list">{(security?.checks || []).map((check) => <div key={check.id} className={check.ok ? 'is-ok' : 'is-warning'}>{check.ok ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}<span>{check.label}</span><b>{check.ok ? 'Conforme' : 'Revisar'}</b></div>)}</div>
+        </section>
 
-        <div className="switch-panel">
-          <div className="switch-panel-title">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} /> Flags globais</span>
-          </div>
-          <div className="modulos-list">
-            {featureLabels.map((feature) => {
-              const enabled = globalFeatures[feature.key] ?? true;
-              const Icon = feature.icon;
-              return (
-                <div key={feature.key} className={`hardware-toggle ${enabled ? '' : 'disabled'}`}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icon size={14} /> {feature.label}</span>
-                  <button className={`btn-toggle-ui ${enabled ? 'on' : 'off'}`} onClick={() => alternarFeature(feature.key)}>{enabled ? 'ON' : 'OFF'}</button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <section className="system-command-panel system-features-panel">
+          <div className="system-command-title"><div><Settings2 size={16} /><span>Políticas da interface</span></div><small>{modulosOcultosGlobal.length} módulo(s) oculto(s)</small></div>
+          <div className="system-feature-list">{featureLabels.map((feature) => { const enabled = globalFeatures[feature.key] ?? true; const Icon = feature.icon; return <div key={feature.key} className={enabled ? '' : 'is-disabled'}><Icon size={16} /><span><strong>{feature.label}</strong><small>{feature.description}</small></span><button type="button" role="switch" aria-checked={enabled} className={enabled ? 'is-on' : ''} onClick={() => alternarFeature(feature.key)}><i /></button></div>; })}</div>
+        </section>
 
-        <div className="switch-panel">
-          <div className="switch-panel-title" style={{ color: '#f59e0b' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ServerCrash size={14} /> Ações da interface</span>
+        <section className="system-command-panel system-actions-panel">
+          <div className="system-command-title"><div><ServerCrash size={16} /><span>Ferramentas administrativas</span></div><small>Ações auditáveis</small></div>
+          <div className="system-action-list">
+            <button type="button" onClick={copiarDiagnostico}><Copy size={17} /><span><strong>Copiar diagnóstico</strong><small>Runtime, host e baseline sem segredos</small></span></button>
+            <button type="button" onClick={baixarBackup} disabled={actionLoading === 'backup'}>{actionLoading === 'backup' ? <Loader2 size={17} className="spin" /> : <DownloadCloud size={17} />}<span><strong>Gerar backup JSON</strong><small>Pacote compactado das tabelas operacionais</small></span></button>
+            <button type="button" onClick={confirmarLimpezaCache}><Eraser size={17} /><span><strong>Limpar cache local</strong><small>Somente neste dispositivo</small></span></button>
+            <button type="button" onClick={confirmarRecarregamento}><RefreshCw size={17} /><span><strong>Recarregar console</strong><small>Reinicia a interface desta aba</small></span></button>
+            <button type="button" className={sysConfig?.maintenanceMode ? 'is-recovery' : 'is-danger'} onClick={confirmarModoManutencao}><ServerCrash size={17} /><span><strong>{sysConfig?.maintenanceMode ? 'Encerrar manutenção' : sysConfig?.maintenanceNoticeActive ? 'Entrar em manutenção' : 'Avisar manutenção'}</strong><small>{sysConfig?.maintenanceMode ? 'Restabelece o acesso normal' : sysConfig?.maintenanceNoticeActive ? 'Encerra as sessões após o aviso prévio' : 'Publica o aviso sem desconectar usuários'}</small></span></button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button className="btn-emergency warning" onClick={limparCacheInterface}>
-              <Eraser size={16} /> LIMPAR CACHE LOCAL
-            </button>
-            <button className="btn-emergency warning" onClick={recarregarClientes}>
-              <RefreshCw size={16} /> RECARREGAR CLIENTES
-            </button>
-          </div>
-          <div className="modulos-list-help">
-            {modulosOcultosGlobal.length} módulo(s) oculto(s) globalmente. As ações acima não apagam dados do banco.
-          </div>
-        </div>
+        </section>
       </div>
     </div>
   );
 };
 
-// ============================================================================
-// TELA SAAS E MULTITENANCY (ABSOLUTE FULLSCREEN - X SCROLL ONLY)
-// ============================================================================
-const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLog, setModalConfig }) => {
-  // Gestão SaaS: controla tenants, planos, aprovações e provisionamento
-  // comercial/operacional de novas empresas.
-  const [chavesAPI, setChavesAPI] = useState({});
+/**
+ * ============================================================================ TELA SAAS E
+ * MULTITENANCY (ABSOLUTE FULLSCREEN - X SCROLL ONLY)
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.updateSysConfig - Propriedade updateSysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const TelaSaaS = ({ api, updateSysConfig, showToast, addLog, setModalConfig }) => {
+  // Esta tela usa o backend como fonte de verdade para licenças e empresas.
+  const [tenants, setTenants] = useState([]);
+  const [revealedKeys, setRevealedKeys] = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [planFilter, setPlanFilter] = useState('TODOS');
+  const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [sortBy, setSortBy] = useState('NOME');
   const [modal360, setModal360] = useState(null);
-  const tenantUsageMetrics = useMemo(() => {
-    const planos = sysConfig?.planos || {};
-    return (filiaisDb || []).reduce((acc, filial) => {
-      acc[filial] = getTenantUsageMetric(filial, planos[filial] || 'FREE');
-      return acc;
-    }, {});
-  }, [filiaisDb, sysConfig?.planos]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pendingTenant, setPendingTenant] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
-  /**
-   * Processa a interacao de handle mudar plano e atualiza a interface conforme o resultado.
-   */
-  const handleMudarPlano = (loja, plano) => {
-    updateSysConfig(null, loja, 'saas_plan', null, plano);
-    addLog(`[SAAS] Contrato de ${loja} alterado para ${plano}.`, plano === 'SUSPENSO' ? 'error' : 'success');
-    showToast(`Licença de ${loja} atualizada.`, plano === 'SUSPENSO' ? 'error' : 'success');
-  };
+  // Carrega licenças, telemetria, cobrança e sessões consolidadas pelo servidor.
+  const loadLicenses = useCallback(async (silent = false) => { if (silent) setRefreshing(true); else setLoading(true); try { const response = await api.get('/saas/licenses'); setTenants(Array.isArray(response.data) ? response.data : []); setLoadError(''); setLastUpdated(new Date()); } catch (error) { const message = error.response?.data?.error || 'Não foi possível carregar as licenças.'; setLoadError(message); if (!silent) showToast(message, 'error'); } finally { setLoading(false); setRefreshing(false); } }, [api, showToast]);
+  const normalizedTenants = useMemo(() => tenants.map((tenant) => ({
+    ...tenant,
+    filial: tenant.filial || tenant.nome || 'Tenant sem nome',
+    empresa: tenant.empresa || 'Empresa não vinculada',
+    plano: String(tenant.plano || 'FREE').toUpperCase(),
+    tenant_status: tenant.tenant_status || tenant.status || 'Ativa',
+    retention_days: Number(tenant.retention_days || 30),
+    equipamentos: Number(tenant.equipamentos || 0),
+    equipamentos_online: Number(tenant.equipamentos_online || 0),
+    usuarios: Number(tenant.usuarios || 0),
+    sessoes_ativas: Number(tenant.sessoes_ativas || 0),
+    alertas_abertos: Number(tenant.alertas_abertos || 0),
+    fatura_total: tenant.fatura_total == null ? null : Number(tenant.fatura_total)
+  })), [tenants]);
+  const filteredTenants = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const isOperational = (tenant) => tenant.plano !== 'SUSPENSO' && String(tenant.tenant_status).toLowerCase() === 'ativa';
+    return normalizedTenants.filter((tenant) => (!term || `${tenant.filial} ${tenant.empresa}`.toLowerCase().includes(term))
+      && (planFilter === 'TODOS' || tenant.plano === planFilter)
+      && (statusFilter === 'TODOS' || (statusFilter === 'ATIVOS' ? isOperational(tenant) : !isOperational(tenant))))
+      .sort((a, b) => {
+        if (sortBy === 'PLANO') return a.plano.localeCompare(b.plano) || a.filial.localeCompare(b.filial);
+        if (sortBy === 'STATUS') return String(a.tenant_status).localeCompare(String(b.tenant_status));
+        if (sortBy === 'ALERTAS') return b.alertas_abertos - a.alertas_abertos;
+        if (sortBy === 'SESSOES') return b.sessoes_ativas - a.sessoes_ativas;
+        return a.filial.localeCompare(b.filial);
+      });
+  }, [normalizedTenants, planFilter, searchTerm, sortBy, statusFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredTenants.length / pageSize));
+  const paginatedTenants = filteredTenants.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const summary = useMemo(() => normalizedTenants.reduce((accumulator, tenant) => {
+    accumulator.total += 1;
+    accumulator[tenant.plano] = (accumulator[tenant.plano] || 0) + 1;
+    accumulator.online += tenant.equipamentos_online;
+    accumulator.equipment += tenant.equipamentos;
+    accumulator.sessions += tenant.sessoes_ativas;
+    if (tenant.fatura_status && !['PAGO', 'SEM FATURA'].includes(String(tenant.fatura_status).toUpperCase())) accumulator.billingAttention += 1;
+    return accumulator;
+  }, { total: 0, TRIAL: 0, FREE: 0, PRO: 0, ENTERPRISE: 0, SUSPENSO: 0, online: 0, equipment: 0, sessions: 0, billingAttention: 0 }), [normalizedTenants]);
 
+  useEffect(() => { loadLicenses(); }, [loadLicenses]);
+  useEffect(() => {
+    if (!autoRefresh) return undefined;
+    const timer = window.setInterval(() => loadLicenses(true), 30000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, loadLicenses]);
+  useEffect(() => { setCurrentPage(1); }, [planFilter, searchTerm, sortBy, statusFilter]);
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
   /**
-   * Processa a interacao de handle mudar retencao e atualiza a interface conforme o resultado.
+   * Atualiza update license mantendo o estado persistido em sincronia.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @param {unknown} changes - Valor de changes consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const handleMudarRetencao = (loja, dias) => {
-    addLog(`[CLOUD] Limite de retenção de ${loja} ajustado para ${dias} dias.`, 'info');
-    showToast(`Cluster de dados de ${loja} ajustado.`, 'success');
-  };
-
-  /**
-   * Processa a interacao de handle forcar logout e atualiza a interface conforme o resultado.
-   */
-  const handleForcarLogout = (loja) => {
-    setModalConfig({
-      isOpen: true, title: 'Forçar Logout Remoto',
-      message: `Tem a certeza de que deseja acionar o Kill Switch para a organização ${loja}? Todos os usuários locais serão desconectados instantaneamente.`,
-      onConfirm: () => {
-        localStorage.setItem('termosync_force_logout', `${loja}_${Date.now()}`);
-        addLog(`[SECURITY] Sinal de KILL SWITCH disparado para: ${loja}.`, 'error');
-        showToast(`Comando de expulsão enviado para ${loja}.`, 'success');
-      }
-    });
-  };
-
-  /**
-   * Gera gerar chave api com os dados necessarios para o proximo passo.
-   */
-  const gerarChaveAPI = (loja) => {
-    const key = 'sk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    setChavesAPI(prev => ({ ...prev, [loja]: key }));
-    addLog(`[API] Nova chave gerada para ${loja}.`, 'success');
-    showToast(`Chave API gerada.`, 'success');
-  };
-
-  /**
-   * Processa a interacao de copy to clipboard e atualiza a interface conforme o resultado.
-   */
-  const copyToClipboard = (loja, key) => {
-    navigator.clipboard.writeText(key);
-    setCopiedKey(loja);
-    setTimeout(() => setCopiedKey(null), 2000);
-    showToast('Chave copiada!', 'info');
-  };
-
-  /**
-   * Registra login as para auditoria, historico ou diagnostico.
-   */
-  const loginAs = async (loja) => {
-    addLog(`[AUTH] A solicitar token de Impersonate para ${loja}...`, 'warning');
-    showToast(`A gerar acesso remoto...`, 'warning');
+  const updateLicense = async (tenant, changes) => {
+    setPendingTenant(tenant.filial);
     try {
-      const res = await api.post('/impersonate', { filialDestino: loja });
-      if (res.data && res.data.token) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('role', 'ADMIN');
-        localStorage.setItem('empresa', res.data.empresa);
-        localStorage.setItem('filial', 'Todas');
-        localStorage.removeItem('nome_gerente');
-        localStorage.removeItem('nome_coordenador');
-        localStorage.removeItem('nome_tecnico');
-        window.open('/', '_blank');
-      }
-    } catch (err) {
-      showToast('Erro ao criar sessão remota.', 'error');
+      const plano = changes.plano || tenant.plano;
+      const retentionDays = Number(changes.retentionDays || tenant.retention_days);
+      await api.put(`/saas/licenses/${encodeURIComponent(tenant.filial)}`, { plano, retentionDays });
+      updateSysConfig(null, tenant.filial, 'saas_plan', null, plano);
+      addLog(`[SAAS] ${tenant.filial}: plano ${plano}, retenção ${retentionDays} dias.`, plano === 'SUSPENSO' ? 'error' : 'success');
+      showToast(`Licença de ${tenant.filial} atualizada.`, plano === 'SUSPENSO' ? 'warning' : 'success');
+      await loadLicenses(true);
+    } catch (error) {
+      showToast(error.response?.data?.error || 'Falha ao atualizar a licença.', 'error');
+    } finally {
+      setPendingTenant(null);
     }
   };
 
   /**
-   * Concentra a logica de open modal360 para manter o restante do tela mais legivel.
+   * Exige confirmação antes de suspender um tenant em produção.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @param {unknown} plano - Valor de plano consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const openModal360 = (filial, plano, nodes) => {
-    const cpu = plano === 'ENTERPRISE' ? Math.floor(Math.random() * 30) + 40 : Math.floor(Math.random() * 20) + 15;
-    const ram = plano === 'ENTERPRISE' ? Math.floor(Math.random() * 40) + 50 : Math.floor(Math.random() * 30) + 30;
-    const webhooksMax = plano === 'ENTERPRISE' ? 200 : (plano === 'PRO' ? 50 : 10);
-    const webhooksUsed = Math.floor(Math.random() * (webhooksMax * 0.8));
-    setModal360({ nome: filial, plano, nodes, cpu, ram, webhooksUsed, webhooksMax });
+  const changePlan = (tenant, plano) => {
+    if (plano !== 'SUSPENSO') {
+      updateLicense(tenant, { plano });
+      return;
+    }
+    setModalConfig({
+      isOpen: true,
+      title: 'Suspender licença SaaS',
+      message: `${tenant.filial} perderá o acesso ao sistema até que outro plano seja selecionado. Deseja continuar?`,
+      onConfirm: () => updateLicense(tenant, { plano })
+    });
   };
 
-  const lojasFiltradas = (filiaisDb || []).filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()));
-  const totalLojas = (filiaisDb || []).length;
-  const ativas = (filiaisDb || []).filter(f => sysConfig.planos?.[f] !== 'SUSPENSO').length;
-  const suspensas = totalLojas - ativas;
+  /**
+   * Gera ou rotaciona uma chave e mantém o segredo visível somente nesta sessão.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const generateApiKey = async (tenant) => {
+    setPendingTenant(tenant.filial);
+    try {
+      const response = await api.post(`/saas/licenses/${encodeURIComponent(tenant.filial)}/api-key`);
+      setRevealedKeys((current) => ({ ...current, [tenant.filial]: response.data.key }));
+      addLog(`[API] Chave de integração rotacionada para ${tenant.filial}.`, 'warning');
+      showToast('Nova chave gerada. Ela será exibida somente agora.', 'success');
+      await loadLicenses(true);
+    } catch (error) {
+      showToast(error.response?.data?.error || 'Falha ao gerar a chave.', 'error');
+    } finally {
+      setPendingTenant(null);
+    }
+  };
+
+  /**
+   * Confirma a rotação quando já existe uma integração ativa.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const requestApiKey = (tenant) => {
+    if (!tenant.api_key_prefix) {
+      generateApiKey(tenant);
+      return;
+    }
+    setModalConfig({
+      isOpen: true,
+      title: 'Rotacionar chave de integração',
+      message: `A chave atual de ${tenant.filial} deixará de funcionar imediatamente. Deseja gerar uma nova?`,
+      onConfirm: () => generateApiKey(tenant)
+    });
+  };
+
+  /**
+   * Copia a chave recém-gerada e informa falhas de permissão do navegador.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const copyApiKey = async (filial) => {
+    try {
+      await navigator.clipboard.writeText(revealedKeys[filial]);
+      setCopiedKey(filial);
+      window.setTimeout(() => setCopiedKey(null), 1800);
+      showToast('Chave copiada.', 'info');
+    } catch (error) {
+      showToast('O navegador bloqueou a cópia da chave.', 'error');
+    }
+  };
+
+  /**
+   * Confirma e revoga a chave persistida do tenant.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const revokeApiKey = (tenant) => setModalConfig({
+    isOpen: true,
+    title: 'Revogar chave de integração',
+    message: `A integração de ${tenant.filial} deixará de autenticar imediatamente. Deseja continuar?`,
+    onConfirm: async () => {
+      try {
+        await api.delete(`/saas/licenses/${encodeURIComponent(tenant.filial)}/api-key`);
+        setRevealedKeys((current) => { const next = { ...current }; delete next[tenant.filial]; return next; });
+        showToast('Chave de integração revogada.', 'success');
+        await loadLicenses(true);
+      } catch (error) {
+        showToast(error.response?.data?.error || 'Falha ao revogar a chave.', 'error');
+      }
+    }
+  });
+
+  /**
+   * Encerra no servidor todas as sessões vinculadas à filial selecionada.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const revokeSessions = (tenant) => setModalConfig({
+    isOpen: true,
+    title: 'Encerrar sessões do tenant',
+    message: `Todos os usuários conectados em ${tenant.filial} precisarão entrar novamente. Deseja continuar?`,
+    onConfirm: async () => {
+      try {
+        const response = await api.post(`/saas/licenses/${encodeURIComponent(tenant.filial)}/revoke-sessions`);
+        addLog(`[SECURITY] ${response.data.revoked} sessão(ões) encerradas em ${tenant.filial}.`, 'error');
+        showToast(`${response.data.revoked} sessão(ões) encerradas.`, 'success');
+        await loadLicenses(true);
+      } catch (error) {
+        showToast(error.response?.data?.error || 'Falha ao encerrar sessões.', 'error');
+      }
+    }
+  });
+
+  /**
+   * Autoriza uma sessão isolada e entrega à nova aba um código de uso único.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+   *
+   * @param {unknown} tenant - Valor de tenant consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const loginAs = async (tenant) => {
+    const customerWindow = window.open('about:blank', '_blank');
+    if (!customerWindow) {
+      showToast('O navegador bloqueou a nova aba. Permita pop-ups para acessar como cliente.', 'warning');
+      return;
+    }
+    customerWindow.document.title = 'Preparando acesso ao cliente...';
+    setPendingTenant(tenant.filial);
+    try {
+      const response = await api.post('/impersonate', { filialDestino: tenant.filial });
+      const accessUrl = new URL(window.location.pathname, window.location.origin);
+      accessUrl.searchParams.set('impersonateCode', response.data.accessCode);
+      customerWindow.opener = null;
+      customerWindow.location.replace(accessUrl.toString());
+      addLog(`[AUTH] Acesso remoto criado para ${tenant.filial}.`, 'warning');
+      showToast(`Sessão de cliente aberta para ${tenant.filial}.`, 'success');
+      await loadLicenses(true);
+    } catch (error) {
+      customerWindow.close();
+      showToast(error.response?.data?.error || 'Erro ao criar sessão remota.', 'error');
+    } finally {
+      setPendingTenant(null);
+    }
+  };
+
+
+  /**
+   * Formata format date para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatDate = (value) => value ? new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Sem registro';
+
+  /**
+   * Formata format currency para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatCurrency = (value) => value == null ? 'Sem fatura' : Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className="anim-fade-in absolute-fullscreen">
+    <div className="saas-license-screen anim-fade-in">
+      <header className="saas-license-heading anim-stagger-1">
+        <div>
+          <span className="saas-license-eyebrow"><ShieldCheck size={14} /> Governança comercial e operacional</span>
+          <h2>Licenças SaaS</h2>
+          <p>Planos, acesso, retenção, integrações e consumo real por tenant. {lastUpdated && `Atualizado às ${lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`}</p>
+        </div>
+        <button className="btn-icon-small" type="button" title="Atualizar licenças" onClick={() => loadLicenses(true)} disabled={refreshing}>
+          <RefreshCw size={18} className={refreshing ? 'spin' : ''} />
+        </button>
+      </header>
 
-      <div className="noc-hud-grid anim-stagger-1" style={{ flexShrink: 0 }}>
-        <div className="noc-hud-card" style={{'--card-color': 'var(--theme-sec)', minHeight: '100px'}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><Building2 size={14}/> Total de Tenants</span></div>
-          <div className="noc-kpi-value" style={{ color: 'var(--theme-sec)' }}>{totalLojas}</div>
-        </div>
-        <div className="noc-hud-card" style={{'--card-color': '#10b981', minHeight: '100px'}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><ShieldCheck size={14}/> Licenças Ativas</span></div>
-          <div className="noc-kpi-value" style={{ color: '#10b981' }}>{ativas}</div>
-        </div>
-        <div className="noc-hud-card" style={{'--card-color': '#ef4444', minHeight: '100px'}}>
-          <div className="noc-mini-header"><span className="noc-kpi-title"><ShieldBan size={14}/> Em Lockdown</span></div>
-          <div className="noc-kpi-value" style={{ color: '#ef4444' }}>{suspensas}</div>
-        </div>
-      </div>
+      <section className="saas-license-kpis anim-stagger-1" aria-label="Resumo das licenças">
+        <article><span><Building2 size={15} /> Tenants</span><strong>{summary.total}</strong><small>{summary.TRIAL} Trial · {summary.FREE} Free · {summary.PRO} Pro · {summary.ENTERPRISE} Enterprise</small></article>
+        <article><span><Server size={15} /> Edge online</span><strong>{summary.online}<small>/{summary.equipment}</small></strong><small>Equipamentos com telemetria nos últimos 15 min</small></article>
+        <article><span><Users size={15} /> Sessões ativas</span><strong>{summary.sessions}</strong><small>Acessos autenticados agora</small></article>
+        <article className={summary.SUSPENSO || summary.billingAttention ? 'is-warning' : ''}><span><AlertTriangle size={15} /> Atenção</span><strong>{summary.SUSPENSO + summary.billingAttention}</strong><small>{summary.SUSPENSO} suspensas · {summary.billingAttention} cobranças pendentes</small></article>
+      </section>
 
-      <div className="dev-card glass-card anim-stagger-2" style={{ padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, borderTop: '4px solid #a855f7' }}>
-        <div className="dev-card-header flex-between" style={{ color: '#a855f7', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldAlert size={24} /><h3>Contas Corporativas e Integrações API</h3></div>
-          <div className="iam-search-box mobile-full-width" style={{ maxWidth: '300px', flex: '1 1 200px' }}>
-            <Search size={16} color="#64748b" />
-            <input type="text" placeholder="Procurar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      <section className="saas-license-workspace anim-stagger-2">
+        <div className="saas-license-toolbar">
+          <div className="iam-search-box saas-license-search"><Search size={16} /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar tenant ou empresa" /></div>
+          <div className="saas-license-filters">
+            <label><span>Plano</span><select value={planFilter} onChange={(event) => setPlanFilter(event.target.value)}><option value="TODOS">Todos</option><option value="TRIAL">Trial</option><option value="FREE">Free</option><option value="PRO">Pro</option><option value="ENTERPRISE">Enterprise</option><option value="SUSPENSO">Suspenso</option></select></label>
+            <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="TODOS">Todos</option><option value="ATIVOS">Operacionais</option><option value="INATIVOS">Com restrição</option></select></label>
+            <label><span>Ordenar</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="NOME">Nome</option><option value="PLANO">Plano</option><option value="STATUS">Status</option><option value="ALERTAS">Mais alertas</option><option value="SESSOES">Mais sessões</option></select></label>
           </div>
+          <label className="saas-live-toggle"><input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} /><span>Tempo real</span></label>
+          <span className="saas-license-result-count">{filteredTenants.length} de {normalizedTenants.length}</span>
         </div>
 
-        <div className="flex-table-container">
-          <div className="flex-table-content" style={{ minWidth: '1150px' }}>
-            <div className="saas-table-header saas-grid-cols" style={{ position: 'sticky', top: 0, zIndex: 10, margin: '0 0 4px 0', background: 'rgba(11, 17, 32, 0.95)' }}>
-              <div>Organização / Cliente</div><div>Uso / Infraestrutura</div><div>Armazenamento DB</div><div style={{ textAlign: 'center' }}>Chaves API (Webhooks)</div><div style={{ textAlign: 'center' }}>Licença (Acesso)</div><div style={{ textAlign: 'right' }}>Ações Rápidas</div>
-            </div>
-
-            {lojasFiltradas.length === 0 ? (
-               <div style={{ textAlign: 'center', padding: '30px', color: 'var(--dim-text)' }}>Nenhuma organização encontrada.</div>
-            ) : lojasFiltradas.map((filial, index) => {
-              const planoAtual = sysConfig.planos?.[filial] || 'FREE'; const isSuspenso = planoAtual === 'SUSPENSO';
-              const storagePercent = isSuspenso ? 0 : (planoAtual === 'FREE' ? 85 : (planoAtual === 'PRO' ? 45 : 15));
-              const storageColor = storagePercent > 80 ? 'var(--danger)' : (storagePercent > 50 ? 'var(--warning)' : 'var(--theme-main)');
-              const { nodeCount, apiCalls } = tenantUsageMetrics[filial] || getTenantUsageMetric(filial, planoAtual);
-
+        {loadError && tenants.length === 0 ? (
+          <div className="saas-license-empty is-error"><AlertCircle size={24} /><span>{loadError}</span><button type="button" onClick={() => loadLicenses()}>Tentar novamente</button></div>
+        ) : loading ? (
+          <div className="saas-license-empty"><Loader2 size={24} className="spin" /><span>Consolidando licenças...</span></div>
+        ) : filteredTenants.length === 0 ? (
+          <div className="saas-license-empty"><Search size={24} /><span>Nenhum tenant corresponde aos filtros.</span></div>
+        ) : (
+          <div className="saas-license-list">
+            {paginatedTenants.map((tenant) => {
+              const suspended = tenant.plano === 'SUSPENSO' || tenant.tenant_status !== 'Ativa';
+              const busy = pendingTenant === tenant.filial;
+              const onlinePercent = tenant.equipamentos ? Math.round((tenant.equipamentos_online / tenant.equipamentos) * 100) : 0;
+              const secret = revealedKeys[tenant.filial];
               return (
-                <div className={`saas-client-row saas-grid-cols ${isSuspenso ? 'row-suspended' : ''}`} style={{ margin: 0 }} key={index}>
-                  <div>
-                    <div className="text-truncate" style={{ color: isSuspenso ? 'var(--danger)' : 'white', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isSuspenso ? '#ef4444' : '#10b981', boxShadow: `0 0 8px ${isSuspenso ? '#ef4444' : '#10b981'}` }}></div>
-                      {filial}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--dim-text)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Activity size={12}/> SLA: 99.9% (Online)
-                    </div>
+                <article className={`saas-license-row ${suspended ? 'is-suspended' : ''}`} key={tenant.id || tenant.filial}>
+                  <div className="saas-tenant-identity">
+                    <span className={`saas-status-dot ${suspended ? 'offline' : 'online'}`} />
+                    <div><strong>{tenant.filial}</strong><span>{tenant.empresa || 'Empresa não vinculada'}</span></div>
                   </div>
-                  <div style={{ color: 'var(--dim-text)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Server size={12}/> {nodeCount} Nós Edge Ativos</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Globe size={12}/> {apiCalls} Req/mês</span>
+
+                  <div className="saas-tenant-metrics">
+                    <div><span>Edge online</span><strong>{tenant.equipamentos_online}/{tenant.equipamentos}</strong><div className="saas-meter"><i style={{ width: `${onlinePercent}%` }} /></div></div>
+                    <div><span>Última telemetria</span><strong>{tenant.ultima_telemetria ? new Date(tenant.ultima_telemetria).toLocaleDateString('pt-BR') : 'Sem sinal'}</strong><small>{formatDate(tenant.ultima_telemetria)}</small></div>
+                    <div><span>Usuários e sessões</span><strong>{tenant.usuarios} / {tenant.sessoes_ativas}</strong><small>{tenant.alertas_abertos} alerta(s) em aberto</small></div>
+                    <div><span>Ciclo financeiro</span><strong className={tenant.fatura_status && tenant.fatura_status !== 'PAGO' ? 'warning-text' : ''}>{tenant.fatura_status || 'SEM FATURA'}</strong><small>{formatCurrency(tenant.fatura_total)}</small></div>
                   </div>
-                  <div style={{ paddingRight: '15px' }}>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${storagePercent}%`, backgroundColor: storageColor }}></div></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--dim-text)', display: 'flex', alignItems: 'center', gap: '4px' }}><Cloud size={12} /> {storagePercent}%</span>
-                      <select disabled={isSuspenso} onChange={(e) => handleMudarRetencao(filial, e.target.value)} style={{ background: 'transparent', border: 'none', fontSize: '0.8rem', color: 'var(--theme-sec)', outline: 'none', cursor: 'pointer', fontWeight: '800' }}>
-                        <option value="30">30 Dias</option><option value="90">90 Dias</option><option value="365">1 Ano</option>
-                      </select>
-                    </div>
+
+                  <div className="saas-tenant-controls">
+                    <label><span>Plano</span><select className="plan-dropdown" value={tenant.plano} disabled={busy} onChange={(event) => changePlan(tenant, event.target.value)}><option value="TRIAL" disabled>Trial</option><option value="FREE">Free</option><option value="PRO">Pro</option><option value="ENTERPRISE">Enterprise</option><option value="SUSPENSO">Suspenso</option></select></label>
+                    <label><span>Retenção</span><select className="plan-dropdown" value={tenant.retention_days} disabled={busy || suspended} onChange={(event) => updateLicense(tenant, { retentionDays: event.target.value })}><option value="30">30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label>
                   </div>
-                  <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {chavesAPI[filial] ? (
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(168, 85, 247, 0.3)', maxWidth: '100%' }}>
-                        <span className="text-truncate" style={{ fontFamily: 'Montserrat', fontSize: '0.9rem', color: '#a855f7', padding: '10px 14px', fontWeight: 'bold', maxWidth: '140px' }}>{chavesAPI[filial].substring(0, 10)}...</span>
-                        <button onClick={() => copyToClipboard(filial, chavesAPI[filial])} style={{ background: '#a855f7', border: 'none', color: 'white', padding: '10px 14px', cursor: 'pointer' }}>{copiedKey === filial ? <Check size={16}/> : <Copy size={16}/>}</button>
-                      </div>
-                    ) : ( <button className="btn-icon-small" title="Gerar Chave API" onClick={() => gerarChaveAPI(filial)} disabled={isSuspenso}><Key size={16} /></button> )}
+
+                  <div className="saas-api-key">
+                    <span>Integração API</span>
+                    {secret ? <div className="saas-secret"><code>{secret}</code><button type="button" title="Copiar chave" onClick={() => copyApiKey(tenant.filial)}>{copiedKey === tenant.filial ? <Check size={16} /> : <Copy size={16} />}</button></div> : <strong>{tenant.api_key_prefix || 'Não configurada'}</strong>}
+                    <div><button type="button" disabled={busy || suspended} onClick={() => requestApiKey(tenant)}><Key size={14} />{tenant.api_key_prefix ? 'Rotacionar' : 'Gerar chave'}</button>{tenant.api_key_prefix && <button type="button" className="danger-text" onClick={() => revokeApiKey(tenant)}><Trash2 size={14} />Revogar</button>}</div>
                   </div>
-                  <div style={{ textAlign: 'center', padding: '0 10px' }}>
-                    <select value={planoAtual} onChange={(e) => handleMudarPlano(filial, e.target.value)} className="plan-dropdown">
-                      <option value="FREE">FREE (Básico)</option><option value="PRO">PRO (Avançado)</option><option value="ENTERPRISE">ENTERPRISE (Total)</option><option value="SUSPENSO">⚠️ LOCKDOWN</option>
-                    </select>
+
+                  <div className="saas-tenant-actions">
+                    <button type="button" title="Abrir visão detalhada" onClick={() => setModal360(tenant)}><ActivitySquare size={18} /></button>
+                    <button type="button" title="Acessar como cliente" disabled={busy || suspended} onClick={() => loginAs(tenant)}><UserCheck size={18} /></button>
+                    <button type="button" title="Encerrar sessões" className="danger-text" disabled={busy || tenant.sessoes_ativas === 0} onClick={() => revokeSessions(tenant)}><Power size={18} /></button>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button className="btn-icon-small" title="Visão 360 do Cliente" onClick={() => openModal360(filial, planoAtual, nodeCount)} style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}><ActivitySquare size={18} /></button>
-                    <button className="btn-icon-small" title="Acessar Como Cliente (Impersonate)" onClick={() => loginAs(filial)}><UserCheck size={18} /></button>
-                    <button className="btn-icon-small danger-text" title="Forçar Logout Remoto (Kill Switch)" onClick={() => handleForcarLogout(filial)}><Power size={18} /></button>
-                  </div>
-                </div>
+                </article>
               );
             })}
+            {totalPages > 1 && (
+              <footer className="saas-license-pagination">
+                <button type="button" title="Página anterior" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}><ChevronLeft size={18} /></button>
+                <span>Página {currentPage} de {totalPages}</span>
+                <button type="button" title="Próxima página" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}><ChevronRight size={18} /></button>
+              </footer>
+            )}
           </div>
-        </div>
-      </div>
+        )}
+      </section>
 
       {modal360 && (
-        <div className="iam-modal-overlay">
-          <div className="iam-modal-content" style={{ maxWidth: '600px' }}>
-            <div className="iam-modal-header" style={{ background: 'rgba(56, 189, 248, 0.1)', borderBottom: '1px solid rgba(56, 189, 248, 0.3)' }}>
-               <h3 style={{ color: '#38bdf8' }}><ActivitySquare size={20}/> Client 360: {modal360.nome}</h3>
-               <button className="btn-close-modal" onClick={() => setModal360(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20}/></button>
-            </div>
+        <div className="iam-modal-overlay" role="dialog" aria-modal="true" aria-label={`Detalhes de ${modal360.filial}`}>
+          <div className="iam-modal-content saas-tenant-modal">
+            <div className="iam-modal-header"><div><span>Tenant 360</span><h3>{modal360.filial}</h3></div><button className="btn-close-modal" type="button" title="Fechar" onClick={() => setModal360(null)}><X size={20} /></button></div>
             <div className="iam-modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-dim)' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Licença Ativa</span>
-                  <div style={{ fontSize: '1.2rem', color: 'white', fontWeight: '900', marginTop: '5px' }}>{modal360.plano}</div>
-                </div>
-                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-dim)' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Nós Conectados</span>
-                  <div style={{ fontSize: '1.2rem', color: 'var(--theme-main)', fontWeight: '900', marginTop: '5px', fontFamily: 'Montserrat' }}>{modal360.nodes} / ∞</div>
-                </div>
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-dim)', marginTop: '5px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--theme-sec)', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '15px' }}><Cpu size={16}/> Consumo de Carga Isolada (Pods)</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                   <div>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '4px' }}><span>CPU (vCores)</span><span>{modal360.cpu}%</span></div>
-                     <div className="storage-bar-bg" style={{ height: '6px', margin: 0 }}><div className="storage-bar-fill" style={{ width: `${modal360.cpu}%`, background: 'var(--theme-sec)' }}></div></div>
-                   </div>
-                   <div>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '4px' }}><span>Memória Cache (Redis)</span><span>{modal360.ram}%</span></div>
-                     <div className="storage-bar-bg" style={{ height: '6px', margin: 0 }}><div className="storage-bar-fill" style={{ width: `${modal360.ram}%`, background: '#f59e0b' }}></div></div>
-                   </div>
-                   <div>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '4px' }}><span>Webhooks Simultâneos</span><span>{modal360.webhooksUsed} / {modal360.webhooksMax}</span></div>
-                     <div className="storage-bar-bg" style={{ height: '6px', margin: 0 }}><div className="storage-bar-fill" style={{ width: `${(modal360.webhooksUsed / modal360.webhooksMax) * 100}%`, background: '#a855f7' }}></div></div>
-                   </div>
-                </div>
+              <div className="saas-modal-status"><span className={`saas-status-dot ${modal360.plano === 'SUSPENSO' ? 'offline' : 'online'}`} /><div><strong>{modal360.plano}</strong><span>{modal360.empresa || 'Empresa não vinculada'} · {modal360.tenant_status}</span></div></div>
+              <div className="saas-modal-grid">
+                <article><span><Server size={15} /> Infraestrutura</span><strong>{modal360.equipamentos_online} de {modal360.equipamentos} online</strong><small>Última telemetria: {formatDate(modal360.ultima_telemetria)}</small></article>
+                <article><span><Database size={15} /> Dados</span><strong>{formatDate(modal360.ultima_telemetria)}</strong><small>Retenção contratada: {modal360.retention_days} dias</small></article>
+                <article><span><Users size={15} /> Acesso</span><strong>{modal360.usuarios} usuários</strong><small>{modal360.sessoes_ativas} ativas · {modal360.sessoes_remotas || 0} remotas</small></article>
+                <article><span><Receipt size={15} /> Cobrança</span><strong>{modal360.fatura_status || 'Sem fatura'}</strong><small>{formatCurrency(modal360.fatura_total)} · venc. {modal360.data_vencimento ? new Date(`${modal360.data_vencimento}T12:00:00`).toLocaleDateString('pt-BR') : 'não informado'}</small></article>
+                <article><span><AlertTriangle size={15} /> Operação</span><strong>{modal360.alertas_abertos} alertas abertos</strong><small>Status cadastral: {modal360.tenant_status}</small></article>
+                <article><span><Key size={15} /> Integração</span><strong>{modal360.api_key_prefix || 'Sem chave'}</strong><small>Criada: {formatDate(modal360.api_key_created_at)}</small></article>
               </div>
             </div>
-            <div className="iam-modal-footer"><button type="button" className="btn btn-primary w-100" onClick={() => setModal360(null)}>Fechar Inspeção</button></div>
+            <div className="iam-modal-footer"><button type="button" className="btn btn-primary w-100" onClick={() => setModal360(null)}>Fechar</button></div>
           </div>
         </div>
       )}
@@ -1027,117 +2098,226 @@ const TelaSaaS = ({ api, sysConfig, updateSysConfig, filiaisDb, showToast, addLo
   );
 };
 
-// ============================================================================
-// TELA BILLING (FINANCEIRO E FATURAMENTO - ROLAGEM FLUIDA COM OVERFLOW X)
-// ============================================================================
+/**
+ * ============================================================================ TELA BILLING
+ * (FINANCEIRO E FATURAMENTO - ROLAGEM FLUIDA COM OVERFLOW X)
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; troca eventos em tempo real
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.sysConfig - Propriedade sysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.filiaisDb - Propriedade filiaisDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.updateSysConfig - Propriedade updateSysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, updateSysConfig, setModalConfig }) => {
   // Billing: acompanha faturas por filial/tenant e aciona cobrança ou bloqueios
   // comerciais conforme plano e status de pagamento.
-  const [billingSetup, setBillingSetup] = useState(() => {
-    const saved = localStorage.getItem('termosync_billing_setup');
-    return saved ? JSON.parse(saved) : { pro: 299.90, ent: 899.90, diaVencimento: 10, multa: 2.0, juros: 1.0 };
-  });
+  const [billingSetup, setBillingSetup] = useState(() => sysConfig.billing || { pro: 299.90, ent: 899.90, diaVencimento: 10, multa: 2.0, juros: 1.0 });
 
   const [faturas, setFaturas] = useState({});
+  const [financeOverview, setFinanceOverview] = useState({ summary: {}, invoices: [], timeline: [], aging: [], generatedAt: null });
   const [isGenerating, setIsGenerating] = useState(null);
   const [isLoadingFinanceiro, setIsLoadingFinanceiro] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState('ALL');
+  const [buscaFinanceira, setBuscaFinanceira] = useState('');
+  const [showPricing, setShowPricing] = useState(false);
   const [modalHistorico, setModalHistorico] = useState(null);
+  const [historicoFinanceiro, setHistoricoFinanceiro] = useState([]);
+  const [historicoLoading, setHistoricoLoading] = useState(false);
+
 
   /**
    * Atualiza update setup mantendo o estado persistido em sincronia.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} key - Valor de key consumido por esta rotina.
+   * @param {unknown} val - Valor de val consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const updateSetup = (key, val) => {
     const newSetup = { ...billingSetup, [key]: parseFloat(val) || 0 };
     setBillingSetup(newSetup);
-    localStorage.setItem('termosync_billing_setup', JSON.stringify(newSetup));
+    updateSysConfig(null, null, 'billing', key, newSetup[key]);
   };
 
-  const hoje = useMemo(() => new Date(), []);
-  const atrasoDiasMesAtual = hoje.getDate() > billingSetup.diaVencimento ? hoje.getDate() - billingSetup.diaVencimento : 0;
+  useEffect(() => {
+    if (sysConfig.billing) setBillingSetup(sysConfig.billing);
+  }, [sysConfig.billing]);
 
   const carregarDadosFinanceiros = useCallback(async () => {
     setIsLoadingFinanceiro(true);
     try {
-      const res = await api.get('/financeiro/faturas/atuais');
-      setFaturas(res.data || {});
+      const response = await api.get('/financeiro/overview');
+      const overview = response.data || { summary: {}, invoices: [], timeline: [], aging: [] };
+      setFinanceOverview(overview);
+      setFaturas((overview.invoices || []).reduce((map, invoice) => ({ ...map, [invoice.filial]: invoice }), {}));
     } catch (e) {
-      const fallbackFaturas = {};
-      (filiaisDb || []).forEach(filial => { fallbackFaturas[filial] = { foiPaga: false, atrasoDias: 0 }; });
-      setFaturas(fallbackFaturas);
+      setFaturas({});
+      setFinanceOverview({ summary: {}, invoices: [], timeline: [], aging: [], generatedAt: null });
+      showToast('Não foi possível carregar os dados financeiros do banco.', 'error');
     } finally { setIsLoadingFinanceiro(false); }
-  }, [api, filiaisDb]);
+  }, [api, showToast]);
 
   useEffect(() => { carregarDadosFinanceiros(); }, [carregarDadosFinanceiros]);
 
   useEffect(() => {
     if (!socket) return;
+
     /**
      * Processa a interacao de on pagamento confirmado e atualiza a interface conforme o resultado.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {object|Array} data - Dados de entrada que serão validados e transformados pelo fluxo.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     const onPagamentoConfirmado = (data) => {
-      setFaturas(prev => ({ ...prev, [data.filial]: { ...prev[data.filial], foiPaga: true, atrasoDias: 0 } }));
       showToast(`Pagamento recebido de ${data.filial} (Tempo Real)!`, 'success');
       addLog(`[FINANCEIRO LIVE] Pagamento automático liquidado para ${data.filial}.`, 'success');
+      carregarDadosFinanceiros();
     };
     socket.on('pagamento_confirmado', onPagamentoConfirmado);
     socket.on('atualizacao_dados', carregarDadosFinanceiros);
     return () => { socket.off('pagamento_confirmado', onPagamentoConfirmado); socket.off('atualizacao_dados', carregarDadosFinanceiros); }
   }, [socket, showToast, addLog, carregarDadosFinanceiros]);
 
-  const getDetalhesFatura = useCallback((filial, plano, isSuspenso) => {
-    if (plano === 'FREE' && !isSuspenso) return null;
-    const dadosFatura = faturas[filial] || { foiPaga: false, atrasoDias: 0 };
-    const foiPaga = dadosFatura.foiPaga;
-    const diasDeAtraso = dadosFatura.atrasoDias > 0 ? dadosFatura.atrasoDias : (!foiPaga ? atrasoDiasMesAtual : 0);
-
-    let base = isSuspenso ? billingSetup.pro : (plano === 'ENTERPRISE' ? billingSetup.ent : billingSetup.pro);
-    let valorMulta = 0; let valorJuros = 0; let status = foiPaga ? "PAGO" : "PENDENTE";
-
-    if (!foiPaga && (isSuspenso || diasDeAtraso > 0)) {
-      status = isSuspenso ? "VENCIDA" : "ATRASADA";
-      valorMulta = base * (billingSetup.multa / 100);
-      valorJuros = (base * (billingSetup.juros / 100)) * (diasDeAtraso / 30);
-    }
-
-    const dataVenc = new Date();
-    dataVenc.setDate(billingSetup.diaVencimento);
-    if(status === 'ATRASADA' || status === 'VENCIDA') dataVenc.setMonth(dataVenc.getMonth() - 1);
-    const metodo = (filial.length % 2 === 0) ? 'PIX' : 'BOLETO';
-
-    return { base, multa: valorMulta, juros: valorJuros, total: base + valorMulta + valorJuros, status, foiPaga, dataVenc: dataVenc.toLocaleDateString('pt-BR'), metodo };
-  }, [faturas, billingSetup, atrasoDiasMesAtual]);
+  const getDetalhesFatura = useCallback((filial) => {
+    const dadosFatura = faturas[filial];
+    if (!dadosFatura?.id) return null;
+    const dueDate = dadosFatura.dueDate ? new Date(dadosFatura.dueDate) : null;
+    return {
+      id: dadosFatura.id,
+      base: Number(dadosFatura.base || 0),
+      multa: Number(dadosFatura.multa || 0),
+      juros: Number(dadosFatura.juros || 0),
+      total: Number(dadosFatura.total || 0),
+      status: dadosFatura.status,
+      foiPaga: dadosFatura.status === 'PAGO',
+      diasDeAtraso: Number(dadosFatura.daysPastDue || 0),
+      dataVenc: dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Não informado',
+      metodo: dadosFatura.metodo_pagamento || 'Não informado',
+      email: dadosFatura.email || null,
+      empresa: dadosFatura.empresa || null,
+      cnpj: dadosFatura.cnpj || null,
+      endereco: dadosFatura.endereco || null,
+      telefone: dadosFatura.telefone || null
+    };
+  }, [faturas]);
 
   const metricasFinanceiras = useMemo(() => {
-    let mrr = 0; let inadimplencia = 0; let ativos = 0; let pagos = 0; let devendo = 0;
-    (filiaisDb || []).forEach((filial) => {
-      const plano = sysConfig.planos?.[filial] || 'FREE';
-      const fatura = getDetalhesFatura(filial, plano, plano === 'SUSPENSO');
-      if (fatura) {
-        if (fatura.status === 'VENCIDA' || fatura.status === 'ATRASADA') { inadimplencia += fatura.total; devendo++; }
-        else { ativos++; mrr += fatura.total; if (fatura.foiPaga) pagos++; else devendo++; }
-      }
-    });
-
-    const arpu = ativos > 0 ? (mrr / ativos) : 0;
-    const taxaInadimplencia = (ativos + devendo) > 0 ? (devendo / (ativos + devendo)) * 100 : 0;
-    return { mrr, arr: mrr * 12, inadimplencia, ativos, pagos, devendo, total: (filiaisDb || []).length, arpu, taxaInadimplencia };
-  }, [filiaisDb, sysConfig.planos, getDetalhesFatura]);
+    if (financeOverview.generatedAt) {
+      const summary = financeOverview.summary || {};
+      const activeCount = Number(summary.invoiceCount || 0);
+      return {
+        mrr: Number(summary.billed || 0), arr: Number(summary.billed || 0) * 12,
+        inadimplencia: Number(summary.overdue || 0), ativos: activeCount,
+        pagos: Number(summary.paidCount || 0), devendo: Math.max(0, activeCount - Number(summary.paidCount || 0)),
+        total: activeCount, arpu: activeCount > 0 ? Number(summary.billed || 0) / activeCount : 0,
+        taxaInadimplencia: activeCount > 0 ? (Number(summary.overdueCount || 0) / activeCount) * 100 : 0,
+        recebido: Number(summary.received || 0), aberto: Number(summary.open || 0), collectionRate: Number(summary.collectionRate || 0)
+      };
+    }
+    return { mrr: 0, arr: 0, inadimplencia: 0, ativos: 0, pagos: 0, devendo: 0, total: 0, arpu: 0, taxaInadimplencia: 0, recebido: 0, aberto: 0, collectionRate: 0 };
+  }, [financeOverview]);
 
   const dadosGraficoReceita = useMemo(() => {
-    const m = metricasFinanceiras.mrr;
-    const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const dados = []; const mesAtual = hoje.getMonth();
-    for (let i = 5; i >= 0; i--) {
-      let mesIndex = mesAtual - i; if (mesIndex < 0) mesIndex += 12;
-      const multiplicador = 1 - (i * 0.15);
-      dados.push({ mes: i === 0 ? `${mesesNomes[mesIndex]} (Atual)` : mesesNomes[mesIndex], receita: Math.max(0, m * multiplicador) });
+    return financeOverview.timeline || [];
+  }, [financeOverview.timeline]);
+
+  /**
+   * Abre o extrato persistido da organização selecionada.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @param {unknown} fatura - Valor de fatura consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const abrirHistorico = async (filial, fatura) => {
+    setModalHistorico({ nome: filial, fatura });
+    setHistoricoFinanceiro([]);
+    setHistoricoLoading(true);
+    try {
+      const response = await api.get(`/financeiro/faturas/${encodeURIComponent(filial)}/historico`);
+      setHistoricoFinanceiro(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      showToast('Falha ao carregar o extrato financeiro.', 'error');
+    } finally {
+      setHistoricoLoading(false);
     }
-    return dados;
-  }, [metricasFinanceiras.mrr, hoje]);
+  };
+
+  const filiaisFinanceiras = useMemo(() => {
+    const filiaisComFatura = financeOverview.invoices?.map(invoice => invoice.filial) || [];
+    const fonte = [...new Set(filiaisComFatura)];
+    return fonte.filter((filial) => {
+    const plano = faturas[filial]?.plano || sysConfig.planos?.[filial] || 'FREE';
+    const fatura = getDetalhesFatura(filial, plano, plano === 'SUSPENSO');
+    if (!fatura) return false;
+    if (buscaFinanceira && !filial.toLowerCase().includes(buscaFinanceira.toLowerCase())) return false;
+    if (filtroStatus === 'PAGO' && !fatura.foiPaga) return false;
+    if (filtroStatus === 'PENDENTES' && fatura.foiPaga) return false;
+    if (filtroStatus === 'ATRASADAS' && !['ATRASADA', 'VENCIDA'].includes(fatura.status)) return false;
+    return true;
+    });
+  }, [sysConfig.planos, faturas, getDetalhesFatura, buscaFinanceira, filtroStatus, financeOverview.invoices]);
+
 
   /**
    * Processa a interacao de confirmar pagamento e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const confirmarPagamento = (filial) => {
     setModalConfig({
@@ -1147,19 +2327,31 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
         try {
           const planoAtual = sysConfig.planos?.[filial] || 'PRO';
           await api.post(`/financeiro/faturas/${encodeURIComponent(filial)}/pagar`, { billingSetup: billingSetup, plano: planoAtual });
-          setFaturas(prev => ({ ...prev, [filial]: { ...prev[filial], foiPaga: true, atrasoDias: 0 } }));
           if (planoAtual === 'SUSPENSO') { updateSysConfig(null, filial, 'saas_plan', null, 'PRO'); addLog(`[FINANCEIRO] Serviço reativado para ${filial}.`, 'success'); }
           showToast('Pagamento sincronizado.', 'success');
+          carregarDadosFinanceiros();
         } catch (error) {
-          setFaturas(prev => ({ ...prev, [filial]: { ...prev[filial], foiPaga: true, atrasoDias: 0 } }));
-          showToast('Modo Offline: Pagamento forçado localmente.', 'warning');
+          showToast(error.response?.data?.error || 'Falha ao confirmar o pagamento.', 'error');
         }
       }
     });
   };
 
+
   /**
    * Concentra a logica de forcar fatura atrasada para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const forcarFaturaAtrasada = (filial) => {
     setModalConfig({
@@ -1177,8 +2369,21 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
     });
   };
 
+
   /**
    * Concentra a logica de disparar cobranca em lote para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: consulta ou altera dados pela API
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const dispararCobrancaEmLote = async () => {
     addLog(`[CRON] Rotina de emissão em lote enviada para a API...`, 'warning');
@@ -1186,13 +2391,30 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
       await api.post('/financeiro/cobranca-lote', { billingSetup: billingSetup, planos: sysConfig.planos || {} });
       showToast('Faturamento em lote processado.', 'success');
       carregarDadosFinanceiros();
-    } catch(e) {
-      setTimeout(() => { showToast('Faturamento em lote simulado.', 'success'); addLog('[CRON] Simulação de lote processada.', 'success'); }, 1500);
+    } catch(error) {
+      const message = error.response?.data?.error || 'Falha ao processar o faturamento em lote.';
+      showToast(message, 'error');
+      addLog(`[CRON] ${message}`, 'error');
     }
   };
 
+
   /**
    * Concentra a logica de notificar cobranca para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: consulta ou altera dados pela API
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @param {unknown} fatura - Valor de fatura consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const notificarCobranca = async (filial, fatura) => {
     addLog(`[FINOPS] A processar envio de e-mail SMTP para ${filial}...`, 'warning');
@@ -1209,33 +2431,88 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
     }
   };
 
+
   /**
    * Concentra a logica de simular geracao para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} tipo - Valor de tipo consumido por esta rotina.
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @param {Function} callback - Função chamada para comunicar o resultado ao componente responsável.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const simularGeracao = (tipo, filial, callback) => {
     setIsGenerating(`${tipo}_${filial}`); showToast(`A compilar documento ${tipo}...`, 'info');
     setTimeout(() => { callback(); setIsGenerating(null); }, 1200);
   };
 
+
   /**
    * Concentra a logica de draw barcode para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} doc - Valor de doc consumido por esta rotina.
+   * @param {unknown} x - Valor de x consumido por esta rotina.
+   * @param {unknown} y - Valor de y consumido por esta rotina.
+   * @param {unknown} width - Valor de width consumido por esta rotina.
+   * @param {unknown} height - Valor de height consumido por esta rotina.
+   * @param {unknown} source - Valor de source consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const drawBarcode = (doc, x, y, width, height) => {
+  const drawBarcode = (doc, x, y, width, height, source) => {
     let currentX = x; doc.setFillColor(0, 0, 0);
+    const digits = String(source || '0').split('').map((char) => char.charCodeAt(0));
+    let index = 0;
     while (currentX < x + width) {
-      let barWidth = Math.random() > 0.5 ? 0.5 : 1.5;
+      const value = digits[index % digits.length];
+      const barWidth = value % 2 === 0 ? 0.5 : 1.5;
       if (currentX + barWidth > x + width) break;
       doc.rect(currentX, y, barWidth, height, 'F');
-      currentX += barWidth + (Math.random() > 0.5 ? 0.6 : 1.2);
+      currentX += barWidth + (value % 3 === 0 ? 0.6 : 1.2);
+      index += 1;
     }
   };
 
+
   /**
    * Gera gerar nota fiscal pdf com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @param {unknown} fatura - Valor de fatura consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarNotaFiscalPDF = (filial, fatura) => {
     simularGeracao('NFe', filial, () => {
       const doc = new jsPDF('p', 'mm', 'a4');
+      const competencia = financeOverview.period || { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
+      const documentNumber = `NFS-${competencia.year}${String(competencia.month).padStart(2, '0')}-${String(fatura.id).padStart(6, '0')}`;
+      const verificationCode = `${competencia.year}${competencia.month}${fatura.id}${Math.round(fatura.total * 100)}`.slice(-12).toUpperCase();
 
       doc.setDrawColor(50); doc.setLineWidth(0.3);
       doc.rect(10, 10, 190, 30);
@@ -1244,8 +2521,8 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
       doc.setFontSize(12);
       doc.text("NOTA FISCAL DE SERVIÇOS ELETRÔNICA - NFS-e", 105, 25, { align: "center" });
       doc.setFontSize(9); doc.setFont("helvetica", "normal");
-      doc.text(`Data e Hora da Emissão: ${new Date().toLocaleString('pt-BR')} | Código de Verificação: ${Math.random().toString(36).substring(2,10).toUpperCase()}`, 105, 32, { align: "center" });
-      doc.setFont("helvetica", "bold"); doc.text(`Número da Nota: ${Math.floor(Math.random() * 90000 + 10000)}`, 105, 37, { align: "center" });
+      doc.text(`Data e Hora da Emissão: ${new Date().toLocaleString('pt-BR')} | Código de Verificação: ${verificationCode}`, 105, 32, { align: "center" });
+      doc.setFont("helvetica", "bold"); doc.text(`Número da Nota: ${documentNumber}`, 105, 37, { align: "center" });
 
       doc.setFillColor(240, 240, 240); doc.rect(10, 45, 190, 8, 'F'); doc.rect(10, 45, 190, 8);
       doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("PRESTADOR DE SERVIÇOS", 15, 50);
@@ -1261,8 +2538,8 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
       doc.rect(10, 91, 190, 25);
       doc.setFontSize(11); doc.text(filial.toUpperCase(), 15, 98);
       doc.setFontSize(9); doc.setFont("helvetica", "normal");
-      doc.text(`CNPJ: ${Math.floor(Math.random()*90 + 10)}.${Math.floor(Math.random()*900 + 100)}.${Math.floor(Math.random()*900 + 100)}/0001-${Math.floor(Math.random()*90 + 10)}`, 15, 103);
-      doc.text("Endereço: Morada predefinida no cadastro do sistema - Brasil", 15, 108);
+      doc.text(`CNPJ: ${fatura.cnpj || 'Não informado no cadastro'}`, 15, 103);
+      doc.text(`Endereço: ${fatura.endereco || 'Não informado no cadastro'}`, 15, 108);
 
       doc.setFillColor(240, 240, 240); doc.rect(10, 121, 190, 8, 'F'); doc.rect(10, 121, 190, 8);
       doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("DISCRIMINAÇÃO DOS SERVIÇOS", 15, 126);
@@ -1296,8 +2573,22 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
     });
   };
 
+
   /**
    * Gera gerar boleto pdf com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} filial - Valor de filial consumido por esta rotina.
+   * @param {unknown} fatura - Valor de fatura consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarBoletoPDF = (filial, fatura) => {
     simularGeracao('Boleto', filial, () => {
@@ -1376,10 +2667,10 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
       doc.setFontSize(9); doc.setFont("helvetica", "bold");
       doc.text(`${filial.toUpperCase()}`, 12, 118);
       doc.setFontSize(8); doc.setFont("helvetica", "normal");
-      doc.text(`CNPJ: ${Math.floor(Math.random()*90 + 10)}.${Math.floor(Math.random()*900 + 100)}.${Math.floor(Math.random()*900 + 100)}/0001-${Math.floor(Math.random()*90 + 10)}`, 12, 123);
-      doc.text(`Avenida Principal, 1000 - Centro - São Paulo / SP - CEP: 01000-000`, 12, 128);
+      doc.text(`CNPJ: ${fatura.cnpj || 'Não informado no cadastro'}`, 12, 123);
+      doc.text(fatura.endereco || 'Endereço não informado no cadastro', 12, 128);
 
-      drawBarcode(doc, 12, 138, 110, 16);
+      drawBarcode(doc, 12, 138, 110, 16, `FAT-${fatura.id}-${fatura.total}`);
 
       doc.save(`Boleto_${filial.replace(/ /g, '_')}_${Date.now()}.pdf`);
       addLog(`[BILLING] Boleto gerado para ${filial}.`, 'success');
@@ -1387,14 +2678,28 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
     });
   };
 
+
   /**
    * Gera gerar csvrelatorio com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarCSVRelatorio = () => {
      showToast('Exportando CSV Financeiro...', 'info');
      let csvContent = "Cliente,Plano,Mensalidade,Multas_Juros,Total,Status,Metodo_Pagamento,Vencimento\n";
-     filiaisDb?.forEach(filial => {
-        const plano = sysConfig.planos?.[filial] || 'FREE';
+      const filiaisDoRelatorio = financeOverview.invoices?.length ? financeOverview.invoices.map(invoice => invoice.filial) : (filiaisDb || []);
+      [...new Set(filiaisDoRelatorio)].forEach(filial => {
+         const plano = faturas[filial]?.plano || sysConfig.planos?.[filial] || 'FREE';
         const fatura = getDetalhesFatura(filial, plano, plano === 'SUSPENSO');
         if(fatura) {
            csvContent += `"${filial}","${plano}",${fatura.base.toFixed(2)},${(fatura.multa+fatura.juros).toFixed(2)},${fatura.total.toFixed(2)},"${fatura.status}","${fatura.metodo}","${fatura.dataVenc}"\n`;
@@ -1406,196 +2711,268 @@ const TelaBilling = ({ api, socket, sysConfig, filiaisDb, showToast, addLog, upd
   };
 
   return (
-    <div className="dev-tela-scroll">
-      <div className="flex-header" style={{ padding: 0, background: 'transparent', boxShadow: 'none', marginBottom: '0' }}>
-        <div className="dev-card glass-card" style={{ width: '100%', borderTop: '4px solid #eab308' }}>
-          <div className="dev-card-header flex-between" style={{ color: '#eab308', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings2 size={20} /><h3>Configuração Biling & Pricing</h3></div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-outline" onClick={gerarCSVRelatorio} style={{ fontSize: '0.8rem', padding: '8px 16px', minHeight: '36px', color: '#eab308', borderColor: 'rgba(234, 179, 8, 0.3)' }}><DownloadCloud size={14} style={{marginRight: '6px'}}/> Exportar DRE</button>
-              <button className="btn btn-primary" onClick={dispararCobrancaEmLote} style={{ fontSize: '0.8rem', padding: '8px 16px', background: '#eab308', color: '#0f172a', fontWeight: 'bold', minHeight: '36px' }}><RefreshCw size={14} /> Processar Lote</button>
-            </div>
+    <div className="dev-tela-scroll finance-core">
+      <header className="finance-header">
+        <div>
+          <span className="finance-eyebrow"><Receipt size={14} /> Receita e cobrança SaaS</span>
+          <h2>Core Financeiro</h2>
+          <p>Conciliação do ciclo, aging da carteira e operação de cobrança em uma visão única.</p>
+        </div>
+        <div className="finance-header-actions">
+          <span className="finance-live-status"><i /> Dados consolidados</span>
+          {financeOverview.generatedAt && <small>Atualizado às {new Date(financeOverview.generatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small>}
+          <button className="finance-icon-button" title="Atualizar dados" onClick={carregarDadosFinanceiros} disabled={isLoadingFinanceiro}>
+            <RefreshCw size={17} className={isLoadingFinanceiro ? 'spin' : ''} />
+          </button>
+          <button className={`finance-icon-button ${showPricing ? 'active' : ''}`} title="Configurar precificação" onClick={() => setShowPricing(value => !value)}>
+            <Settings2 size={17} />
+          </button>
+        </div>
+      </header>
+
+      {showPricing && (
+        <section className="finance-pricing-panel">
+          <div className="finance-section-heading">
+            <div><Settings2 size={18} /><span>Precificação e políticas do ciclo</span></div>
+            <small>Parâmetros usados nas simulações e documentos locais</small>
           </div>
           <div className="billing-config-grid">
             <div className="config-box"><label>Plano PRO (R$)</label><div className="config-input-wrapper"><DollarSign size={14} /><input type="number" step="0.1" value={billingSetup.pro} onChange={(e) => updateSetup('pro', e.target.value)} /></div></div>
             <div className="config-box"><label>Plano ENTERPRISE (R$)</label><div className="config-input-wrapper"><DollarSign size={14} /><input type="number" step="0.1" value={billingSetup.ent} onChange={(e) => updateSetup('ent', e.target.value)} /></div></div>
-            <div className="config-box"><label>Dia Vencimento</label><div className="config-input-wrapper"><Calendar size={14} /><input type="number" min="1" max="31" value={billingSetup.diaVencimento} onChange={(e) => updateSetup('diaVencimento', e.target.value)} /></div></div>
-            <div className="config-box"><label>Multa Atraso (%)</label><div className="config-input-wrapper"><Percent size={14} /><input type="number" step="0.1" value={billingSetup.multa} onChange={(e) => updateSetup('multa', e.target.value)} /></div></div>
-            <div className="config-box"><label>Juros Mês (%)</label><div className="config-input-wrapper"><Percent size={14} /><input type="number" step="0.1" value={billingSetup.juros} onChange={(e) => updateSetup('juros', e.target.value)} /></div></div>
+            <div className="config-box"><label>Dia de vencimento</label><div className="config-input-wrapper"><Calendar size={14} /><input type="number" min="1" max="31" value={billingSetup.diaVencimento} onChange={(e) => updateSetup('diaVencimento', e.target.value)} /></div></div>
+            <div className="config-box"><label>Multa por atraso (%)</label><div className="config-input-wrapper"><Percent size={14} /><input type="number" step="0.1" value={billingSetup.multa} onChange={(e) => updateSetup('multa', e.target.value)} /></div></div>
+            <div className="config-box"><label>Juros ao mês (%)</label><div className="config-input-wrapper"><Percent size={14} /><input type="number" step="0.1" value={billingSetup.juros} onChange={(e) => updateSetup('juros', e.target.value)} /></div></div>
           </div>
-        </div>
-      </div>
+        </section>
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 2fr', gap: '1.5rem', marginBottom: '1rem' }} className="dev-grid-main">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div className="dev-card glass-card saas-kpi-card" style={{ padding: '1.2rem', margin: 0, borderLeft: '4px solid var(--theme-main)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{fontSize: '0.8rem', fontWeight: '900', color: 'var(--dim-text)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px'}}><TrendingUp size={16} color="var(--theme-main)"/> MRR MENSAL</span>
-            <div style={{color: 'white', fontFamily: 'Montserrat', fontSize: '1.8rem', fontWeight: '900', wordBreak: 'break-word'}}>R$ {metricasFinanceiras.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-              <div style={{fontSize: '0.75rem', color: '#10b981', fontWeight: 'bold'}}>ARR: R$ {metricasFinanceiras.arr.toLocaleString('pt-BR')}</div>
-              <div style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}} title="Average Revenue Per User">ARPU: R$ {metricasFinanceiras.arpu.toFixed(2)}</div>
-            </div>
+      <section className="finance-kpi-grid" aria-label="Indicadores financeiros do ciclo">
+        <article className="finance-kpi is-billed">
+          <span><Receipt size={16} /> Faturado no ciclo</span>
+          <strong>R$ {metricasFinanceiras.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+          <small>{metricasFinanceiras.total} faturas · ARPU de R$ {metricasFinanceiras.arpu.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</small>
+        </article>
+        <article className="finance-kpi is-received">
+          <span><CheckCircle2 size={16} /> Receita recebida</span>
+          <strong>R$ {metricasFinanceiras.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+          <small>{metricasFinanceiras.collectionRate.toFixed(1)}% de eficiência de cobrança</small>
+        </article>
+        <article className="finance-kpi is-open">
+          <span><Clock size={16} /> Contas a receber</span>
+          <strong>R$ {metricasFinanceiras.aberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+          <small>{metricasFinanceiras.devendo} títulos ainda não liquidados</small>
+        </article>
+        <article className="finance-kpi is-overdue">
+          <span><AlertTriangle size={16} /> Carteira vencida</span>
+          <strong>R$ {metricasFinanceiras.inadimplencia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+          <small>{metricasFinanceiras.taxaInadimplencia.toFixed(1)}% das faturas do ciclo</small>
+        </article>
+      </section>
+
+      <section className="finance-analytics-grid">
+        <article className="finance-chart-panel">
+          <div className="finance-section-heading">
+            <div><LineChart size={18} /><span>Receita dos últimos ciclos</span></div>
+            <small>Faturado x efetivamente recebido</small>
           </div>
-
-          <div className="dev-card glass-card saas-kpi-card" style={{ padding: '1.2rem', margin: 0, borderLeft: '4px solid #ef4444', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{fontSize: '0.8rem', fontWeight: '900', color: 'var(--dim-text)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px'}}><AlertTriangle size={16} color="#ef4444"/> DÍVIDA ATIVA</span>
-            <div style={{ color: 'var(--danger)', fontFamily: 'Montserrat', fontSize: '1.8rem', fontWeight: '900', wordBreak: 'break-word'}}>R$ {metricasFinanceiras.inadimplencia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-              <div style={{fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 'bold'}}>{metricasFinanceiras.pagos} Pagos / {metricasFinanceiras.devendo} Pendentes</div>
-              <div style={{fontSize: '0.75rem', color: '#ef4444', fontWeight: 'bold'}}>Inadimplência: {metricasFinanceiras.taxaInadimplencia.toFixed(1)}%</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="dev-card glass-card" style={{ margin: 0, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card-header" style={{ color: 'var(--theme-main)', marginBottom: '10px' }}><LineChart size={20} /> <h3 style={{ fontSize: '1rem' }}>Evolução de Receita</h3></div>
-          <div className="chart-container" style={{ flex: 1, margin: 0, minHeight: '180px' }}>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={dadosGraficoReceita} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                <defs><linearGradient id="colorMrr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--theme-main)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--theme-main)" stopOpacity={0} /></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="mes" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                <RechartsTooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: 'white', fontSize: '12px' }} itemStyle={{ color: 'var(--theme-main)', fontWeight: 'bold' }} formatter={(value) => `R$ ${value.toFixed(2)}`} />
-                <Area type="monotone" dataKey="receita" stroke="var(--theme-main)" strokeWidth={3} fillOpacity={1} fill="url(#colorMrr)" />
+          <div className="finance-chart-wrap">
+            <ResponsiveContainer width="100%" height={260} minWidth={0}>
+              <AreaChart data={dadosGraficoReceita} margin={{ top: 15, right: 8, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="financeBilled" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--info)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--info)" stopOpacity={0} /></linearGradient>
+                  <linearGradient id="financeReceived" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--success)" stopOpacity={0.24} /><stop offset="95%" stopColor="var(--success)" stopOpacity={0} /></linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 5" vertical={false} stroke="rgba(148,163,184,0.12)" />
+                <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} width={58} tickFormatter={(value) => `R$${Math.round(value / 1000)}k`} />
+                <RechartsTooltip contentStyle={{ background: '#0b1220', border: '1px solid #25324a', borderRadius: '8px', color: 'white', fontSize: '12px' }} formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, name === 'billed' ? 'Faturado' : 'Recebido']} />
+                <Area type="monotone" dataKey="billed" stroke="var(--info)" strokeWidth={2} fill="url(#financeBilled)" />
+                <Area type="monotone" dataKey="received" stroke="var(--success)" strokeWidth={2} fill="url(#financeReceived)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
+          <div className="finance-chart-legend"><span className="is-billed">Faturado</span><span className="is-received">Recebido</span></div>
+        </article>
 
-      <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="dev-card-header flex-between" style={{ color: '#eab308', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <Receipt size={24} /><h3>Faturas Emitidas (Ciclo Atual)</h3>{isLoadingFinanceiro && <Loader2 size={16} className="spin" style={{marginLeft: '10px'}} />}
-            </div>
-            <div className="scope-tabs" style={{ maxWidth: '400px' }}>
-                <button className={filtroStatus === 'ALL' ? 'active' : ''} onClick={() => setFiltroStatus('ALL')} style={{minHeight: '36px', padding: '6px 12px'}}>Todas</button>
-                <button className={filtroStatus === 'PAGO' ? 'active' : ''} onClick={() => setFiltroStatus('PAGO')} style={{minHeight: '36px', padding: '6px 12px'}}>Pagas</button>
-                <button className={filtroStatus === 'PENDENTES' ? 'active' : ''} onClick={() => setFiltroStatus('PENDENTES')} style={{minHeight: '36px', padding: '6px 12px'}}>Atrasadas</button>
-            </div>
-        </div>
-
-        <div className="table-responsive-wrapper">
-          <div className="saas-table-header billing-grid-cols" style={{ gridTemplateColumns: '1.8fr 1.2fr 1fr 1.2fr 1.2fr 280px' }}>
-            <div>Cliente Pagador</div><div>Plano / Vencimento</div><div>Multa/Juros</div><div>Total (R$)</div><div style={{ textAlign: 'center' }}>Status / Método</div><div style={{ textAlign: 'right', paddingRight: '20px' }}>Ações de Faturamento</div>
+        <article className="finance-aging-panel">
+          <div className="finance-section-heading">
+            <div><CalendarMinus size={18} /><span>Aging da carteira</span></div>
+            <small>Exposição por faixa de vencimento</small>
           </div>
+          <div className="finance-aging-list">
+            {financeOverview.aging?.length ? financeOverview.aging.map((bucket) => {
+              const maxAmount = Math.max(...financeOverview.aging.map(item => Number(item.amount || 0)), 1);
+              return (
+                <div className="finance-aging-item" key={bucket.bucket}>
+                  <div><span>{bucket.bucket}</span><strong>R$ {Number(bucket.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+                  <div className="finance-aging-track"><i style={{ width: `${Math.max(3, (Number(bucket.amount || 0) / maxAmount) * 100)}%` }} /></div>
+                  <small>{bucket.invoices} {bucket.invoices === 1 ? 'fatura' : 'faturas'}</small>
+                </div>
+              );
+            }) : <div className="finance-empty">Nenhum valor pendente no ciclo atual.</div>}
+          </div>
+        </article>
+      </section>
 
-          <div style={{paddingRight: '0', paddingBottom: '20px'}}>
-            {filiaisDb?.map((filial, index) => {
-              const planoAtual = sysConfig.planos?.[filial] || 'FREE';
+      <section className="finance-ledger-panel">
+        <div className="finance-ledger-header">
+          <div className="finance-section-heading">
+            <div><FileSpreadsheet size={18} /><span>Razão de faturas</span>{isLoadingFinanceiro && <Loader2 size={15} className="spin" />}</div>
+            <small>{filiaisFinanceiras.length} de {metricasFinanceiras.total} títulos exibidos</small>
+          </div>
+          <div className="finance-ledger-actions">
+            <button className="btn btn-outline" onClick={gerarCSVRelatorio}><DownloadCloud size={15} /> Exportar DRE</button>
+            <button className="btn btn-primary" onClick={dispararCobrancaEmLote}><RefreshCw size={15} /> Processar lote</button>
+          </div>
+        </div>
+
+        <div className="finance-ledger-tools">
+          <label className="finance-search"><Search size={16} /><input value={buscaFinanceira} onChange={(event) => setBuscaFinanceira(event.target.value)} placeholder="Buscar organização" /></label>
+          <div className="finance-status-tabs" role="tablist" aria-label="Filtrar faturas por status">
+            <button className={filtroStatus === 'ALL' ? 'active' : ''} onClick={() => setFiltroStatus('ALL')}>Todas</button>
+            <button className={filtroStatus === 'PAGO' ? 'active' : ''} onClick={() => setFiltroStatus('PAGO')}>Pagas</button>
+            <button className={filtroStatus === 'PENDENTES' ? 'active' : ''} onClick={() => setFiltroStatus('PENDENTES')}>Pendentes</button>
+            <button className={filtroStatus === 'ATRASADAS' ? 'active' : ''} onClick={() => setFiltroStatus('ATRASADAS')}>Atrasadas</button>
+          </div>
+        </div>
+
+        <div className="finance-table-scroll">
+          <div className="finance-table-header">
+            <div>Cliente pagador</div><div>Plano e vencimento</div><div>Encargos</div><div>Total</div><div>Status</div><div>Ações</div>
+          </div>
+          <div className="finance-table-body">
+            {filiaisFinanceiras.map((filial, index) => {
+              const planoAtual = faturas[filial]?.plano || sysConfig.planos?.[filial] || 'FREE';
               const fatura = getDetalhesFatura(filial, planoAtual, planoAtual === 'SUSPENSO');
               if (!fatura) return null;
 
               const isLate = fatura.status === 'VENCIDA' || fatura.status === 'ATRASADA';
 
-              if (filtroStatus === 'PAGO' && !fatura.foiPaga) return null;
-              if (filtroStatus === 'PENDENTES' && fatura.foiPaga) return null;
-
               return (
-                <div className={`saas-client-row billing-grid-cols ${isLate ? 'row-suspended' : ''}`} style={{ gridTemplateColumns: '1.8fr 1.2fr 1fr 1.2fr 1.2fr 280px' }} key={index}>
-                  <div className="text-truncate" style={{fontWeight: '900', color: 'white', fontSize: '1.1rem'}}>{filial}</div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ color: 'var(--theme-sec)', fontWeight: 'bold', fontSize: '0.85rem' }}>{planoAtual} (R$ {fatura.base.toFixed(2)})</span>
-                    <span style={{ color: 'var(--dim-text)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={12}/> Venc: {fatura.dataVenc}</span>
+                <div className={`finance-table-row ${isLate ? 'is-late' : ''}`} key={`${filial}-${index}`}>
+                  <div className="finance-client-cell">
+                    <strong>{filial}</strong>
+                    <span>{fatura.empresa || fatura.email || 'Conta SaaS ativa'}</span>
                   </div>
-
-                  <div style={{ color: isLate ? 'var(--danger)' : 'var(--dim-text)', fontSize: '1rem' }}>R$ {(fatura.multa + fatura.juros).toFixed(2)}</div>
-                  <div style={{ fontWeight: '900', color: 'var(--primary)', fontSize: '1.3rem', fontFamily: 'Montserrat' }}>R$ {fatura.total.toFixed(2)}</div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                    <span className={`status-badge ${isLate ? 'danger' : 'success'}`}>{fatura.status}</span>
-                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 'bold' }}>VIA {fatura.metodo}</span>
+                  <div className="finance-plan-cell">
+                    <strong>{planoAtual} · R$ {fatura.base.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                    <span><Calendar size={12}/> Vencimento {fatura.dataVenc}</span>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                    <button className="btn-icon-small" title="Histórico do Cliente" onClick={() => setModalHistorico({nome: filial, fatura})} style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}><History size={16} /></button>
-                    {!fatura.foiPaga && <button className="btn-icon-small" title="Confirmar Pagamento (API)" onClick={() => confirmarPagamento(filial)} style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}><CheckCircle2 size={16} /></button>}
-                    {!fatura.foiPaga && !isLate && <button className="btn-icon-small" title="Sinalizar Atraso (Simulador)" onClick={() => forcarFaturaAtrasada(filial)} style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}><CalendarMinus size={16} /></button>}
-
-                    <button className="btn-icon-small" title="Gerar NF-e (PDF)" onClick={() => gerarNotaFiscalPDF(filial, fatura)} disabled={isGenerating !== null}>
+                  <div className={`finance-money-cell ${isLate ? 'danger' : ''}`}>R$ {(fatura.multa + fatura.juros).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div className="finance-total-cell">R$ {fatura.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div className="finance-status-cell">
+                    <span className={`finance-status is-${String(fatura.status).toLowerCase()}`}>{fatura.status}</span>
+                    <small>Via {fatura.metodo}{isLate && fatura.diasDeAtraso > 0 ? ` · ${fatura.diasDeAtraso}d` : ''}</small>
+                  </div>
+                  <div className="finance-row-actions">
+                    <button title="Abrir histórico" onClick={() => abrirHistorico(filial, fatura)}><History size={16} /></button>
+                    {!fatura.foiPaga && <button className="success" title="Confirmar pagamento" onClick={() => confirmarPagamento(filial)}><CheckCircle2 size={16} /></button>}
+                    {!fatura.foiPaga && !isLate && <button className="warning" title="Simular atraso" onClick={() => forcarFaturaAtrasada(filial)}><CalendarMinus size={16} /></button>}
+                    <button title="Gerar nota fiscal em PDF" onClick={() => gerarNotaFiscalPDF(filial, fatura)} disabled={isGenerating !== null}>
                       {isGenerating === `NFe_${filial}` ? <Loader2 size={16} className="spin" /> : <FileText size={16} />}
                     </button>
-                    <button className="btn-icon-small" title="Gerar Boleto (PDF)" onClick={() => gerarBoletoPDF(filial, fatura)} disabled={isGenerating !== null}>
+                    <button title="Gerar boleto em PDF" onClick={() => gerarBoletoPDF(filial, fatura)} disabled={isGenerating !== null}>
                        {isGenerating === `Boleto_${filial}` ? <Loader2 size={16} className="spin" /> : <Banknote size={16} />}
                     </button>
-
                     {isLate && !fatura.foiPaga && (
-                      <button className="btn-icon-small danger-text" title="Notificar Cobrança por E-mail" onClick={() => notificarCobranca(filial, fatura)}>
-                        <Mail size={16} />
-                      </button>
+                      <button className="danger" title="Enviar cobrança por e-mail" onClick={() => notificarCobranca(filial, fatura)}><Mail size={16} /></button>
                     )}
                   </div>
                 </div>
               );
             })}
+            {!isLoadingFinanceiro && filiaisFinanceiras.length === 0 && <div className="finance-empty"><Search size={22} />Nenhuma fatura corresponde aos filtros.</div>}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Modal Histórico Financeiro */}
-      {modalHistorico && (
-        <div className="iam-modal-overlay">
-          <div className="iam-modal-content" style={{ maxWidth: '650px' }}>
+      {modalHistorico && createPortal(
+        <div className="iam-modal-overlay finance-history-overlay">
+          <div className="iam-modal-content finance-history-modal" style={{ maxWidth: '650px' }}>
             <div className="iam-modal-header" style={{ background: 'rgba(234, 179, 8, 0.1)', borderBottom: '1px solid rgba(234, 179, 8, 0.3)' }}>
-               <h3 style={{ color: '#eab308' }}><History size={20}/> Extrato: {modalHistorico.nome}</h3>
+               <h3 style={{ color: 'var(--warning)' }}><History size={20}/> Extrato: {modalHistorico.nome}</h3>
                <button className="btn-close-modal" onClick={() => setModalHistorico(null)} style={{background: 'transparent', border: 'none', color: 'white', cursor: 'pointer'}}><X size={20}/></button>
             </div>
             <div className="iam-modal-body" style={{ padding: '0' }}>
                <div className="saas-table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', margin: 0, borderRadius: 0, padding: '15px' }}>
-                  <div>Competência</div><div>Valor Recebido</div><div style={{textAlign: 'right'}}>Data Liquidação</div>
+                  <div>Competência</div><div>Valor total</div><div style={{textAlign: 'right'}}>Liquidação</div>
                </div>
 
-               {/* Simula as 3 últimas faturas pagas baseadas na fatura atual */}
-               {[1, 2, 3].map((mesVolta) => {
-                  const d = new Date();
-                  d.setMonth(d.getMonth() - mesVolta);
-                  const nomeMes = d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-                  const dataLiq = new Date(d);
-                  dataLiq.setDate(billingSetup.diaVencimento - Math.floor(Math.random() * 3));
-
-                  return (
-                    <div key={mesVolta} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', padding: '15px', borderBottom: '1px solid var(--border-dim)', background: mesVolta % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.2)' }}>
-                      <div style={{ color: 'white', fontWeight: 'bold' }}><FileText size={12} color="var(--dim-text)" style={{marginRight: '6px'}}/> FATURA {nomeMes}</div>
-                      <div style={{ color: 'var(--primary)', fontFamily: 'Montserrat', fontWeight: 'bold' }}>R$ {modalHistorico.fatura.base.toFixed(2)}</div>
-                      <div style={{ textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}><CheckCircle2 size={12} color="var(--primary)" style={{marginRight: '4px'}}/> {dataLiq.toLocaleDateString('pt-BR')}</div>
-                    </div>
-                  );
-               })}
+               {historicoLoading ? (
+                 <div className="finance-empty"><Loader2 size={20} className="spin" /> Carregando extrato...</div>
+               ) : historicoFinanceiro.length ? historicoFinanceiro.map((item) => (
+                 <div className="finance-history-row" key={item.id}>
+                   <div><FileText size={14} /><strong>{item.competencia}</strong><small>Venc. {new Date(item.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</small></div>
+                   <strong>R$ {Number(item.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                   <div><span className={`finance-status is-${String(item.status).toLowerCase()}`}>{item.status}</span><small>{item.paidAt ? `Liquidada em ${new Date(item.paidAt).toLocaleDateString('pt-BR')}` : 'Aguardando liquidação'}</small></div>
+                 </div>
+               )) : (
+                 <div className="finance-empty"><History size={22} /> Nenhuma fatura persistida para esta organização.</div>
+               )}
             </div>
             <div className="iam-modal-footer"><button type="button" className="btn btn-outline w-100" onClick={() => setModalHistorico(null)}>Fechar Extrato</button></div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };
 
-// ============================================================================
-// TELA SOC & GESTÃO DE IDENTIDADE (IAM / ZERO-TRUST)
-// ============================================================================
+/**
+ * ============================================================================ TELA SOC &
+ * GESTÃO DE IDENTIDADE (IAM / ZERO-TRUST)
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.usuariosLista - Propriedade usuariosLista usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
   // SOC: auditoria e resposta de segurança. Reúne sessões, eventos sensíveis,
   // revogações e trilhas de auditoria.
   const [activeSessions, setActiveSessions] = useState([]);
-  const [, setAuditLogs] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [securityEvents, setSecurityEvents] = useState([]);
   const [securityStatus, setSecurityStatus] = useState(null);
-  const [, setIsLoading] = useState(true);
+  const [socOverview, setSocOverview] = useState({ timeline: [], topIps: [], eventTypes: [], roleSessions: [], auditIntegrity: null });
+  const [socUsers, setSocUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [buscaUsuario, setBuscaUsuario] = useState('');
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventSeverity, setEventSeverity] = useState('ALL');
+  const [investigationView, setInvestigationView] = useState('events');
+  const [selectedEvidence, setSelectedEvidence] = useState(null);
   const [isModalUserOpen, setIsModalUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({ nome: '', email: '', role: 'LOJA', mfa: true });
 
-  const [mfaUsers, setMfaUsers] = useState(() => JSON.parse(localStorage.getItem('termosync_mfa_users')) || []);
-  const [blockedUsers, setBlockedUsers] = useState(() => JSON.parse(localStorage.getItem('termosync_blocked_users')) || []);
-
-  const carregarDadosSOC = useCallback(async () => {
+  const carregarDadosSOC = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
-      const [resSessoes, resAuditoria, resSecurityEvents, resSecurityStatus] = await Promise.all([
+      const [resSessoes, resAuditoria, resSecurityEvents, resSecurityStatus, resOverview, resUsers] = await Promise.all([
         api.get('/soc/sessoes'),
         api.get('/soc/auditoria'),
         api.get('/soc/security-events'),
-        api.get('/security/status')
+        api.get('/security/status'),
+        api.get('/soc/overview'),
+        api.get('/usuarios')
       ]);
       setActiveSessions(resSessoes.data.map(s => {
         const loginDate = new Date(s.loginTime); const expiryDate = s.expiresAt ? new Date(s.expiresAt) : new Date(loginDate.getTime() + 12 * 60 * 60 * 1000);
@@ -1606,70 +2983,261 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
       setAuditLogs(resAuditoria.data.map(a => ({ ...a, time: new Date(a.data_hora).toLocaleString('pt-BR'), severity: a.severity || 'info' })));
       setSecurityEvents(resSecurityEvents.data.map(e => ({ ...e, time: new Date(e.createdAt).toLocaleString('pt-BR'), severity: e.severity || 'info' })));
       setSecurityStatus(resSecurityStatus.data);
+      setSocOverview(resOverview.data);
+      setSocUsers(Array.isArray(resUsers.data) ? resUsers.data : []);
+      setLastUpdated(new Date());
     } catch (error) {
       addLog(`[SOC ERRO] Falha ao carregar sessões e auditoria: ${error?.message || 'erro desconhecido'}`, 'error');
     } finally { setIsLoading(false); }
   }, [api, addLog]);
 
-  useEffect(() => { carregarDadosSOC(); const interval = setInterval(carregarDadosSOC, 10000); return () => clearInterval(interval); }, [carregarDadosSOC]);
+  useEffect(() => { carregarDadosSOC(); const interval = setInterval(() => carregarDadosSOC(true), 15000); return () => clearInterval(interval); }, [carregarDadosSOC]);
 
   const diretorioUsuarios = useMemo(() => {
-    return (usuariosLista || []).map(u => {
+    return (socUsers.length ? socUsers : (usuariosLista || [])).map(u => {
       const session = activeSessions.find(s => s.usuario === u.usuario);
-      return { id: u.id, nome: u.nome_tecnico || u.nome_gerente || u.nome_coordenador || u.usuario, usuario: u.usuario, role: u.role, cargo: u.role === 'DEV' ? 'SysAdmin' : (u.role === 'ADMIN' ? 'Administrador' : (u.role === 'MANUTENCAO' ? 'Técnico' : 'Operador')), mfa: mfaUsers.includes(u.id), status: blockedUsers.includes(u.id) ? 'BLOQUEADO' : 'ATIVO', ip: session ? (session.ip === '::1' ? 'Localhost' : session.ip) : 'Offline' };
+      return { id: u.id, nome: u.nome_tecnico || u.nome_gerente || u.nome_coordenador || u.usuario, usuario: u.usuario, role: u.role, cargo: u.role === 'DEV' ? 'SysAdmin' : (u.role === 'ADMIN' ? 'Administrador' : (u.role === 'MANUTENCAO' ? 'Técnico' : 'Operador')), mfa: Boolean(u.mfa_enabled), mfaRequired: Boolean(u.mfa_required), status: u.security_blocked ? 'BLOQUEADO' : 'ATIVO', ip: session ? (session.ip === '::1' ? 'Localhost' : session.ip) : 'Offline' };
     });
-  }, [usuariosLista, activeSessions, mfaUsers, blockedUsers]);
+  }, [usuariosLista, socUsers, activeSessions]);
 
   const filteredUsuarios = diretorioUsuarios.filter(u => u.nome.toLowerCase().includes(buscaUsuario.toLowerCase()) || u.role.toLowerCase().includes(buscaUsuario.toLowerCase()) || u.cargo.toLowerCase().includes(buscaUsuario.toLowerCase()));
   const contasAtivas = diretorioUsuarios.filter(u => u.status === 'ATIVO').length;
   const tokensValidos = activeSessions.length;
   const tentativasFalhadas = securityStatus?.metrics?.failedLogins24h ?? securityEvents.filter(l => l.eventType === 'LOGIN_FAILED').length;
-  const ipsBloqueados = new Set(securityEvents.filter(l => l.eventType === 'LOGIN_LOCKED').map(l => l.ip)).size;
   const checksFalhos = securityStatus?.checks?.filter(check => !check.ok && check.severity !== 'info') || [];
+   /**
+    * Concentra a logica de danger events24h para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @param {unknown} item - Valor de item consumido por esta rotina.
+    * @returns {unknown} Resultado calculado para consumo do chamador.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
+
+  /**
+   * Concentra a logica de danger events24h para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} item - Valor de item consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const dangerEvents24h = (socOverview.timeline || []).reduce((sum, item) => sum + Number(item.danger || 0), 0);
+   /**
+    * Concentra a logica de total events24h para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @param {unknown} item - Valor de item consumido por esta rotina.
+    * @returns {unknown} Resultado calculado para consumo do chamador.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
+
+  /**
+   * Concentra a logica de total events24h para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} item - Valor de item consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const totalEvents24h = (socOverview.timeline || []).reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const mfaCoverage = securityStatus?.metrics?.usersTotal ? Math.round((securityStatus.metrics.mfaEnabled / securityStatus.metrics.usersTotal) * 100) : 0;
+  const riskScore = Math.min(100, (checksFalhos.length * 12) + (dangerEvents24h * 4) + (tentativasFalhadas * 2));
+   /**
+    * Concentra a logica de filtered evidence para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @param {unknown} investigationView - Valor de investigation view consumido por esta rotina.
+    * @returns {unknown} Resultado calculado para consumo do chamador.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
+
+  /**
+   * Concentra a logica de filtered evidence para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} investigationView - Valor de investigation view consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const filteredEvidence = (investigationView === 'events' ? securityEvents : auditLogs).filter((item) => {
+    const query = eventSearch.trim().toLowerCase();
+    const severity = item.severity || 'info';
+    const matchesSeverity = eventSeverity === 'ALL' || severity === eventSeverity;
+    const text = investigationView === 'events'
+      ? [item.eventType, item.actor, item.ip, item.detail].join(' ').toLowerCase()
+      : [item.action, item.actor, item.target].join(' ').toLowerCase();
+    return matchesSeverity && (!query || text.includes(query));
+  });
+
 
   /**
    * Processa a interacao de handle revoke e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @param {object} user - Usuário autenticado ou candidato à autenticação processado por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleRevoke = (id, user) => { setModalConfig({ isOpen: true, title: 'Revogar Acesso JWT', message: `Deseja realmente derrubar a ligação de ${user}?`, onConfirm: async () => { try { await api.post(`/soc/revogar/${id}`); setActiveSessions(prev => prev.filter(s => s.id !== id)); showToast(`Sessão encerrada.`, 'success'); addLog(`[SOC] Sessão forçada ao encerramento: ${user}`, 'error'); carregarDadosSOC(); } catch (e) { showToast('Erro ao revogar sessão.', 'error'); } } }); };
+
   /**
    * Processa a interacao de handle revoke all e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleRevokeAll = () => { setModalConfig({ isOpen: true, title: 'Purga Global de Sessões (Kill-Switch)', message: `ATENÇÃO: Isto irá invalidar TODOS os tokens JWT ativos, exceto a sessão atual. Proceder?`, onConfirm: async () => { try { const res = await api.post('/soc/revogar-todas'); setActiveSessions([]); showToast(`${res.data?.revoked || 0} sessões terminadas.`, 'success'); addLog('[SECURITY] Kill-switch ativado.', 'error'); carregarDadosSOC(); } catch (e) { showToast('Erro ao revogar sessões.', 'error'); } } }); };
-  /**
-   * Processa a interacao de handle mfa action e atualiza a interface conforme o resultado.
-   */
-  const handleMfaAction = (id, nome) => { const newMfa = mfaUsers.includes(id) ? mfaUsers.filter(uid => uid !== id) : [...mfaUsers, id]; setMfaUsers(newMfa); localStorage.setItem('termosync_mfa_users', JSON.stringify(newMfa)); showToast(`MFA alterado para ${nome}.`, 'info'); addLog(`[IAM] MFA atualizado para: ${nome}`, 'warning'); };
 
   /**
    * Processa a interacao de handle block action e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @param {unknown} nome - Valor de nome consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleBlockAction = (id, nome) => {
-    const isBlocked = blockedUsers.includes(id); const newBlocked = isBlocked ? blockedUsers.filter(uid => uid !== id) : [...blockedUsers, id];
-    setBlockedUsers(newBlocked); localStorage.setItem('termosync_blocked_users', JSON.stringify(newBlocked));
-    if (isBlocked) { addLog(`[IAM] Usuário ${nome} desbloqueado.`, 'success'); showToast('Usuário desbloqueado.', 'success'); }
-    else { addLog(`[IAM] Usuário ${nome} bloqueado preventivamente.`, 'error'); showToast('Usuário bloqueado.', 'warning'); const userBase = usuariosLista.find(u => u.id === id); const session = activeSessions.find(s => s.usuario === userBase?.usuario); if (session) api.post(`/soc/revogar/${session.id}`).then(() => carregarDadosSOC()).catch((error) => addLog(`[IAM ERRO] Falha ao revogar sessão: ${error?.message || 'erro desconhecido'}`, 'error')); }
+    const user = diretorioUsuarios.find((item) => item.id === id);
+    const blocked = user?.status !== 'BLOQUEADO';
+    setModalConfig({
+      isOpen: true,
+      title: blocked ? 'Bloquear identidade' : 'Liberar identidade',
+      message: blocked ? `Bloquear ${nome} e encerrar todas as sessões ativas?` : `Liberar novamente o acesso de ${nome}?`,
+      onConfirm: async () => {
+        try {
+          const response = await api.patch(`/soc/users/${id}/security`, { blocked });
+          showToast(blocked ? `Usuário bloqueado; ${response.data.revoked} sessão(ões) encerradas.` : 'Usuário desbloqueado.', blocked ? 'warning' : 'success');
+          addLog(`[IAM] ${nome} ${blocked ? 'bloqueado' : 'desbloqueado'} pelo SOC.`, blocked ? 'error' : 'success');
+          await carregarDadosSOC(true);
+        } catch (error) {
+          showToast(error.response?.data?.error || 'Falha ao atualizar a identidade.', 'error');
+        }
+      }
+    });
   };
+
 
   /**
    * Concentra a logica de salvar novo usuario para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const salvarNovoUsuario = async (e) => {
     e.preventDefault(); if (!newUser.nome.trim() || !newUser.email.trim()) return showToast('Nome e e-mail são obrigatórios.', 'error');
-    try { await api.post('/usuarios', { usuario: newUser.email.split('@')[0], senha: 'Mudar@123', role: newUser.role, nome_tecnico: newUser.role === 'MANUTENCAO' ? newUser.nome : null, nome_gerente: newUser.role === 'LOJA' ? newUser.nome : null, filial: 'Matriz' }); addLog(`[IAM] Nova credencial provisionada: ${newUser.nome}`, 'success'); showToast('Criado! Senha: Mudar@123', 'success'); setIsModalUserOpen(false); setNewUser({ nome: '', email: '', role: 'LOJA', mfa: true }); } catch (err) { showToast('Erro ao gravar na BD.', 'error'); }
+    try { await api.post('/usuarios', { usuario: newUser.email.split('@')[0], senha: 'Mudar@123', role: newUser.role, nome_tecnico: newUser.role === 'MANUTENCAO' ? newUser.nome : null, nome_gerente: newUser.role === 'LOJA' ? newUser.nome : null, filial: 'Matriz' }); addLog(`[IAM] Nova credencial provisionada: ${newUser.nome}`, 'success'); showToast('Criado! Senha: Mudar@123', 'success'); setIsModalUserOpen(false); setNewUser({ nome: '', email: '', role: 'LOJA', mfa: true }); carregarDadosSOC(true); } catch (err) { showToast('Erro ao gravar na BD.', 'error'); }
   };
 
   return (
     <>
-      <div className="anim-fade-in absolute-fullscreen">
-        <div className="noc-hud-grid anim-stagger-1" style={{ flexShrink: 0 }}>
-          <div className="noc-hud-card" style={{'--card-color': '#a855f7'}}><div className="noc-mini-header"><span className="noc-kpi-title"><Users size={14}/> CONTAS ATIVAS</span></div><div className="noc-kpi-value">{contasAtivas}</div></div>
-          <div className="noc-hud-card" style={{'--card-color': '#10b981'}}><div className="noc-mini-header"><span className="noc-kpi-title"><ShieldCheck size={14}/> TOKENS VÁLIDOS</span></div><div className="noc-kpi-value" style={{color: '#10b981'}}>{tokensValidos}</div></div>
-          <div className="noc-hud-card pulse-warning-card" style={{'--card-color': '#f59e0b'}}><div className="noc-mini-header"><span className="noc-kpi-title"><UserX size={14}/> TENTATIVAS FALHADAS</span></div><div className="noc-kpi-value" style={{color: '#f59e0b'}}>{tentativasFalhadas}</div></div>
-          <div className="noc-hud-card" style={{'--card-color': '#ef4444'}}><div className="noc-mini-header"><span className="noc-kpi-title"><AlertTriangle size={14}/> IPS BLOQUEADOS</span></div><div className="noc-kpi-value" style={{color: '#ef4444'}}>{ipsBloqueados}</div></div>
-        </div>
+      <div className="dev-tela-scroll soc-center anim-fade-in">
+        <header className="soc-page-header anim-stagger-1">
+          <div><span className="soc-eyebrow"><ShieldCheck size={14} /> Centro de operações de segurança</span><h2>Auditoria e SOC</h2><p>Monitore identidades, sessões, controles preventivos e evidências da plataforma em tempo real.</p></div>
+          <div className="soc-header-actions"><span><i className="soc-live-dot" />Atualização contínua</span>{lastUpdated && <small>{lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small>}<button type="button" className="btn-icon-small" title="Atualizar SOC" onClick={() => carregarDadosSOC()} disabled={isLoading}><RefreshCw size={17} className={isLoading ? 'spin' : ''} /></button></div>
+        </header>
+
+        <section className="soc-kpi-grid anim-stagger-1">
+          <article><span><Users size={15}/> Identidades ativas</span><strong>{contasAtivas}</strong><small>{mfaCoverage}% com MFA habilitado</small></article>
+          <article><span><FingerprintIcon size={15}/> Sessões válidas</span><strong>{tokensValidos}</strong><small>{securityStatus?.metrics?.revokedSessions || 0} revogadas no histórico</small></article>
+          <article className={dangerEvents24h ? 'is-warning' : ''}><span><ShieldAlert size={15}/> Eventos críticos</span><strong>{dangerEvents24h}</strong><small>{totalEvents24h} eventos nas últimas 24h</small></article>
+          <article className={riskScore >= 60 ? 'is-danger' : riskScore >= 25 ? 'is-warning' : ''}><span><Gauge size={15}/> Exposição calculada</span><strong>{riskScore}/100</strong><small>{checksFalhos.length} controle(s) pedindo atenção</small></article>
+        </section>
+
+        <section className="soc-overview-grid anim-stagger-2">
+          <div className="soc-chart-panel">
+            <div className="soc-section-heading"><div><Activity size={17}/><span>Eventos nas últimas 24 horas</span></div><small>Falhas, alertas e operações confirmadas</small></div>
+            <div className="soc-chart-wrap">
+              {socOverview.timeline?.length ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}><AreaChart data={socOverview.timeline}><defs><linearGradient id="socDanger" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--danger)" stopOpacity={0.45}/><stop offset="100%" stopColor="var(--danger)" stopOpacity={0}/></linearGradient><linearGradient id="socWarning" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--warning)" stopOpacity={0.35}/><stop offset="100%" stopColor="var(--warning)" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.12)"/><XAxis dataKey="bucket" tickFormatter={(value) => `${String(value).slice(11, 13)}h`} tick={{ fill: 'var(--text-muted)', fontSize: 10 }}/><YAxis allowDecimals={false} tick={{ fill: 'var(--text-muted)', fontSize: 10 }}/><RechartsTooltip contentStyle={{ background: 'var(--technical-canvas)', border: '1px solid #334155', borderRadius: 6 }}/><Area type="monotone" dataKey="danger" name="Críticos" stroke="var(--danger)" fill="url(#socDanger)"/><Area type="monotone" dataKey="warning" name="Alertas" stroke="var(--warning)" fill="url(#socWarning)"/></AreaChart></ResponsiveContainer> : <div className="soc-empty-state"><Activity size={22}/><span>Sem eventos no período.</span></div>}
+            </div>
+          </div>
+          <div className="soc-intelligence-panel">
+            <div className="soc-section-heading"><div><Network size={17}/><span>Origens observadas</span></div><small>Ordenadas por criticidade</small></div>
+            <div className="soc-source-list">{socOverview.topIps?.length ? socOverview.topIps.slice(0, 5).map((source) => <div key={source.ip}><span>{source.ip}</span><div><i style={{ width: `${Math.min(100, source.events * 8)}%` }} /></div><strong>{source.events}</strong><small>{source.danger} críticas</small></div>) : <div className="soc-empty-state"><Network size={20}/><span>Nenhuma origem registrada.</span></div>}</div>
+            <div className={`soc-integrity ${socOverview.auditIntegrity?.ok ? 'is-ok' : 'is-alert'}`}>{socOverview.auditIntegrity?.ok ? <ShieldCheck size={18}/> : <AlertTriangle size={18}/>}<div><strong>{socOverview.auditIntegrity?.ok ? 'Continuidade da auditoria preservada' : `${socOverview.auditIntegrity?.brokenLinks || 0} descontinuidade(s) detectada(s)`}</strong><small>{socOverview.auditIntegrity?.verifiedRecords || 0} registros encadeados inspecionados</small></div></div>
+          </div>
+        </section>
         {securityStatus && (
-          <div className="dev-card glass-card" style={{ flexShrink: 0, borderTop: `4px solid ${checksFalhos.length ? '#f59e0b' : '#10b981'}`, marginBottom: '12px' }}>
-            <div className="dev-card-header flex-between" style={{ marginBottom: '12px', color: checksFalhos.length ? '#f59e0b' : '#10b981', flexWrap: 'wrap', gap: '10px' }}>
+          <div className="dev-card glass-card" style={{ flexShrink: 0, borderTop: `4px solid ${checksFalhos.length ? 'var(--warning)' : 'var(--success)'}`, marginBottom: '12px' }}>
+            <div className="dev-card-header flex-between" style={{ marginBottom: '12px', color: checksFalhos.length ? 'var(--warning)' : 'var(--success)', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {checksFalhos.length ? <ShieldAlert size={22} /> : <ShieldCheck size={22} />}
                 <h3>Verificação de Segurança</h3>
@@ -1680,8 +3248,8 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
               {securityStatus.checks?.map(check => (
-                <div key={check.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${check.ok ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.35)'}`, background: check.ok ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)' }}>
-                  {check.ok ? <CheckCircle2 size={15} color="#10b981" /> : <AlertTriangle size={15} color="#f59e0b" />}
+                <div key={check.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${check.ok ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'rgba(245,158,11,0.35)'}`, background: check.ok ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)' }}>
+                  {check.ok ? <CheckCircle2 size={15} color="var(--success)" /> : <AlertTriangle size={15} color="var(--warning)" />}
                   <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: 800 }}>{check.label}</span>
                 </div>
               ))}
@@ -1689,28 +3257,28 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
           </div>
         )}
 
-        <div className="dev-grid-main anim-stagger-2" style={{ flex: 1, minHeight: 0 }}>
+        <div className="dev-grid-main soc-data-grid anim-stagger-2" style={{ flex: 1, minHeight: 0 }}>
           <div className="dev-col-left" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid #38bdf8', display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <div className="dev-card-header flex-between" style={{color: '#38bdf8', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap'}}>
+            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid var(--info)', display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <div className="dev-card-header flex-between" style={{color: 'var(--info)', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap'}}>
                 <div style={{display:'flex', gap:'8px', alignItems:'center', width: '100%', justifyContent: 'space-between', flexWrap: 'wrap'}}>
-                  <div style={{display:'flex', gap:'8px', alignItems:'center'}}><UserCog size={24}/><h3>Diretório (AD)</h3></div>
+                  <div style={{display:'flex', gap:'8px', alignItems:'center'}}><UserCog size={20}/><h3>Diretório (AD)</h3><span className="soc-table-count">{filteredUsuarios.length}</span></div>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
-                    <div className="iam-search-box"><Search size={14} color="#64748b" /><input type="text" placeholder="Procurar usuário..." value={buscaUsuario} onChange={e => setBuscaUsuario(e.target.value)} /></div>
-                    <button className="btn btn-outline" onClick={() => setIsModalUserOpen(true)} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'rgba(56,189,248,0.3)', color: '#38bdf8', minHeight: '34px'}}><UserPlus size={14} style={{marginRight: '6px'}}/> Novo</button>
+                    <div className="iam-search-box"><Search size={14} color="var(--text-muted)" /><input type="text" placeholder="Procurar usuário..." value={buscaUsuario} onChange={e => setBuscaUsuario(e.target.value)} /></div>
+                    <button className="btn btn-outline" onClick={() => setIsModalUserOpen(true)} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'color-mix(in srgb, var(--info) 30%, transparent)', color: 'var(--info)', minHeight: '34px'}}><UserPlus size={14} style={{marginRight: '6px'}}/> Novo</button>
                   </div>
                 </div>
               </div>
               <div className="flex-table-container">
-                <div className="flex-table-content" style={{ minWidth: '950px' }}>
+                <div className="flex-table-content">
                   <div className="saas-table-header iam-ad-grid-cols" style={{ position: 'sticky', top: 0, zIndex: 10, margin: '0 0 4px 0', background: 'rgba(11, 17, 32, 0.95)' }}><div>Usuário / Cargo</div><div>Role do Sistema</div><div>Status / MFA</div><div>Último IP</div><div style={{textAlign: 'right'}}>Ações</div></div>
                   {filteredUsuarios.map((u) => (
                     <div key={u.id} className={`saas-client-row iam-ad-grid-cols ${u.status === 'BLOQUEADO' ? 'row-suspended' : ''}`} style={{ margin: 0 }}>
-                      <div className="user-profile-cell"><div className={`user-avatar ${u.role.toLowerCase()}`}>{u.nome.charAt(0)}</div><div style={{minWidth: 0}}><div className="text-truncate" style={{fontWeight: '900', color: 'white', fontSize: '1.05rem'}}>{u.nome}</div><div className="text-truncate" style={{fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px'}}>{u.cargo}</div></div></div>
+                      <div className="user-profile-cell"><div className={`user-avatar ${u.role.toLowerCase()}`}>{u.nome.charAt(0)}</div><div style={{minWidth: 0}}><div className="text-truncate soc-primary-text" title={u.nome}>{u.nome}</div><div className="text-truncate soc-secondary-text" title={u.cargo}>{u.cargo}</div></div></div>
                       <div><span className={`role-badge ${u.role.toLowerCase()}`}>{u.role}</span></div>
-                      <div>{u.mfa ? <span className="badge-mfa mfa-on"><ShieldCheck size={12}/> MFA ATIVO</span> : (u.status === 'BLOQUEADO' ? <span className="badge-mfa mfa-danger"><LockKeyhole size={12}/> BLOQUEADO</span> : <span className="badge-mfa mfa-off"><ShieldAlert size={12}/> SEM MFA</span>)}</div>
-                      <div style={{fontFamily: 'Montserrat', color: 'var(--dim-text)', fontSize: '0.85rem'}}>{u.ip} {u.ip !== 'Offline' && <span className="traffic-indicator-live" style={{marginLeft: '4px'}}></span>}</div>
-                      <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}><button className="btn-icon-small" title="Alternar Setup MFA" onClick={() => handleMfaAction(u.id, u.nome)}><ShieldAlert size={16} /></button><button className={`btn-icon-small ${u.status === 'BLOQUEADO' ? 'success-text' : 'danger-text'}`} title={u.status === 'BLOQUEADO' ? "Desbloquear Conta" : "Bloquear Conta"} onClick={() => handleBlockAction(u.id, u.nome)}>{u.status === 'BLOQUEADO' ? <Unlock size={16} color="#10b981" /> : <UserX size={16} />}</button></div>
+                      <div>{u.status === 'BLOQUEADO' ? <span className="badge-mfa mfa-danger"><LockKeyhole size={12}/> BLOQUEADO</span> : u.mfa ? <span className="badge-mfa mfa-on"><ShieldCheck size={12}/> MFA ATIVO</span> : <span className="badge-mfa mfa-off"><ShieldAlert size={12}/> SEM MFA</span>}</div>
+                      <div className="soc-ip-text">{u.ip} {u.ip !== 'Offline' && <span className="traffic-indicator-live" style={{marginLeft: '4px'}}></span>}</div>
+                      <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}><button className={`btn-icon-small ${u.status === 'BLOQUEADO' ? 'success-text' : 'danger-text'}`} title={u.status === 'BLOQUEADO' ? "Desbloquear Conta" : "Bloquear Conta"} onClick={() => handleBlockAction(u.id, u.nome)}>{u.status === 'BLOQUEADO' ? <Unlock size={16} color="var(--success)" /> : <UserX size={16} />}</button></div>
                     </div>
                   ))}
                 </div>
@@ -1718,26 +3286,26 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
             </div>
           </div>
           <div className="dev-col-right" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid #a855f7', display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <div className="dev-card-header flex-between" style={{color: '#a855f7', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap'}}><div style={{display:'flex', gap:'8px', alignItems:'center'}}><FingerprintIcon size={24}/><h3>Sessões JWT (Live)</h3></div>
-                {activeSessions.length > 0 && <button className="btn btn-outline danger-text" onClick={handleRevokeAll} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444', minHeight: '34px'}}><ShieldBan size={14} style={{marginRight: '6px'}}/> Revogar Tudo</button>}
+            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid var(--accent-violet)', display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <div className="dev-card-header flex-between" style={{color: 'var(--accent-violet)', padding: '1.5rem', marginBottom: 0, flexWrap: 'wrap'}}><div style={{display:'flex', gap:'8px', alignItems:'center'}}><FingerprintIcon size={20}/><h3>Sessões JWT (Live)</h3><span className="soc-table-count">{activeSessions.length}</span></div>
+                {activeSessions.length > 0 && <button className="btn btn-outline danger-text" onClick={handleRevokeAll} style={{padding: '8px 12px', fontSize: '0.75rem', borderColor: 'color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)', minHeight: '34px'}}><ShieldBan size={14} style={{marginRight: '6px'}}/> Revogar Tudo</button>}
               </div>
               <div className="flex-table-container">
-                <div className="flex-table-content" style={{ minWidth: '900px' }}>
+                <div className="flex-table-content">
                   <div className="saas-table-header soc-grid-cols" style={{ position: 'sticky', top: 0, zIndex: 10, margin: '0 0 4px 0', background: 'rgba(11, 17, 32, 0.95)' }}><div>Usuário (Token)</div><div>IP / Device</div><div>Ciclo de Vida</div><div style={{textAlign: 'right'}}>Ação</div></div>
                   {activeSessions.map((s) => (
                     <div key={s.id} className="saas-client-row soc-grid-cols" style={{ margin: 0 }}>
-                      <div><div className="text-truncate" style={{fontWeight: '900', color: 'white', fontSize: '1.05rem'}}>{s.usuario}</div><div style={{fontSize: '0.85rem', color: '#a855f7', marginTop: '4px', fontWeight: 'bold'}}>{s.role}</div></div>
-                      <div><div style={{fontFamily: 'Montserrat', color: 'var(--dim-text)', fontSize: '0.95rem'}}>{s.ip === '::1' ? 'Localhost' : s.ip}</div><div style={{fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', color: '#cbd5e1'}}><MonitorSmartphone size={12}/>{s.device}</div></div>
-                      <div style={{paddingRight: '15px', paddingTop: '4px'}}><div className="progress-bar-bg" style={{marginTop: 0}}><div className="progress-bar-fill" style={{ width: `${s.expirationPercent}%`, backgroundColor: s.expirationPercent < 20 ? '#ef4444' : '#a855f7' }}></div></div><div style={{fontSize: '0.7rem', color: 'var(--dim-text)', display: 'flex', justifyContent: 'space-between', marginTop: '4px'}}><span>Expira em</span><span style={{fontFamily: 'Montserrat'}}>{s.expirationMin} min</span></div></div>
+                      <div><div className="text-truncate soc-primary-text" title={s.usuario}>{s.usuario}</div><div className="soc-role-text">{s.role}</div></div>
+                      <div><div className="soc-ip-text">{s.ip === '::1' ? 'Localhost' : s.ip}</div><div className="soc-device-text"><MonitorSmartphone size={11}/><span className="text-truncate" title={s.device}>{s.device}</span></div></div>
+                      <div style={{paddingRight: '15px', paddingTop: '4px'}}><div className="progress-bar-bg" style={{marginTop: 0}}><div className="progress-bar-fill" style={{ width: `${s.expirationPercent}%`, backgroundColor: s.expirationPercent < 20 ? 'var(--danger)' : 'var(--accent-violet)' }}></div></div><div style={{fontSize: '0.7rem', color: 'var(--dim-text)', display: 'flex', justifyContent: 'space-between', marginTop: '4px'}}><span>Expira em</span><span style={{fontFamily: 'Montserrat'}}>{s.expirationMin} min</span></div></div>
                       <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}><button className="btn-icon-small danger-text" title="Derrubar Ligação" onClick={() => handleRevoke(s.id, s.usuario)}><Power size={18} /></button></div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid #f59e0b', display: 'flex', flexDirection: 'column', flex: 0.75, minHeight: 220, marginTop: '12px' }}>
-              <div className="dev-card-header flex-between" style={{color: '#f59e0b', padding: '1.25rem', marginBottom: 0, flexWrap: 'wrap'}}>
+            <div className="dev-card glass-card" style={{ padding: 0, overflow: 'hidden', borderTop: '4px solid var(--warning)', display: 'flex', flexDirection: 'column', flex: 0.75, minHeight: 220, marginTop: '12px' }}>
+              <div className="dev-card-header flex-between" style={{color: 'var(--warning)', padding: '1.25rem', marginBottom: 0, flexWrap: 'wrap'}}>
                 <div style={{display:'flex', gap:'8px', alignItems:'center'}}><ShieldAlert size={22}/><h3>Eventos de Segurança</h3></div>
                 <span style={{fontSize: '0.72rem', color: 'var(--dim-text)', fontFamily: 'Montserrat'}}>últimos {securityEvents.length}</span>
               </div>
@@ -1750,7 +3318,7 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span className={`role-badge ${event.severity === 'danger' ? 'dev' : event.severity === 'success' ? 'admin' : 'manutencao'}`}>{event.eventType}</span>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{event.ip || 'IP desconhecido'}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{event.ip || 'IP desconhecido'}</span>
                       </div>
                       {event.detail && <div className="text-truncate" style={{ marginTop: '4px', fontSize: '0.78rem', color: '#cbd5e1' }}>{event.detail}</div>}
                     </div>
@@ -1760,6 +3328,29 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
             </div>
           </div>
         </div>
+
+        <section className="soc-investigation-panel anim-stagger-2">
+          <div className="soc-investigation-header">
+            <div className="soc-section-heading"><div><Search size={17}/><span>Investigação e evidências</span></div><small>{filteredEvidence.length} registro(s) no recorte atual</small></div>
+            <div className="soc-investigation-tabs"><button type="button" className={investigationView === 'events' ? 'active' : ''} onClick={() => { setInvestigationView('events'); setSelectedEvidence(null); }}>Eventos estruturados</button><button type="button" className={investigationView === 'audit' ? 'active' : ''} onClick={() => { setInvestigationView('audit'); setSelectedEvidence(null); }}>Auditoria Zero-Trust</button></div>
+          </div>
+          <div className="soc-investigation-tools">
+            <div className="iam-search-box"><Search size={15}/><input value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Buscar tipo, ator, IP ou detalhe" /></div>
+            <label><Filter size={14}/><select value={eventSeverity} onChange={(event) => setEventSeverity(event.target.value)}><option value="ALL">Todas as severidades</option><option value="danger">Crítica</option><option value="warning">Alerta</option><option value="success">Sucesso</option><option value="info">Informativa</option></select></label>
+          </div>
+          {selectedEvidence && <div className="soc-evidence-detail"><div><span>Evidência selecionada</span><strong>{selectedEvidence.eventType || selectedEvidence.action}</strong></div><p>{selectedEvidence.detail || selectedEvidence.target || 'Sem detalhe adicional.'}</p><dl><div><dt>Ator</dt><dd>{selectedEvidence.actor || 'Não identificado'}</dd></div><div><dt>Origem</dt><dd>{selectedEvidence.ip || 'Não registrada'}</dd></div><div><dt>Data</dt><dd>{selectedEvidence.time}</dd></div><div><dt>Severidade</dt><dd>{selectedEvidence.severity}</dd></div></dl><button type="button" title="Fechar evidência" onClick={() => setSelectedEvidence(null)}><X size={16}/></button></div>}
+          <div className="soc-evidence-list">
+            {filteredEvidence.length === 0 ? <div className="soc-empty-state"><Search size={22}/><span>Nenhuma evidência corresponde aos filtros.</span></div> : filteredEvidence.map((item, index) => (
+              <button type="button" key={`${item.createdAt || item.time}-${index}`} className={`soc-evidence-row severity-${item.severity || 'info'}`} onClick={() => setSelectedEvidence(item)}>
+                <span className="soc-evidence-time">{item.time}</span>
+                <span className="soc-evidence-type">{item.eventType || item.action}</span>
+                <span className="soc-evidence-actor">{item.actor || 'Sistema'}</span>
+                <span className="soc-evidence-origin">{item.ip || item.target || 'Sem origem'}</span>
+                <span className="soc-evidence-severity">{item.severity || 'info'}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
 
       {isModalUserOpen && (
@@ -1780,16 +3371,52 @@ const TelaSOC = ({ api, showToast, addLog, setModalConfig, usuariosLista }) => {
   );
 };
 
-// ============================================================================
-// 9. TELA BI E RELATÓRIOS
-// ============================================================================
+/**
+ * ============================================================================ 9. TELA BI E
+ * RELATÓRIOS ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.sysConfig - Propriedade sysConfig usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.filiaisDb - Propriedade filiaisDb usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaBI = ({ api, showToast, addLog: _addLog, sysConfig, filiaisDb }) => {
   // BI executivo: consolida métricas de sistema, filiais e recursos habilitados
   // para análise do ambiente SaaS.
   const [isProcessing, setIsProcessing] = useState(null);
 
+
   /**
    * Concentra a logica de processar dados relatorio para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: consulta ou altera dados pela API
+   *
+   * @param {unknown} tipo - Valor de tipo consumido por esta rotina.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const processarDadosRelatorio = async (tipo) => {
     let head = []; let body = [];
@@ -1806,8 +3433,24 @@ const TelaBI = ({ api, showToast, addLog: _addLog, sysConfig, filiaisDb }) => {
     return { head, body };
   };
 
+
   /**
    * Gera gerar relatorio pdf com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {unknown} tipo - Valor de tipo consumido por esta rotina.
+   * @param {unknown} tema - Valor de tema consumido por esta rotina.
+   * @param {unknown} cor - Valor de cor consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarRelatorioPDF = async (tipo, tema, cor) => {
     setIsProcessing(`PDF_${tipo}`); showToast(`Compilando PDF: ${tipo}...`, 'warning');
@@ -1824,8 +3467,23 @@ const TelaBI = ({ api, showToast, addLog: _addLog, sysConfig, filiaisDb }) => {
     setIsProcessing(null);
   };
 
+
   /**
    * Gera gerar relatorio csv com os dados necessarios para o proximo passo.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+   *
+   * @param {unknown} tipo - Valor de tipo consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const gerarRelatorioCSV = async (tipo) => {
     setIsProcessing(`CSV_${tipo}`); showToast(`Extraindo CSV: ${tipo}...`, 'warning');
@@ -1843,17 +3501,17 @@ const TelaBI = ({ api, showToast, addLog: _addLog, sysConfig, filiaisDb }) => {
   };
 
   const modulosBI = [
-    { id: 'FINOPS_BILLING', titulo: 'Core Financeiro (RevOps)', desc: 'Relação completa de MRR, dívidas e faturas.', icon: DollarSign, color: '#10b981' },
-    { id: 'AUDITORIA_SOC', titulo: 'Auditoria Zero-Trust (SOC)', desc: 'Extrato de logins e purgas de dados.', icon: ShieldCheck, color: '#a855f7' },
-    { id: 'EDGE_HARDWARE', titulo: 'Inventário Edge Computing', desc: 'Mapeamento global da frota (MAC/Wi-Fi).', icon: Server, color: '#38bdf8' },
-    { id: 'SYSOPS_HEALTH', titulo: 'Saúde da Plataforma (SysOps)', desc: 'Métricas vitais do cluster e carga MySQL.', icon: Activity, color: '#6366f1' }
+    { id: 'FINOPS_BILLING', titulo: 'Core Financeiro (RevOps)', desc: 'Relação completa de MRR, dívidas e faturas.', icon: DollarSign, color: 'var(--success)' },
+    { id: 'AUDITORIA_SOC', titulo: 'Auditoria Zero-Trust (SOC)', desc: 'Extrato de logins e purgas de dados.', icon: ShieldCheck, color: 'var(--accent-violet)' },
+    { id: 'EDGE_HARDWARE', titulo: 'Inventário Edge Computing', desc: 'Mapeamento global da frota (MAC/Wi-Fi).', icon: Server, color: 'var(--info)' },
+    { id: 'SYSOPS_HEALTH', titulo: 'Saúde da Plataforma (SysOps)', desc: 'Métricas vitais do cluster e carga MySQL.', icon: Activity, color: 'var(--accent-violet)' }
   ];
 
   return (
     <div className="anim-fade-in stagger-1 dev-tela-scroll">
       <div className="flex-header" style={{ padding: 0, background: 'transparent', boxShadow: 'none', marginBottom: '0' }}>
-        <div className="dev-card glass-card" style={{ width: '100%', borderTop: '4px solid #38bdf8' }}>
-          <div className="dev-card-header" style={{ color: '#38bdf8', marginBottom: '5px' }}>
+        <div className="dev-card glass-card" style={{ width: '100%', borderTop: '4px solid var(--info)' }}>
+          <div className="dev-card-header" style={{ color: 'var(--info)', marginBottom: '5px' }}>
             <PieChart size={24} />
             <h3 style={{fontSize: 'clamp(1rem, 2vw, 1.2rem)'}}>Centro de Inteligência e Analytics (BI)</h3>
           </div>
@@ -1877,9 +3535,30 @@ const TelaBI = ({ api, showToast, addLog: _addLog, sysConfig, filiaisDb }) => {
   );
 };
 
-// ============================================================================
-// 10. TELA DE ATUALIZAÇÕES DO SISTEMA E DEPLOY
-// ============================================================================
+/**
+ * ============================================================================ 10. TELA DE
+ * ATUALIZAÇÕES DO SISTEMA E DEPLOY
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @param {boolean} options.isOverclocked - Sinalizador isOverclocked que controla este comportamento visual.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocked }) => {
   // Atualizações: upload e validação de pacotes de deploy com fluxo protegido
   // para evitar instalação acidental ou pacote fora do padrão.
@@ -1889,7 +3568,7 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
     title: '',
     type: 'feature',
     desc: '',
-    targetType: 'AUTO',
+    targetType: 'FRONTEND',
     passcode: ''
   });
   const [updateFile, setUpdateFile] = useState(null);
@@ -1898,36 +3577,94 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
   const [deployStep, setDeployStep] = useState(0);
   const [checkBackup, setCheckBackup] = useState(false);
   const [checkDowntime, setCheckDowntime] = useState(false);
+  const [deployments, setDeployments] = useState([]);
+  const [deploySummary, setDeploySummary] = useState({ total: 0, successful: 0, failed: 0, processing: 0, lastCompletedAt: null });
+  const [environment, setEnvironment] = useState({ health: null, host: null });
+  const [isLoadingCenter, setIsLoadingCenter] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [deployError, setDeployError] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('ALL');
+  const [historyView, setHistoryView] = useState('deployments');
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [environmentConfirmation, setEnvironmentConfirmation] = useState('');
+  const [deployCapabilities, setDeployCapabilities] = useState({
+    webDeployEnabled: false,
+    environment: 'INDEFINIDO',
+    requireMfa: false,
+    confirmationPhrase: 'DEPLOY INDEFINIDO'
+  });
 
-  const carregarChangelog = useCallback(async () => {
-    try {
-      const res = await api.get('/system/changelog');
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setUpdates(res.data);
-      } else {
-        const local = JSON.parse(localStorage.getItem('termosync_changelog')) || [];
-        setUpdates(local);
-      }
-    } catch (e) {
-      const local = JSON.parse(localStorage.getItem('termosync_changelog')) || [];
-      setUpdates(local);
+  // Carrega em paralelo ambiente, execuções persistidas e changelog funcional.
+  const carregarCentroDeploy = useCallback(async (silent = false) => {
+    if (!silent) setIsLoadingCenter(true);
+    const [deployResult, changelogResult, healthResult, hostResult] = await Promise.allSettled([
+      api.get('/system/deployments'),
+      api.get('/system/changelog'),
+      api.get('/system/health'),
+      api.get('/system/host-info')
+    ]);
+
+    if (deployResult.status === 'fulfilled') {
+      const deployData = deployResult.value.data || {};
+      setDeployments(Array.isArray(deployData.deployments) ? deployData.deployments : []);
+      setDeploySummary(deployData.summary || { total: 0, successful: 0, failed: 0, processing: 0, lastCompletedAt: null });
+      setDeployCapabilities((current) => ({ ...current, ...(deployData.capabilities || {}) }));
     }
-  }, [api]);
+    if (changelogResult.status === 'fulfilled') {
+      const changelogData = changelogResult.value.data;
+      setUpdates(Array.isArray(changelogData) ? changelogData : (changelogData?.updates || changelogData?.changelog || []));
+    }
+    setEnvironment({
+      health: healthResult.status === 'fulfilled' ? healthResult.value.data : null,
+      host: hostResult.status === 'fulfilled' ? hostResult.value.data : null
+    });
+
+    const failed = [deployResult, changelogResult, healthResult, hostResult].filter((result) => result.status === 'rejected').length;
+    if (failed && !silent) {
+      showToast(`Centro de deploy carregado parcialmente (${failed} fonte${failed > 1 ? 's' : ''} indisponível${failed > 1 ? 'is' : ''}).`, 'warning');
+    }
+    setIsLoadingCenter(false);
+  }, [api, showToast]);
 
   useEffect(() => {
-    carregarChangelog();
-  }, [carregarChangelog]);
+    carregarCentroDeploy();
+  }, [carregarCentroDeploy]);
 
   /**
    * Processa a interacao de handle file select e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; interage com APIs do navegador
+   *
+   * @param {unknown} file - Valor de file consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const handleFileSelect = (file) => {
+  const handleFileSelect = async (file) => {
     if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      showToast('Selecione um pacote no formato ZIP.', 'error');
+      return;
+    }
+    if (file.size > 75 * 1024 * 1024) {
+      showToast('O pacote excede o limite de 75 MB.', 'error');
+      return;
+    }
     setUpdateFile(file);
+    setDeployError('');
 
     const name = file.name.toLowerCase();
-    let detected = 'AUTO';
-    let hint = 'Pacote genérico zipado';
+    let detected = newUpdate.targetType || 'FRONTEND';
+    let hint = 'Destino mantido conforme seleção manual';
 
     if (name.includes('front') || name.includes('ui') || name.includes('dist') || name.includes('build')) {
       detected = 'FRONTEND';
@@ -1944,28 +3681,55 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
       name: file.name,
       size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
       detected,
-      hint
+      hint,
+      checksum: 'Calculando...'
     });
 
     setNewUpdate((prev) => ({ ...prev, targetType: detected }));
+    try {
+      const digest = await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      const checksum = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      setFileDetails((current) => current ? { ...current, checksum } : current);
+    } catch {
+      setFileDetails((current) => current ? { ...current, checksum: 'Indisponível neste navegador' } : current);
+    }
   };
+
 
   /**
    * Processa a interacao de handle deploy e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const handleDeploy = (e) => {
     e.preventDefault();
-    if (!newUpdate.version || !newUpdate.title || !newUpdate.desc || !newUpdate.passcode || !updateFile || !checkBackup || !checkDowntime) {
+    if (!deployCapabilities.webDeployEnabled) {
+      return showToast('Deploy pelo painel está desativado neste ambiente.', 'error');
+    }
+    if (!newUpdate.version || !newUpdate.title || !newUpdate.desc || !newUpdate.passcode || !updateFile || !checkBackup || !checkDowntime || environmentConfirmation.trim().toUpperCase() !== deployCapabilities.confirmationPhrase) {
       return showToast('Preencha os dados e valide o checklist.', 'error');
     }
 
     setModalConfig({
       isOpen: true,
-      title: 'INICIAR DEPLOY EM PRODUÇÃO',
-      message: `O pacote "${updateFile.name}" será injetado no ambiente [${newUpdate.targetType}]. Confirmar deploy?`,
+      title: `INICIAR DEPLOY EM ${deployCapabilities.environment}`,
+      message: `O pacote "${updateFile.name}" será aplicado ao alvo [${newUpdate.targetType}] no ambiente ${deployCapabilities.environment}. Um backup do banco será criado antes da extração. Confirmar deploy?`,
       onConfirm: async () => {
         setIsDeploying(true);
         setDeployStep(1);
+        setUploadProgress(0);
+        setDeployError('');
         addLog(`[CI/CD] Upload de pacote ${newUpdate.targetType} iniciado...`, 'warning');
 
         const formData = new FormData();
@@ -1976,26 +3740,49 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
         formData.append('type', newUpdate.type);
         formData.append('targetType', newUpdate.targetType);
         formData.append('passcode', newUpdate.passcode);
+        formData.append('confirmation', environmentConfirmation.trim());
 
         try {
-          setTimeout(() => setDeployStep(2), 1200);
           const response = await api.post('/system/deploy-update', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (event) => {
+              if (event.total) setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+            }
           });
 
           setDeployStep(3);
           addLog(`[CI/CD] Servidor identificou destino: ${response.data?.targetDetected}`, 'info');
+          if (response.data?.backupFile) addLog(`[BACKUP] Snapshot pré-deploy criado: ${response.data.backupFile}`, 'success');
           verificarRetornoServidor();
         } catch (error) {
-          setDeployStep(3);
-          verificarRetornoServidor();
+          const message = error.response?.data?.detail || error.response?.data?.error || 'O servidor não conseguiu processar o pacote.';
+          setDeployError(message);
+          setIsDeploying(false);
+          setDeployStep(0);
+          setUploadProgress(0);
+          addLog(`[CI/CD] Deploy interrompido: ${message}`, 'error');
+          showToast(message, 'error');
+          carregarCentroDeploy(true);
         }
       }
     });
   };
 
+
   /**
    * Concentra a logica de verificar retorno servidor para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const verificarRetornoServidor = () => {
     setDeployStep(4);
@@ -2017,41 +3804,125 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
     }, 2000);
   };
 
+
   /**
    * Concentra a logica de finalizar deploy sucesso para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const finalizarDeploySucesso = () => {
     setDeployStep(5);
     setTimeout(() => {
-      carregarChangelog();
+      carregarCentroDeploy(true);
       setIsDeploying(false);
       setDeployStep(0);
-      setNewUpdate({ version: '', title: '', type: 'feature', desc: '', targetType: 'AUTO', passcode: '' });
+      setNewUpdate({ version: '', title: '', type: 'feature', desc: '', targetType: 'FRONTEND', passcode: '' });
       setUpdateFile(null);
       setFileDetails(null);
+      setEnvironmentConfirmation('');
       setCheckBackup(false);
       setCheckDowntime(false);
+      setUploadProgress(0);
+      setDeployError('');
 
       showToast('Deploy 100% integrado concluído!', 'success');
       addLog('[CI/CD] Sincronização concluída com Changelog, SOC e WebSockets.', 'success');
     }, 1500);
   };
 
-  const isFormReady = newUpdate.version && newUpdate.title && newUpdate.desc && newUpdate.passcode && updateFile && checkBackup && checkDowntime;
+  const confirmationMatches = environmentConfirmation.trim().toUpperCase() === deployCapabilities.confirmationPhrase;
+  const isFormReady = Boolean(deployCapabilities.webDeployEnabled && newUpdate.version && newUpdate.title && newUpdate.desc && newUpdate.passcode && updateFile && checkBackup && checkDowntime && confirmationMatches && environment.health?.ok !== false);
+  const successRate = deploySummary.total ? Math.round((deploySummary.successful / deploySummary.total) * 100) : 0;
+  const filteredDeployments = deployments.filter((deployment) => {
+    const query = historySearch.trim().toLowerCase();
+    const matchesSearch = !query || [deployment.version, deployment.title, deployment.target, deployment.package_name, deployment.initiated_by].some((value) => String(value || '').toLowerCase().includes(query));
+    return matchesSearch && (historyStatus === 'ALL' || deployment.status === historyStatus);
+  });
+  const filteredUpdates = updates.filter((update) => {
+    const query = historySearch.trim().toLowerCase();
+    return !query || [update.version, update.title, update.desc_text, update.author].some((value) => String(value || '').toLowerCase().includes(query));
+  });
+
+  /**
+   * Formata format bytes para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} bytes - Valor de bytes consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatBytes = (bytes) => {
+    const value = Number(bytes || 0);
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  /**
+   * Formata format uptime para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} seconds - Valor de seconds consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatUptime = (seconds) => {
+    const hours = Math.floor(Number(seconds || 0) / 3600);
+    const days = Math.floor(hours / 24);
+    return days ? `${days}d ${hours % 24}h` : `${hours}h`;
+  };
 
   return (
-    <div className="dev-tela-scroll">
-      <div className="dev-grid-main anim-stagger-2">
+    <div className="dev-tela-scroll deploy-center">
+      <header className="deploy-page-header anim-stagger-1">
+        <div>
+          <span className="deploy-eyebrow"><Rocket size={14} /> Engenharia de release</span>
+          <h2>Atualizações e Deploy</h2>
+          <p>Prepare, publique e audite versões do sistema com validação do artefato e acompanhamento do ambiente.</p>
+        </div>
+        <button type="button" className="btn-icon-small" title="Atualizar centro de deploy" onClick={() => carregarCentroDeploy()} disabled={isLoadingCenter}>
+          <RefreshCw size={18} className={isLoadingCenter ? 'spin' : ''} />
+        </button>
+      </header>
+
+      <section className="deploy-kpi-grid anim-stagger-2">
+        <article><span><PackageCheck size={16} /> Deploys em 30 dias</span><strong>{deploySummary.total}</strong><small>{deploySummary.processing} em processamento</small></article>
+        <article className={deploySummary.failed ? 'is-warning' : ''}><span><Gauge size={16} /> Taxa de sucesso</span><strong>{successRate}%</strong><small>{deploySummary.successful} concluídos, {deploySummary.failed} com falha</small></article>
+        <article><span><Server size={16} /> Ambiente</span><strong>{deployCapabilities.environment}</strong><small>{environment.host?.os?.hostname || 'Host não identificado'}{deployCapabilities.requireMfa ? ' · MFA obrigatório' : ''}</small></article>
+        <article className={environment.health?.ok === false ? 'is-danger' : ''}><span><Activity size={16} /> API e banco</span><strong>{environment.health?.ok ? 'Operacionais' : (environment.health ? 'Com atenção' : 'Verificando')}</strong><small>Uptime {formatUptime(environment.host?.uptimeSeconds)}</small></article>
+      </section>
+
+      <div className="dev-grid-main deploy-workspace anim-stagger-2">
         <div className="dev-col-left" style={{ flex: '1.2' }}>
-          <div className="dev-card glass-card" style={{ borderTop: `4px solid ${isOverclocked ? '#ef4444' : 'var(--theme-sec)'}` }}>
-            <div className="dev-card-header flex-between" style={{ color: isOverclocked ? '#ef4444' : 'var(--theme-sec)', marginBottom: '15px' }}>
+          <div className="dev-card glass-card" style={{ borderTop: `4px solid ${isOverclocked ? 'var(--danger)' : 'var(--theme-sec)'}` }}>
+            <div className="dev-card-header flex-between" style={{ color: isOverclocked ? 'var(--danger)' : 'var(--theme-sec)', marginBottom: '15px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Rocket size={24} />
                 <h3>Motor de Deploy (CI/CD)</h3>
               </div>
-              <span className="status-badge" style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--theme-sec)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                INTELIGENTE & INTEGRADO
-              </span>
+              <span className="status-badge">PIPELINE PROTEGIDO</span>
             </div>
 
             {isDeploying ? (
@@ -2061,35 +3932,44 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
                   <h3 style={{ margin: 0, fontSize: '1rem' }}>Injetando Pacote no Servidor...</h3>
                 </div>
                 <div className="crt-terminal" style={{ flex: 1, fontFamily: 'Montserrat', fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ color: '#94a3b8' }}>[CI/CD] Validando assinatura e tipo de alvo ({newUpdate.targetType})...</div>
-                  {deployStep >= 1 && <div><span style={{ color: 'var(--secondary)' }}>[UPLOAD]</span> Transferindo artefato ZIP para tmp/...</div>}
+                  <div style={{ color: 'var(--text-muted)' }}>[CI/CD] Validando assinatura e tipo de alvo ({newUpdate.targetType})...</div>
+                  {deployStep >= 1 && <div><span style={{ color: 'var(--secondary)' }}>[UPLOAD]</span> Transferindo artefato ZIP para tmp/ ({uploadProgress}%)...</div>}
                   {deployStep >= 2 && <div><span style={{ color: 'var(--warning)' }}>[EXTRACT]</span> Distribuindo arquivos para {newUpdate.targetType === 'FRONTEND' ? 'public_html/' : 'raiz backend/'}...</div>}
-                  {deployStep >= 3 && <div><span style={{ color: '#a855f7' }}>[INTEGRAÇÃO]</span> Gravando DB Changelog e emitindo evento Socket...</div>}
+                  {deployStep >= 3 && <div><span style={{ color: 'var(--accent-violet)' }}>[INTEGRAÇÃO]</span> Gravando DB Changelog e emitindo evento Socket...</div>}
                   {deployStep >= 4 && <div className="pulse-icon"><span style={{ color: 'var(--secondary)' }}>[HEALTH]</span> Checando uptime e resposta PM2...</div>}
                   {deployStep >= 5 && <div style={{ color: 'var(--theme-main)', fontWeight: 'bold' }}>[SUCESSO] Deploy finalizado com sucesso!</div>}
                 </div>
+                <div className="deploy-progress-track"><span style={{ width: `${deployStep >= 3 ? 100 : uploadProgress}%` }} /></div>
               </div>
             ) : (
               <form onSubmit={handleDeploy} className="deploy-form-grid">
+                {!deployCapabilities.webDeployEnabled && <div className="deploy-inline-error"><ShieldAlert size={16} /><span>Deploy web desativado. Em produção, habilite explicitamente <code>ALLOW_WEB_DEPLOY=true</code> ou utilize a esteira oficial.</span></div>}
                 <div className="form-group" style={{ marginBottom: '5px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--dim-text)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                     Alvo do Deploy (Destino) *
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <button type="button" className={`btn btn-outline ${newUpdate.targetType === 'FRONTEND' ? 'active' : ''}`} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FRONTEND' })} style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'FRONTEND' ? '#38bdf8' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'FRONTEND' ? 'rgba(56,189,248,0.15)' : 'transparent', color: newUpdate.targetType === 'FRONTEND' ? '#38bdf8' : 'white' }}>🌐 FRONTEND (UI)</button>
-                    <button type="button" className={`btn btn-outline ${newUpdate.targetType === 'BACKEND' ? 'active' : ''}`} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'BACKEND' })} style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'BACKEND' ? '#10b981' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'BACKEND' ? 'rgba(16,185,129,0.15)' : 'transparent', color: newUpdate.targetType === 'BACKEND' ? '#10b981' : 'white' }}>⚙️ BACKEND (API)</button>
-                    <button type="button" className={`btn btn-outline ${newUpdate.targetType === 'FULLSTACK' ? 'active' : ''}`} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FULLSTACK' })} style={{ padding: '10px', fontSize: '0.75rem', borderColor: newUpdate.targetType === 'FULLSTACK' ? '#a855f7' : 'rgba(255,255,255,0.1)', background: newUpdate.targetType === 'FULLSTACK' ? 'rgba(168,85,247,0.15)' : 'transparent', color: newUpdate.targetType === 'FULLSTACK' ? '#a855f7' : 'white' }}>🚀 FULL-STACK</button>
+                  <div className="deploy-target-selector">
+                    <button type="button" className={newUpdate.targetType === 'FRONTEND' ? 'active' : ''} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FRONTEND' })}><MonitorSmartphone size={16} />Frontend</button>
+                    <button type="button" className={newUpdate.targetType === 'BACKEND' ? 'active' : ''} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'BACKEND' })}><Server size={16} />Backend</button>
+                    <button type="button" className={newUpdate.targetType === 'FULLSTACK' ? 'active' : ''} onClick={() => setNewUpdate({ ...newUpdate, targetType: 'FULLSTACK' })}><Box size={16} />Full-stack</button>
                   </div>
+                  {newUpdate.targetType === 'FULLSTACK' && <small>O ZIP deve conter as pastas <code>frontend/</code> e <code>backend/</code> na raiz.</small>}
                 </div>
 
                 <div className="form-group" style={{ marginBottom: '10px' }}>
                   <label style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pacote ZIP *</label>
-                  <div style={{ position: 'relative', border: `2px dashed ${updateFile ? 'var(--primary)' : 'var(--border-focus)'}`, borderRadius: '12px', padding: '20px', textAlign: 'center', background: updateFile ? 'rgba(16, 185, 129, 0.05)' : 'rgba(0,0,0,0.3)' }}>
+                  <div
+                    className={`deploy-dropzone ${updateFile ? 'has-file' : ''} ${isDraggingFile ? 'is-dragging' : ''}`}
+                    onDragEnter={(event) => { event.preventDefault(); setIsDraggingFile(true); }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragLeave={() => setIsDraggingFile(false)}
+                    onDrop={(event) => { event.preventDefault(); setIsDraggingFile(false); handleFileSelect(event.dataTransfer.files[0]); }}
+                  >
                     <input type="file" accept=".zip" onChange={(e) => handleFileSelect(e.target.files[0])} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }} />
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <FileCode size={32} color={updateFile ? 'var(--primary)' : 'var(--dim-text)'} />
+                      {updateFile ? <PackageCheck size={32} /> : <UploadCloud size={32} />}
                       <span style={{ color: updateFile ? 'var(--primary)' : 'white', fontWeight: 'bold', marginTop: '5px' }}>{updateFile ? updateFile.name : 'Clique ou arraste um arquivo .zip aqui'}</span>
-                      {fileDetails && (<div style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: '6px', marginTop: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>Tamanho: <strong>{fileDetails.size}</strong> | {fileDetails.hint}</div>)}
+                      {fileDetails && <><small>{fileDetails.size} · {fileDetails.hint}</small><code title={fileDetails.checksum}>SHA-256 {fileDetails.checksum?.slice(0, 18)}{fileDetails.checksum?.length > 18 ? '...' : ''}</code></>}
                     </div>
                   </div>
                 </div>
@@ -2102,41 +3982,73 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
                 <div className="form-group"><label>Título da Versão *</label><div className="config-input-wrapper"><input type="text" placeholder="Ex: Módulo de Degelo Dinâmico" value={newUpdate.title} onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })} /></div></div>
                 <div className="form-group"><label>Descrição do Changelog (Integrado com DB) *</label><textarea placeholder="Detalhe as mudanças operacionais..." value={newUpdate.desc} onChange={(e) => setNewUpdate({ ...newUpdate, desc: e.target.value })} style={{ minHeight: '80px' }} /></div>
                 <div className="form-group"><label>Passcode Root *</label><div className="config-input-wrapper"><LockKeyhole size={16} /><input type="password" placeholder="Confirme a credencial root para deploy" value={newUpdate.passcode} onChange={(e) => setNewUpdate({ ...newUpdate, passcode: e.target.value })} autoComplete="current-password" /></div></div>
+                <div className="form-group"><label>Confirmação do ambiente *</label><div className="config-input-wrapper"><ShieldCheck size={16} /><input type="text" placeholder={deployCapabilities.confirmationPhrase} value={environmentConfirmation} onChange={(e) => setEnvironmentConfirmation(e.target.value)} autoComplete="off" /></div><small>Digite exatamente <code>{deployCapabilities.confirmationPhrase}</code>.</small></div>
 
                 <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px 15px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px', border: '1px solid var(--border-dim)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkBackup ? 'var(--primary)' : 'white' }}><input type="checkbox" checked={checkBackup} onChange={(e) => setCheckBackup(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />Backup DB/Arquivos validado antes da atualização.</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkBackup ? 'var(--primary)' : 'white' }}><input type="checkbox" checked={checkBackup} onChange={(e) => setCheckBackup(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />Autorizo a criação automática do backup do banco antes da atualização.</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: checkDowntime ? 'var(--warning)' : 'white' }}><input type="checkbox" checked={checkDowntime} onChange={(e) => setCheckDowntime(e.target.checked)} style={{ accentColor: 'var(--warning)' }} />Ciente das interconexões com SOC, WebSockets e Changelog.</label>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-100" disabled={!isFormReady} style={{ marginTop: '5px', filter: isFormReady ? 'none' : 'grayscale(1)' }}><Rocket size={18} /> INICIAR DEPLOY DO {newUpdate.targetType}</button>
+                {deployError && <div className="deploy-inline-error"><AlertCircle size={16} /><span>{deployError}</span></div>}
+
+                <button type="submit" className="btn btn-primary w-100" disabled={!isFormReady} style={{ marginTop: '5px', filter: isFormReady ? 'none' : 'grayscale(1)' }}><Rocket size={18} />Iniciar deploy {newUpdate.targetType.toLowerCase()}</button>
               </form>
             )}
           </div>
         </div>
 
         <div className="dev-col-right" style={{ flex: '1.8' }}>
-          <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--theme-main)', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="dev-card-header flex-between" style={{ color: 'var(--theme-main)', marginBottom: '15px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><History size={24} /><h3>Changelog & Auditoria de Deploys</h3></div>
-              <button className="btn btn-outline" onClick={carregarChangelog} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px' }}><RefreshCw size={14} style={{ marginRight: '6px' }} /> Sincronizar DB</button>
+          <section className="deploy-environment-panel">
+            <div className="deploy-section-title"><div><Activity size={18} /><span>Prontidão do ambiente</span></div><small>Atualização automática a cada 30s</small></div>
+            <div className="deploy-readiness-grid">
+              <div><span className={environment.health?.ok ? 'deploy-health-dot online' : 'deploy-health-dot offline'} /><p><strong>API principal</strong><small>{environment.health?.status || (environment.health?.ok ? 'online' : 'sem resposta')}</small></p></div>
+              <div><Database size={17} /><p><strong>Banco de dados</strong><small>{typeof environment.health?.database === 'string' ? environment.health.database : (environment.health?.database?.status || 'indisponível')}</small></p></div>
+              <div><Server size={17} /><p><strong>Runtime</strong><small>{environment.host?.runtime?.nodeVersion || 'não identificado'} · PID {environment.host?.runtime?.pid || '-'}</small></p></div>
+              <div><HardDrive size={17} /><p><strong>Memória livre</strong><small>{environment.host?.memory ? `${environment.host.memory.freeMB} de ${environment.host.memory.totalMB} MB` : 'indisponível'}</small></p></div>
+            </div>
+          </section>
+
+          <div className="dev-card glass-card deploy-history-panel">
+            <div className="deploy-history-header">
+              <div className="deploy-section-title"><div><History size={18} /><span>Histórico e changelog</span></div></div>
+              <div className="deploy-history-tabs">
+                <button type="button" className={historyView === 'deployments' ? 'active' : ''} onClick={() => setHistoryView('deployments')}>Execuções</button>
+                <button type="button" className={historyView === 'changelog' ? 'active' : ''} onClick={() => setHistoryView('changelog')}>Changelog</button>
+              </div>
+            </div>
+            <div className="deploy-history-tools">
+              <div className="iam-search-box"><Search size={15} /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Buscar versão, pacote ou autor" /></div>
+              {historyView === 'deployments' && <label><Filter size={14} /><select value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value)}><option value="ALL">Todos os status</option><option value="SUCCESS">Sucesso</option><option value="FAILED">Falha</option><option value="PROCESSING">Processando</option></select></label>}
             </div>
 
-            <div className="timeline-container" style={{ flex: 1, overflowY: 'auto', paddingRight: '10px', marginTop: 0 }}>
-              {updates.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--dim-text)', padding: '40px' }}>Nenhuma atualização registrada na tabela system_changelog.</div>
+            {historyView === 'deployments' ? (
+              <div className="deploy-execution-list">
+                {filteredDeployments.length === 0 ? <div className="deploy-empty"><PackageCheck size={24} /><span>Nenhuma execução registrada.</span></div> : filteredDeployments.map((deployment) => (
+                  <article key={deployment.id} className={`deploy-execution is-${String(deployment.status).toLowerCase()}`}>
+                    <div className="deploy-execution-status">{deployment.status === 'SUCCESS' ? <CheckCircle2 size={18} /> : deployment.status === 'FAILED' ? <AlertCircle size={18} /> : <Loader2 size={18} className="spin" />}</div>
+                    <div className="deploy-execution-main"><div><strong>{deployment.version}</strong><span>{deployment.title}</span></div><small>{deployment.package_name}</small>{deployment.error_message && <p>{deployment.error_message}</p>}</div>
+                    <div className="deploy-execution-meta"><span>{deployment.target}</span><small>{formatBytes(deployment.package_size)} · {deployment.entry_count} arquivos</small><small>{new Date(deployment.created_at).toLocaleString('pt-BR')} · {deployment.duration_seconds}s</small></div>
+                    <code title={deployment.package_checksum || ''}>{deployment.package_checksum ? deployment.package_checksum.slice(0, 12) : 'sem hash'}</code>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="timeline-container deploy-changelog-list">
+              {filteredUpdates.length === 0 ? (
+                <div className="deploy-empty"><ListChecks size={24} /><span>Nenhuma atualização encontrada.</span></div>
               ) : (
-                updates.map((upd, idx) => {
+                filteredUpdates.map((upd, idx) => {
                   const targetBadge = upd.title?.includes('[FRONTEND]') ? 'FRONTEND' : upd.title?.includes('[BACKEND]') ? 'BACKEND' : 'FULLSTACK';
                   const titleClean = upd.title?.replace(/\[(FRONTEND|BACKEND|FULLSTACK)\]\s*/gi, '') || upd.title;
 
                   return (
                     <div key={upd.id || idx} className="timeline-item">
-                      <div className="timeline-node" style={{ borderColor: targetBadge === 'FRONTEND' ? '#38bdf8' : targetBadge === 'BACKEND' ? '#10b981' : '#a855f7' }}></div>
+                      <div className="timeline-node" style={{ borderColor: targetBadge === 'FRONTEND' ? 'var(--info)' : targetBadge === 'BACKEND' ? 'var(--success)' : 'var(--accent-violet)' }}></div>
                       <div className="timeline-content">
                         <div className="timeline-header">
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span className="version-badge">{upd.version}</span>
-                            <span style={{ fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '4px', background: targetBadge === 'FRONTEND' ? 'rgba(56,189,248,0.15)' : 'rgba(16,185,129,0.15)', color: targetBadge === 'FRONTEND' ? '#38bdf8' : '#10b981', border: `1px solid ${targetBadge === 'FRONTEND' ? 'rgba(56,189,248,0.4)' : 'rgba(16,185,129,0.4)'}` }}>{targetBadge}</span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '4px', background: targetBadge === 'FRONTEND' ? 'color-mix(in srgb, var(--info) 15%, transparent)' : 'color-mix(in srgb, var(--success) 15%, transparent)', color: targetBadge === 'FRONTEND' ? 'var(--info)' : 'var(--success)', border: `1px solid ${targetBadge === 'FRONTEND' ? 'rgba(56,189,248,0.4)' : 'rgba(16,185,129,0.4)'}` }}>{targetBadge}</span>
                           </div>
                           <div className="update-meta"><Clock size={12} /> {upd.date ? new Date(upd.date).toLocaleString('pt-BR') : 'Data Indisponível'}</div>
                         </div>
@@ -2148,7 +4060,8 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
                   );
                 })
               )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2156,457 +4069,373 @@ const TelaAtualizacoes = ({ api, showToast, addLog, setModalConfig, isOverclocke
   );
 };
 
-// ============================================================================
-// 12. TELA: CONSOLE TERMINAL SQL (ABSOLUTE FULLSCREEN COM OVERFLOW NATIVO)
-// ============================================================================
+/**
+ * ============================================================================ 12. TELA:
+ * CONSOLE TERMINAL SQL (ABSOLUTE FULLSCREEN COM OVERFLOW NATIVO)
+ * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.addLog - Propriedade addLog usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 const TelaTerminalSQL = ({ api, showToast, addLog }) => {
-  // Terminal SQL controlado: executa consultas administrativas com proteções no
-  // backend, passcode root e auditoria.
+  // Console administrativo com explorador de esquema, execução auditada e
+  // ferramentas de inspeção. A API continua sendo a autoridade de segurança.
   const [query, setQuery] = useState('');
   const [passcode, setPasscode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState([]);
+  const [hasExecuted, setHasExecuted] = useState(false);
+  const [resultMeta, setResultMeta] = useState(null);
   const [error, setError] = useState(null);
+  const [metadata, setMetadata] = useState({ tables: [], databaseName: '', mutationEnabled: false, destructiveEnabled: false, maxQueryChars: 6000 });
+  const [schemaLoading, setSchemaLoading] = useState(true);
+  const [schemaError, setSchemaError] = useState('');
+  const [schemaSearch, setSchemaSearch] = useState('');
+  const [resultSearch, setResultSearch] = useState('');
+  const [activeResultTab, setActiveResultTab] = useState('results');
+  const [history, setHistory] = useState([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
-  /**
-   * Executa executar sql coordenando as etapas principais desse fluxo.
-   */
-  const executarSQL = async (e, forceQuery = null) => {
-    if (e) e.preventDefault(); const sqlToRun = forceQuery || query; if (!sqlToRun.trim()) return;
-    setLoading(true); setError(null); setResults(null); addLog(`[SQL] A executar diretiva na base de dados...`, 'warning');
+  const queryKind = useMemo(() => {
+    const command = query.trim().match(/^([a-z]+)/i)?.[1]?.toUpperCase() || 'VAZIO';
+    const readOnly = /^(SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)$/.test(command);
+    const destructive = /^(DROP|TRUNCATE|DELETE)$/.test(command);
+    return { command, readOnly, destructive };
+  }, [query]);
+
+  const filteredTables = useMemo(() => metadata.tables.filter((table) => (
+    table.name.toLowerCase().includes(schemaSearch.trim().toLowerCase())
+  )), [metadata.tables, schemaSearch]);
+
+  const filteredResults = useMemo(() => {
+    const term = resultSearch.trim().toLowerCase();
+    if (!term) return results;
+    return results.filter((row) => Object.values(row).some((value) => String(value ?? '').toLowerCase().includes(term)));
+  }, [results, resultSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const visibleResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
+  const columns = resultMeta?.columns?.length ? resultMeta.columns : Object.keys(results[0] || {});
+
+  // Atualiza o catálogo estrutural exibido no explorador sem consultar dados das tabelas.
+  const carregarMetadados = useCallback(async () => {
+    setSchemaLoading(true);
+    setSchemaError('');
     try {
-      const res = await api.post('/system/query-raw', { sql: sqlToRun, passcode });
-      if (res.data.success) {
-        setResults(res.data.data); showToast('Query executada com sucesso.', 'success'); addLog(`[SQL SUCESS] Afetadas/Retornadas ${res.data.data?.length || 0} linhas.`, 'success');
-      } else { setError(res.data.error || 'Erro desconhecido na query.'); showToast('Erro de sintaxe SQL.', 'error'); }
-    } catch (err) { setError(err.response?.data?.error || err.message); addLog(`[SQL ERROR] Falha crítica de sintaxe ou ligação.`, 'error'); } finally { setLoading(false); }
-  };
-
-  /**
-   * Concentra a logica de aplicar quick query para manter o restante do tela mais legivel.
-   */
-  const aplicarQuickQuery = (sql) => { setQuery(sql); executarSQL(null, sql); };
-
-  return (
-    <div className="anim-fade-in absolute-fullscreen">
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '5px', flexShrink: 0 }}>
-        <button className="btn btn-outline" onClick={() => aplicarQuickQuery("SHOW TABLES;")} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}><Database size={14} style={{ marginRight: '6px' }}/> Ver Tabelas</button>
-        <button className="btn btn-outline" onClick={() => aplicarQuickQuery("SELECT * FROM sessoes_ativas;")} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px' }}>Sessões</button>
-      </div>
-
-      <div className="dev-card glass-card" style={{ borderTop: '4px solid #f59e0b', marginBottom: '10px', flexShrink: 0 }}>
-        <div className="dev-card-header flex-between" style={{ color: '#f59e0b', marginBottom: '15px' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Database size={24} /><h3>Terminal SQL Master</h3></div>
-        </div>
-        <form onSubmit={(e) => executarSQL(e)} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <textarea value={query} onChange={e => setQuery(e.target.value)} placeholder="SELECT * FROM equipamentos LIMIT 10;" style={{ minHeight: '120px', background: '#020617', color: '#38bdf8', fontFamily: 'Montserrat', fontSize: '0.95rem', border: '1px solid var(--border-focus)', padding: '15px', borderRadius: '8px' }} spellCheck="false" autoFocus />
-          <div className="config-input-wrapper" style={{ maxWidth: '360px', alignSelf: 'flex-end' }}>
-            <LockKeyhole size={16} />
-            <input type="password" value={passcode} onChange={e => setPasscode(e.target.value)} placeholder="Passcode root para escrita SQL" autoComplete="current-password" />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={loading || !query.trim()} style={{ background: '#f59e0b', color: '#000', width: '220px', alignSelf: 'flex-end', filter: !query.trim() ? 'grayscale(1)' : 'none' }}>{loading ? <Loader2 size={16} className="spin" /> : <Terminal size={16} />} EXECUTAR SQL</button>
-        </form>
-      </div>
-
-      {error && <div className="anim-fade-in" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '15px', borderRadius: '8px', fontFamily: 'Montserrat', fontSize: '0.85rem', flexShrink: 0 }}><strong>❌ ERRO DE COMPILAÇÃO MYSQL:</strong> {error}</div>}
-
-      {results && results.length > 0 ? (
-        <div className="dev-card glass-card anim-fade-in" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          <div className="flex-table-container" style={{ padding: 0 }}>
-            <table className="dev-select-input" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'transparent', fontSize: '0.85rem' }}>
-              <thead style={{ background: 'rgba(11, 17, 32, 0.95)', color: '#38bdf8', fontFamily: 'Montserrat', position: 'sticky', top: 0, zIndex: 10 }}>
-                <tr>{Object.keys(results[0]).map((key, i) => <th key={i} style={{ padding: '12px 15px', borderBottom: '1px solid var(--border-focus)', whiteSpace: 'nowrap' }}>{key}</th>)}</tr>
-              </thead>
-              <tbody style={{ fontFamily: 'Montserrat', color: '#cbd5e1' }}>
-                {results.map((row, i) => <tr key={i} style={{ borderBottom: '1px solid var(--border-dim)' }}>{Object.values(row).map((val, j) => <td key={j} style={{ padding: '10px 15px', whiteSpace: 'nowrap' }}>{val === null ? <span style={{color: '#64748b'}}>NULL</span> : String(val)}</td>)}</tr>)}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : results && (
-        <div className="anim-fade-in" style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', padding: '15px', borderRadius: '8px', fontSize: '0.85rem', flexShrink: 0 }}>✔ Comando executado com sucesso. Nenhuma linha retornada (DML concluída).</div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================================
-// 13. TELA: MONITOR WEBSOCKET LIVE (ABSOLUTE FULLSCREEN)
-// ============================================================================
-const TelaWebSocketStream = ({ socket, addLog }) => {
-  // Firehose de sockets: monitor visual para eventos em tempo real sem misturar
-  // com logs persistentes do servidor.
-  const [packets, setPackets] = useState([]);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [filterMode, setFilterMode] = useState('ALL');
-  const scrollRef = useRef(null);
-
-  useEffect(() => {
-    if (!socket) return;
-    /**
-     * Concentra a logica de capturar tudo para manter o restante do tela mais legivel.
-     */
-    const capturarTudo = (eventName, ...args) => {
-      if (!isStreaming) return;
-      const payloadOriginal = args.length === 1 ? args[0] : args;
-      const payloadFormatado = payloadOriginal !== undefined && payloadOriginal !== null ? payloadOriginal : { info: 'Sinal sem payload' };
-      setPackets(prev => [...prev.slice(-199), { id: Date.now() + Math.random(), event: eventName, time: new Date().toLocaleTimeString('pt-BR'), payload: payloadFormatado }]);
-    };
-    if (isStreaming) { socket.onAny(capturarTudo); addLog('[WSS] Modo Promíscuo Ativado.', 'warning'); }
-    return () => { socket.offAny(capturarTudo); };
-  }, [socket, isStreaming, addLog]);
-
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [packets]);
-
-  /**
-   * Limpa limpar console para manter o estado consistente.
-   */
-  const limparConsole = () => { setPackets([]); addLog('[WSS] Consola limpa.', 'info'); };
-  const visiblePackets = packets.filter(p => filterMode === 'ALL' || (filterMode === 'ALERTAS' && p.event.includes('alerta')) || (filterMode === 'LEITURAS' && p.event.includes('leitura')));
-
-  return (
-    <div className="anim-fade-in absolute-fullscreen">
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', flexShrink: 0, justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-           <button className={`btn btn-outline ${filterMode === 'ALL' ? 'active' : ''}`} onClick={() => setFilterMode('ALL')} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', background: filterMode==='ALL'?'var(--primary)':'', color: filterMode==='ALL'?'#000':'' }}><Filter size={14} style={{ marginRight: '6px' }}/> Tudo</button>
-           <button className={`btn btn-outline ${filterMode === 'LEITURAS' ? 'active' : ''}`} onClick={() => setFilterMode('LEITURAS')} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', background: filterMode==='LEITURAS'?'var(--secondary)':'', color: filterMode==='LEITURAS'?'#000':'' }}>Apenas Leituras</button>
-           <button className={`btn btn-outline ${filterMode === 'ALERTAS' ? 'active' : ''}`} onClick={() => setFilterMode('ALERTAS')} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', background: filterMode==='ALERTAS'?'var(--danger)':'', color: filterMode==='ALERTAS'?'#000':'' }}>Apenas Alertas</button>
-        </div>
-        <button className="btn btn-outline danger-text" onClick={limparConsole} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', borderColor: 'rgba(239, 68, 68, 0.3)' }}><Trash2 size={14} style={{ marginRight: '6px' }}/> Limpar Tela</button>
-      </div>
-
-      <div className="dev-card glass-card" style={{ borderTop: '4px solid #a855f7', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: 0 }}>
-        <div className="dev-card-header flex-between" style={{ color: '#a855f7', padding: '1.5rem', marginBottom: 0, flexShrink: 0 }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Network size={24} /><h3>Monitor Sockets Duplex (Firehose)</h3></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {isStreaming && <span className="pulse-icon" style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold' }}>● OUVINDO REDE</span>}
-            <button onClick={() => setIsStreaming(!isStreaming)} className={`btn ${isStreaming ? 'btn-danger' : 'btn-success'}`} style={{ padding: '6px 12px', fontSize: '0.75rem', minHeight: '34px', fontWeight: 'bold' }}>{isStreaming ? <Power size={14} /> : <RefreshCw size={14} />}{isStreaming ? 'SUSPENDER CAPTURA' : 'LIGAR CAPTURA LIVE'}</button>
-          </div>
-        </div>
-
-        <div className="crt-terminal" ref={scrollRef} style={{ flex: 1, background: '#020617', padding: '15px', borderRadius: '8px', overflowY: 'auto', border: '1px solid var(--border-focus)', fontFamily: 'Montserrat', fontSize: '0.8rem', margin: '0 1.5rem 1.5rem 1.5rem' }}>
-          {visiblePackets.map(p => (
-            <div key={p.id} className="anim-fade-in" style={{ marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '4px' }}><span style={{ color: '#64748b' }}>[{p.time}]</span><span style={{ color: p.event.includes('alerta') ? '#ef4444' : (p.event.includes('leitura') ? '#10b981' : '#38bdf8'), fontWeight: 'bold', textTransform: 'uppercase' }}>📡 {p.event}</span></div>
-              <pre style={{ margin: 0, color: '#a855f7', paddingLeft: '20px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(p.payload, null, 2)}</pre>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// TELA ATUALIZADA: STATUS E CONFIGURAÇÃO DO ESP32 (VIA TELEMETRIA MQTT)
-// ============================================================================
-const TelaScannerRede = ({ api, showToast, addLog, filiaisDb: _filiaisDb }) => {
-  // Scanner/saúde de ESP32: usa telemetria registrada no backend e só consulta
-  // IP direto quando o operador aciona a atualização.
-  const [hardwareList, setHardwareList] = useState([]);
-  const [activeIp, setActiveIp] = useState('');
-  const [espData, setEspData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 2. Consulta o endpoint leve de saúde (/health) direto no IP dinâmico atual
-  const consultarStatusEsp = useCallback(async (ipTarget) => {
-    const target = ipTarget || activeIp;
-    if (!target) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    addLog(`[ESP32] Consultando saúde em http://${target}/health...`, 'warning');
-    try {
-      const resposta = await fetchWithTimeout(`http://${target}/health`, {}, 2500);
-      if (!resposta.ok) throw new Error('Falha na resposta do ESP32');
-      const dados = await resposta.json();
-      
-      setEspData(dados);
-      showToast('Dados obtidos do ESP32 com sucesso!', 'success');
-      addLog(`[ESP32] Telemetria direta carregada via IP ${target}.`, 'success');
-    } catch (e) {
-      showToast(`ESP32 ${target} não respondeu. Verifique energia, rede ou IP.`, 'warning');
-      addLog(`[ESP32 OFFLINE] ${target} não respondeu dentro do tempo limite.`, 'warning');
-      setEspData(null);
+      const response = await api.get('/system/sql-console/metadata');
+      const payload = response.data || {};
+      if (!Array.isArray(payload.tables)) throw new Error('A API retornou um catálogo SQL inválido.');
+      setMetadata((current) => ({ ...current, ...payload, tables: payload.tables }));
+    } catch (requestError) {
+      const message = requestError.response?.data?.error || requestError.message || 'Falha ao carregar o esquema SQL.';
+      setSchemaError(message);
+      showToast(message, 'error');
     } finally {
-      setIsLoading(false);
+      setSchemaLoading(false);
     }
-  }, [activeIp, addLog, showToast]);
+  }, [api, showToast]);
 
-  // 1. Busca no backend a lista de hardware contendo o IP reportado pela telemetria
-  const carregarHardware = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await api.get('/hardware');
-      const onlines = (res.data || []).filter(h => h.ip && h.ip.trim() !== '' && h.ip !== 'OFFLINE' && h.ip !== '0.0.0.0');
-      setHardwareList(onlines);
-
-      if (onlines.length > 0) {
-        const ipParaUsar = activeIp || onlines[0].ip;
-        if (!activeIp) setActiveIp(ipParaUsar);
-        setEspData(null);
-        addLog(`[ESP32] IP ${ipParaUsar} selecionado pela telemetria. Use "ATUALIZAR STATUS" para consulta direta.`, 'info');
-      } else {
-        showToast('Nenhum ESP32 com IP ativo registrado na telemetria.', 'warning');
-        setIsLoading(false);
-      }
-    } catch (e) {
-      showToast('Erro ao buscar lista de hardware no backend.', 'error');
-      setIsLoading(false);
-    }
-  }, [api, activeIp, addLog, showToast]);
-
+  // A tela inicia em estado de carregamento; esta chamada libera e preenche o explorador.
   useEffect(() => {
-    carregarHardware();
-  }, [carregarHardware]);
-
+    carregarMetadados();
+  }, [carregarMetadados]);
   /**
-   * Processa a interacao de handle select ip e atualiza a interface conforme o resultado.
+   * Formata format cell value para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const handleSelectIp = (e) => {
-    const selectedIp = e.target.value;
-    setActiveIp(selectedIp);
-    consultarStatusEsp(selectedIp);
+  const formatCellValue = (value) => {
+    if (value === null) return 'NULL';
+    if (value instanceof Date) return value.toLocaleString('pt-BR');
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
   };
 
+  /**
+   * Executa a instrução atual e registra o resultado no histórico efêmero da sessão.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @param {unknown} forceQuery - Valor de force query consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const executarSQL = async (event, forceQuery = null) => {
+    event?.preventDefault();
+    const sqlToRun = (forceQuery ?? query).trim();
+    if (!sqlToRun || loading) return;
+    setLoading(true);
+    setError(null);
+    setHasExecuted(false);
+    setActiveResultTab('results');
+    addLog('[SQL] Executando instrução auditada no banco de dados.', 'warning');
+    const startedAt = Date.now();
+
+    try {
+      const response = await api.post('/system/query-raw', { sql: sqlToRun, passcode });
+      const rows = Array.isArray(response.data.data) ? response.data.data : [];
+      const meta = response.data.meta || { rowCount: rows.length, durationMs: Date.now() - startedAt };
+      setResults(rows);
+      setResultMeta(meta);
+      setHasExecuted(true);
+      setResultSearch('');
+      setPage(1);
+      setHistory((current) => [{ id: `${Date.now()}-${Math.random()}`, query: sqlToRun, success: true, ...meta }, ...current].slice(0, 30));
+      showToast(`Consulta concluída em ${meta.durationMs} ms.`, 'success');
+      addLog(`[SQL SUCCESS] ${meta.rowCount || meta.affectedRows || 0} linha(s) processada(s).`, 'success');
+    } catch (requestError) {
+      const message = requestError.response?.data?.error || requestError.message;
+      const durationMs = requestError.response?.data?.durationMs ?? Date.now() - startedAt;
+      setResults([]);
+      setResultMeta(null);
+      setHasExecuted(true);
+      setError(message);
+      setHistory((current) => [{ id: `${Date.now()}-${Math.random()}`, query: sqlToRun, success: false, durationMs, executedAt: new Date().toISOString(), error: message }, ...current].slice(0, 30));
+      addLog('[SQL ERROR] A instrução foi rejeitada ou falhou durante a execução.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Preenche o editor com uma consulta segura sem executá-la automaticamente.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} sql - Valor de sql consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const aplicarQuickQuery = (sql) => {
+    setQuery(sql);
+    setError(null);
+  };
+
+  /**
+   * Abre uma tabela do catálogo com limite explícito para evitar consultas acidentais extensas.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} tableName - Valor de table name consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const selecionarTabela = (tableName) => aplicarQuickQuery(`SELECT * FROM \`${tableName.replace(/`/g, '``')}\` LIMIT 100;`);
+
+  /**
+   * Copia o conjunto filtrado ou a consulta atual para a área de transferência.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} value - Valor de value consumido por esta rotina.
+   * @param {unknown} successMessage - Valor de success message consumido por esta rotina.
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const copiarTexto = async (value, successMessage) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(successMessage, 'success');
+    } catch (error) {
+      showToast('Não foi possível copiar o conteúdo.', 'error');
+    }
+  };
+
+  /**
+   * Exporta os resultados filtrados para CSV usando os nomes de coluna retornados pela API.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const exportarCSV = () => {
+    if (!filteredResults.length) return;
+
+    /**
+     * Prepara escape csv para exibicao sem expor dados sensiveis.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {unknown} value - Valor de value consumido por esta rotina.
+     * @returns {unknown} Resultado calculado para consumo do chamador.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const escapeCsv = (value) => `"${formatCellValue(value).replace(/"/g, '""')}"`;
+    const csv = [columns.map(escapeCsv).join(','), ...filteredResults.map((row) => columns.map((column) => escapeCsv(row[column])).join(','))].join('\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `termosync-sql-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+
+  /**
+   * Formata format sql bytes para exibicao segura na interface.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @param {unknown} bytes - Valor de bytes consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const formatSqlBytes = (bytes) => bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(0, bytes / 1024).toFixed(1)} KB`;
+
   return (
-    <div className="anim-fade-in absolute-fullscreen">
-      <div className="noc-hud-grid anim-stagger-1" style={{ flexShrink: 0 }}>
-        <div className="noc-hud-card" style={{ '--card-color': 'var(--theme-sec)', minHeight: 'auto' }}>
-          <div className="noc-mini-header" style={{ marginBottom: '5px' }}>
-            <span className="noc-kpi-title"><Network size={14}/> IP Dinâmico Atual (MQTT)</span>
-          </div>
-          <div className="noc-kpi-value" style={{ color: 'var(--theme-sec)', fontSize: '1.2rem' }}>
-            {activeIp || 'N/A'}
-          </div>
-        </div>
-      </div>
+    <div className="sql-console anim-fade-in">
+      <header className="sql-console-header">
+        <div><span className="sql-console-eyebrow"><Terminal size={14} /> Ferramenta de desenvolvimento</span><h2>Console SQL</h2><p>Inspecione o esquema, execute consultas auditadas e analise resultados sem sair da plataforma.</p></div>
+        <div className="sql-console-policy"><span className={metadata.mutationEnabled ? 'is-warning' : 'is-safe'}><LockKeyhole size={14} /> Escrita {metadata.mutationEnabled ? 'habilitada' : 'bloqueada'}</span><small>Limite de {metadata.maxQueryChars} caracteres</small></div>
+      </header>
 
-      <div className="anim-stagger-2" style={{ flex: 1, minHeight: 0, display: 'flex', gap: 'var(--gap-main)', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card glass-card" style={{ borderTop: '4px solid #a855f7', flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div className="dev-card-header" style={{ color: '#a855f7', marginBottom: '15px' }}>
-              <Radio size={24} /> <h3>Seleção de Dispositivo</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1 }}>
-              <div className="form-group">
-                <label style={{ color: 'var(--dim-text)', fontSize: '0.8rem', fontWeight: 'bold' }}>Equipamento / IP (Reportado via Telemetria)</label>
-                <div className="config-input-wrapper" style={{ padding: '0', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                  <div style={{ padding: '0 12px', color: 'var(--theme-sec)' }}><Wifi size={18} /></div>
-                  <select value={activeIp} onChange={handleSelectIp} style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', flex: 1, padding: '12px 5px', fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'Montserrat' }}>
-                    <option value="" disabled>Selecione o ESP32 ativo...</option>
-                    {hardwareList.map(hw => (
-                      <option key={hw.id} value={hw.ip} style={{ background: '#0f172a' }}>
-                        {hw.nome || 'ESP32'} - IP: {hw.ip}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(168, 85, 247, 0.3)', fontSize: '0.8rem', color: '#cbd5e1' }}>
-                <strong style={{ color: '#a855f7' }}>Auto-Discovery:</strong> O painel lê o IP dinâmico diretamente da tabela de hardware sincronizada pelo MQTT, sem necessidade de varreduras locais.
-              </div>
-              <button type="button" onClick={() => consultarStatusEsp(activeIp)} className="btn btn-primary" disabled={isLoading || !activeIp} style={{ background: '#a855f7', color: 'white', fontWeight: 'bold', marginTop: 'auto' }}>
-                {isLoading ? <Loader2 size={18} className="spin" /> : <Radio size={18} />} {isLoading ? 'ATUALIZANDO...' : 'ATUALIZAR STATUS'}
+      <section className="sql-console-kpis">
+        <article><span>Banco ativo</span><strong>{metadata.databaseName || 'Carregando...'}</strong><small>MySQL conectado pela API</small></article>
+        <article><span>Tabelas catalogadas</span><strong>{metadata.tables.length}</strong><small>{formatSqlBytes(metadata.tables.reduce((sum, table) => sum + table.sizeBytes, 0))} mapeados</small></article>
+        <article><span>Última execução</span><strong>{resultMeta ? `${resultMeta.durationMs} ms` : '--'}</strong><small>{resultMeta ? `${resultMeta.rowCount || resultMeta.affectedRows || 0} linha(s) processada(s)` : 'Nenhuma nesta sessão'}</small></article>
+        <article className={queryKind.destructive ? 'is-danger' : queryKind.readOnly ? 'is-safe' : 'is-warning'}><span>Classificação atual</span><strong>{queryKind.command}</strong><small>{queryKind.readOnly ? 'Somente leitura' : queryKind.destructive ? 'Operação destrutiva' : 'Requer política de escrita'}</small></article>
+      </section>
+
+      <div className="sql-console-workspace">
+        <aside className="sql-schema-panel">
+          <div className="sql-panel-title"><div><Database size={17} /><strong>Esquema</strong></div><button type="button" title="Atualizar esquema" onClick={carregarMetadados} disabled={schemaLoading}><RefreshCw size={15} className={schemaLoading ? 'spin' : ''} /></button></div>
+          <label className="sql-search"><Search size={14} /><input value={schemaSearch} onChange={(event) => setSchemaSearch(event.target.value)} placeholder="Filtrar tabelas" /></label>
+          <div className="sql-table-list">
+            {schemaLoading ? <div className="sql-empty"><Loader2 size={18} className="spin" />Carregando esquema</div> : schemaError ? (
+              <div className="sql-empty sql-schema-error"><AlertTriangle size={18} /><span>{schemaError}</span><button type="button" onClick={carregarMetadados}>Tentar novamente</button></div>
+            ) : filteredTables.map((table) => (
+              <button type="button" key={table.name} onClick={() => selecionarTabela(table.name)} title={`Abrir ${table.name}`}>
+                <Database size={14} /><span><strong>{table.name}</strong><small>{table.engine || 'MySQL'} · ~{table.estimatedRows} linhas</small></span><em>{formatSqlBytes(table.sizeBytes)}</em>
               </button>
-            </div>
+            ))}
+            {!schemaLoading && !schemaError && filteredTables.length === 0 && <div className="sql-empty">Nenhuma tabela encontrada.</div>}
           </div>
-        </div>
+        </aside>
 
-        <div style={{ flex: 2, minWidth: '400px', display: 'flex', flexDirection: 'column' }}>
-          <div className="dev-card glass-card" style={{ borderTop: '4px solid var(--secondary)', flex: 1, display: 'flex', flexDirection: 'column', padding: 0 }}>
-            <div className="dev-card-header flex-between" style={{ color: 'var(--secondary)', padding: '1.5rem', marginBottom: 0, flexShrink: 0 }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <Activity size={24} /> <h3>Métricas de Saúde do ESP32</h3>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-outline" onClick={carregarHardware} style={{ padding: '6px 12px', minHeight: '34px', fontSize: '0.75rem' }}>
-                  <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
-                </button>
-              </div>
+        <main className="sql-editor-panel">
+          <div className="sql-editor-toolbar">
+            <div className="sql-quick-actions">
+              <button type="button" onClick={() => aplicarQuickQuery('SHOW TABLES;')}><Database size={14} />Tabelas</button>
+              <button type="button" onClick={() => aplicarQuickQuery('SHOW FULL PROCESSLIST;')}><Activity size={14} />Processos</button>
+              <button type="button" onClick={() => aplicarQuickQuery('SELECT * FROM sessoes_ativas LIMIT 100;')}><Users size={14} />Sessões</button>
+              <button type="button" onClick={() => aplicarQuickQuery('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100;')}><ShieldCheck size={14} />Auditoria</button>
             </div>
-
-            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '15px', flex: 1, overflowY: 'auto' }}>
-              {!espData ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--dim-text)' }}>
-                  {isLoading ? 'Conectando ao dispositivo...' : 'Selecione um dispositivo com IP ativo para ver os detalhes.'}
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--dim-text)', textTransform: 'uppercase' }}>Estado do Controle</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'white', marginTop: '5px' }}>{espData.estado}</div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--dim-text)', textTransform: 'uppercase' }}>Heap Livre</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--theme-sec)', marginTop: '5px', fontFamily: 'Montserrat' }}>{espData.heap_livre} bytes</div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--dim-text)', textTransform: 'uppercase' }}>Sinal Wi-Fi (RSSI)</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981', marginTop: '5px', fontFamily: 'Montserrat' }}>{espData.rssi} dBm</div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--dim-text)', textTransform: 'uppercase' }}>Total de Boots / Resets</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#f59e0b', marginTop: '5px', fontFamily: 'Montserrat' }}>{espData.boots} (WDT: {espData.watchdog_resets})</div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="sql-editor-actions"><button type="button" title="Copiar consulta" onClick={() => copiarTexto(query, 'Consulta copiada.')} disabled={!query}><Copy size={15} /></button><button type="button" title="Limpar editor" onClick={() => { setQuery(''); setError(null); }} disabled={!query}><Eraser size={15} /></button></div>
           </div>
-        </div>
+
+          <form onSubmit={executarSQL} className="sql-editor-form">
+            <div className="sql-editor-shell">
+              <div className="sql-editor-gutter">{Array.from({ length: Math.max(1, query.split('\n').length) }, (_, index) => <span key={index}>{index + 1}</span>)}</div>
+              <textarea value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') executarSQL(event); }} placeholder="SELECT * FROM equipamentos LIMIT 100;" spellCheck="false" autoFocus />
+            </div>
+            <div className="sql-editor-footer">
+              <div className="sql-query-status"><span className={queryKind.readOnly ? 'is-safe' : queryKind.destructive ? 'is-danger' : 'is-warning'}>{queryKind.command}</span><small>{query.length}/{metadata.maxQueryChars} caracteres · Ctrl + Enter para executar</small></div>
+              <div className="sql-execution-controls">
+                {!queryKind.readOnly && query.trim() && <label className="sql-passcode"><LockKeyhole size={15} /><input type="password" value={passcode} onChange={(event) => setPasscode(event.target.value)} placeholder="Credencial root" autoComplete="current-password" /></label>}
+                <button type="submit" className="sql-run-button" disabled={loading || !query.trim() || query.length > metadata.maxQueryChars}>{loading ? <Loader2 size={16} className="spin" /> : <PlayCircle size={17} />}<span>{loading ? 'Executando' : 'Executar'}</span></button>
+              </div>
+            </div>
+          </form>
+        </main>
       </div>
+
+      <section className="sql-output-panel">
+        <div className="sql-output-header">
+          <div className="sql-output-tabs"><button type="button" className={activeResultTab === 'results' ? 'active' : ''} onClick={() => setActiveResultTab('results')}>Resultados {hasExecuted && <span>{results.length}</span>}</button><button type="button" className={activeResultTab === 'history' ? 'active' : ''} onClick={() => setActiveResultTab('history')}>Histórico <span>{history.length}</span></button></div>
+          {activeResultTab === 'results' && results.length > 0 && <div className="sql-output-tools"><label><Search size={14} /><input value={resultSearch} onChange={(event) => setResultSearch(event.target.value)} placeholder="Filtrar resultados" /></label><button type="button" title="Copiar resultados" onClick={() => copiarTexto(JSON.stringify(filteredResults, null, 2), 'Resultados copiados.')}><Copy size={15} /></button><button type="button" title="Exportar CSV" onClick={exportarCSV}><DownloadCloud size={15} /></button></div>}
+        </div>
+
+        {activeResultTab === 'history' ? (
+          <div className="sql-history-list">
+            {history.length === 0 ? <div className="sql-empty sql-empty-large"><History size={22} />O histórico desta sessão aparecerá aqui.</div> : history.map((item) => <button type="button" key={item.id} onClick={() => { setQuery(item.query); setActiveResultTab('results'); }}><span className={item.success ? 'is-safe' : 'is-danger'}>{item.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}</span><code>{item.query}</code><small>{item.durationMs} ms</small><em>{item.executedAt ? new Date(item.executedAt).toLocaleTimeString('pt-BR') : 'agora'}</em></button>)}
+          </div>
+        ) : error ? (
+          <div className="sql-error-state"><AlertOctagon size={22} /><div><strong>Falha na execução</strong><p>{error}</p></div></div>
+        ) : results.length > 0 ? (
+          <>
+            <div className="sql-results-scroll"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{visibleResults.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column} title={formatCellValue(row[column])}>{row[column] === null ? <span className="sql-null">NULL</span> : formatCellValue(row[column])}</td>)}</tr>)}</tbody></table></div>
+            <footer className="sql-results-footer"><span>{filteredResults.length} de {results.length} registro(s)</span><div><button type="button" title="Página anterior" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}><ChevronLeft size={15} /></button><span>Página {page} de {totalPages}</span><button type="button" title="Próxima página" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}><ChevronRight size={15} /></button></div><small>{resultMeta?.fingerprint && `ID ${resultMeta.fingerprint}`}</small></footer>
+          </>
+        ) : hasExecuted ? (
+          <div className="sql-success-state"><CheckCircle2 size={22} /><div><strong>Instrução concluída</strong><p>{resultMeta?.affectedRows ? `${resultMeta.affectedRows} linha(s) alterada(s).` : 'Nenhuma linha foi retornada.'}{resultMeta?.insertId ? ` Novo ID: ${resultMeta.insertId}.` : ''}</p></div></div>
+        ) : (
+          <div className="sql-empty sql-empty-large"><Terminal size={24} /><strong>Pronto para consultar</strong><span>Selecione uma tabela no esquema ou escreva uma instrução no editor.</span></div>
+        )}
+      </section>
     </div>
   );
 };
-
-// ============================================================================
-// NOVA TELA: MONITOR WEB SERIAL EMBUTIDO (ABSOLUTE FULLSCREEN)
-// ============================================================================
-export function MonitorFisicoESP({ api }) {
-  const [logs, setLogs] = useState('Aguardando inicialização da sonda de borda...');
-  const [activeIp, setActiveIp] = useState('');
-  const [inputIp, setInputIp] = useState('');
-  const [isConectado, setIsConectado] = useState(false);
-  const [hardwareList, setHardwareList] = useState([]);
-  const [isFetchingHw, setIsFetchingHw] = useState(false);
-  const [autoScroll, setAutoScroll] = useState(true);
-  const terminalRef = useRef(null);
-  const lastLogErrorRef = useRef('');
-
-  const fetchHardware = useCallback(async () => {
-    if (!api) return;
-    setIsFetchingHw(true);
-    try {
-      const res = await api.get('/hardware');
-      const onlines = res.data.filter(h => h.ip && h.ip.trim() !== '' && h.ip !== 'OFFLINE' && h.ip !== '0.0.0.0');
-      setHardwareList(onlines);
-      const ipAindaValido = onlines.some(h => h.ip === activeIp);
-      if (onlines.length > 0 && (!activeIp || !ipAindaValido)) { setActiveIp(onlines[0].ip); setInputIp(onlines[0].ip); }
-    } catch (error) {
-      setLogs(prev => `${prev}\n[EDGE ERROR] Falha ao listar hardware online: ${error?.message || 'erro desconhecido'}`);
-    } finally { setIsFetchingHw(false); }
-  }, [api, activeIp]);
-
-  useEffect(() => { fetchHardware(); }, [fetchHardware]);
-
-  /**
-   * Processa a interacao de handle select ip e atualiza a interface conforme o resultado.
-   */
-  const handleSelectIp = (e) => { const selectedIp = e.target.value; setInputIp(selectedIp); setActiveIp(selectedIp); };
-  /**
-   * Processa a interacao de handle connect manual e atualiza a interface conforme o resultado.
-   */
-  const handleConnectManual = () => { if (inputIp.trim() !== '') { setActiveIp(inputIp.trim()); } };
-
-  useEffect(() => {
-    if (!activeIp) return;
-    let isSubscribed = true; let pollTimer = null;
-    setLogs(prev => prev + `\n📡 Iniciando handshake com IP: ${activeIp}...`);
-    setIsConectado(false);
-
-    /**
-     * Concentra a logica de poll logs para manter o restante do tela mais legivel.
-     */
-    const pollLogs = async () => {
-      if (!isSubscribed) return;
-      let connectedNow = false;
-      try {
-        const response = await fetchWithTimeout(`http://${activeIp}/logs`, {}, 2500);
-        if (response.ok) {
-          connectedNow = true;
-          const texto = await response.text();
-          if (isSubscribed) {
-            lastLogErrorRef.current = '';
-            setLogs(texto); setIsConectado(true);
-            const term = terminalRef.current;
-            if (term && autoScroll) {
-              if (term.scrollHeight - term.clientHeight <= term.scrollTop + 50) {
-                setTimeout(() => { if(term) term.scrollTop = term.scrollHeight; }, 50);
-              }
-            }
-          }
-        } else {
-          if (isSubscribed) { setIsConectado(false); setLogs(`[ERRO HTTP ${response.status}] A rota '/logs' não foi encontrada em ${activeIp}.`); }
-        }
-      } catch (error) {
-        if (isSubscribed) {
-          const message = `[EDGE OFFLINE] ${activeIp} não respondeu dentro do tempo limite. Aguardando nova tentativa...`;
-          setIsConectado(false);
-          if (lastLogErrorRef.current !== message) {
-            lastLogErrorRef.current = message;
-            setLogs(prev => `${prev}\n${message}`);
-          }
-        }
-      }
-      if (isSubscribed) { pollTimer = setTimeout(pollLogs, connectedNow ? 2500 : 10000); }
-    };
-    pollLogs();
-    return () => { isSubscribed = false; if (pollTimer) clearTimeout(pollTimer); };
-  }, [activeIp, autoScroll]);
-
-  /**
-   * Limpa limpar logs hardware para manter o estado consistente.
-   */
-  const limparLogsHardware = async () => {
-    if (!activeIp) return;
-    try { await fetchWithTimeout(`http://${activeIp}/clear`, { method: 'POST' }, 2500); setLogs('Memória do dispositivo foi limpa com sucesso. Aguardando novos ciclos...'); } catch (e) { setLogs(`❌ Falha: O dispositivo ${activeIp} não respondeu ao comando de limpeza.`); }
-  };
-
-  /**
-   * Concentra a logica de baixar logs txt para manter o restante do tela mais legivel.
-   */
-  const baixarLogsTxt = () => {
-    const blob = new Blob([logs], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `TermoSync_EdgeLog_${activeIp.replace(/\./g, '_')}_${Date.now()}.txt`; link.click();
-  };
-
-  return (
-    <div className="dev-card glass-card anim-fade-in absolute-fullscreen" style={{ borderTop: '4px solid #a855f7', padding: 0 }}>
-      <div className="dev-card-header flex-between" style={{ color: '#a855f7', padding: '1.5rem 1.5rem 0 1.5rem', marginBottom: '15px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Radio size={24} /><h3 style={{ margin: 0 }}>Monitor Serial de Borda (Live Edge)</h3></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="status-badge" style={{ background: isConectado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isConectado ? '#10b981' : '#ef4444', border: `1px solid ${isConectado ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>{isConectado ? '● CONECTADO' : 'OFFLINE / SCANNING'}</span>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'stretch', flexShrink: 0, padding: '0 1.5rem' }}>
-        <div className="config-input-wrapper" style={{ flex: 2, minWidth: '300px', padding: '0', display: 'flex', gap: '0', alignItems: 'center', overflow: 'hidden' }}>
-          <div style={{ padding: '0 12px', display: 'flex', alignItems: 'center', color: 'var(--theme-sec)' }}><Wifi size={18} /></div>
-          <select value={activeIp} onChange={handleSelectIp} style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', flex: 1, padding: '12px 5px', fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'Montserrat' }}>
-            <option value="" disabled>Auto-Discovery: Selecione um equipamento...</option>
-            {hardwareList.map(hw => <option key={hw.id} value={hw.ip} style={{background: '#0f172a'}}>{hw.nome} ({hw.filial}) - IP: {hw.ip}</option> )}
-          </select>
-          <button type="button" onClick={fetchHardware} className="btn-icon-small" title="Escanear rede novamente" style={{ border: 'none', background: 'transparent', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRadius: 0, padding: '0 15px', height: '100%', color: '#94a3b8' }}><RefreshCw size={18} className={isFetchingHw ? 'spin' : ''} /></button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '5px', flex: 1, minWidth: '250px' }}>
-          <div className="config-input-wrapper" style={{ flex: 1, padding: '0 15px' }}>
-            <input type="text" value={inputIp} onChange={(e) => setInputIp(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleConnectManual(); }} placeholder="IP manual (ex: 127.0.0.1)" style={{ fontSize: '0.9rem', width: '100%' }}/>
-          </div>
-          <button className="btn btn-primary" onClick={handleConnectManual} style={{ background: 'var(--theme-sec)', color: '#000', padding: '0 20px', fontWeight: 'bold' }} title="Conectar ao IP Manual"><Plug size={18} /></button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn-outline" onClick={baixarLogsTxt} title="Exportar log para TXT" style={{ padding: '0 15px', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}><DownloadCloud size={18} /></button>
-          <button className="btn btn-outline danger-text" onClick={limparLogsHardware} title="Limpar Memória RAM do Equipamento" style={{ padding: '0 15px' }}><Eraser size={18} /></button>
-        </div>
-      </div>
-
-      <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 1.5rem 1.5rem 1.5rem' }}>
-        <div style={{ position: 'absolute', top: '15px', right: '35px', zIndex: 10 }}>
-          <button onClick={() => setAutoScroll(!autoScroll)} style={{ background: autoScroll ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: autoScroll ? '#10b981' : '#f59e0b', border: `1px solid ${autoScroll ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`, padding: '6px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
-            {autoScroll ? <PauseCircle size={14} /> : <PlayCircle size={14} />}{autoScroll ? 'AUTO-SCROLL: ON' : 'PAUSADO'}
-          </button>
-        </div>
-
-        <div className="crt-terminal" ref={terminalRef} style={{ flex: 1, background: '#000', border: '1px solid var(--border-focus)', borderRadius: '12px', padding: '25px', overflowY: 'auto', boxShadow: 'inset 0 0 50px rgba(0,0,0,0.9)' }}>
-          <pre style={{ margin: 0, color: isConectado ? '#cbd5e1' : '#fca5a5', fontFamily: 'Montserrat, Courier New, monospace', fontSize: '0.9rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: '1.5' }}>
-            {logs}
-          </pre>
-        </div>
-      </div>
-
-    </div>
-  );
-}

@@ -1,8 +1,29 @@
+/**
+ * Módulo: backend/utils/audit.js
+ * Responsabilidade: Centraliza as responsabilidades do módulo audit.
+ */
+
 const pool = require('../config/db');
 const crypto = require('crypto');
 
 /**
  * Registra registrar auditoria para auditoria, historico ou diagnostico.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: acessa a camada de persistência; registra informações de diagnóstico
+ *
+ * @param {unknown} acao - Valor de acao consumido por esta rotina.
+ * @param {unknown} ator - Valor de ator consumido por esta rotina.
+ * @param {unknown} alvo - Valor de alvo consumido por esta rotina.
+ * @param {unknown} severidade - Valor de severidade consumido por esta rotina.
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function registrarAuditoria(acao, ator, alvo, severidade = 'info') {
   try {
@@ -26,8 +47,28 @@ async function registrarAuditoria(acao, ator, alvo, severidade = 'info') {
   }
 }
 
+
 /**
  * Registra registrar evento seguranca para auditoria, historico ou diagnostico.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: acessa a camada de persistência; registra informações de diagnóstico
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.eventType - Propriedade eventType usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.actor - Propriedade actor usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.ip - Propriedade ip usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.userAgent - Propriedade userAgent usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.severity - Propriedade severity usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.detail - Propriedade detail usada para configurar dados ou comportamento do componente.
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function registrarEventoSeguranca({ eventType, actor = null, ip = null, userAgent = null, severity = 'info', detail = null }) {
   try {
@@ -40,8 +81,29 @@ async function registrarEventoSeguranca({ eventType, actor = null, ip = null, us
   }
 }
 
+
 /**
  * Registra registrar historico suporte para auditoria, historico ou diagnostico.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: acessa a camada de persistência; registra informações de diagnóstico
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.chamadoId - Propriedade chamadoId usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.evento - Propriedade evento usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.autor - Propriedade autor usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.papel - Propriedade papel usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.statusAnterior - Propriedade statusAnterior usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.statusNovo - Propriedade statusNovo usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.mensagem - Propriedade mensagem usada para configurar dados ou comportamento do componente.
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function registrarHistoricoSuporte({ chamadoId, evento, autor, papel = null, statusAnterior = null, statusNovo = null, mensagem = null }) {
   try {

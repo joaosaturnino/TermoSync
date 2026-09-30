@@ -1,288 +1,321 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Map, MapPin, AlertTriangle, Snowflake, CheckCircle2, Crosshair, MousePointerClick, Trash2, UploadCloud, Image as ImageIcon, XSquare } from 'lucide-react';
+/**
+ * Módulo: frontend/src/pages/MapaCalor/MapaCalor.jsx
+ * Responsabilidade: Implementa a tela Mapa Calor, seus estados, interações e integrações de dados.
+ */
+
+import { Check, ChevronRight, Edit3, Layers3, Minus, Plus, Search, Thermometer, WifiOff, X } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { Map, MapPin, AlertTriangle, Snowflake, CheckCircle2, Crosshair, Trash2, UploadCloud, Image as ImageIcon } from 'lucide-react';
+import './MapaCalor.css';
 
 /**
- * Renderiza a tela Mapa Calor e concentra as regras de apresentacao desse modulo.
+ * Busca ou monta os dados de get equipment status usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} equipment - Valor de equipment consumido por esta rotina.
+ * @param {unknown} notifications - Valor de notifications consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function MapaCalor({ equipamentosDaFilial, notificacoesDaFilial }) {
+function getEquipmentStatus(equipment, notifications = []) {
+  const value = Number.parseFloat(equipment.ultima_temp);
+  const min = Number.parseFloat(equipment.temp_min);
+  const max = Number.parseFloat(equipment.temp_max);
+  const hasData = Number.isFinite(value);
+  const hasNotification = notifications.some((notification) => String(notification.equipamento_id) === String(equipment.id));
+  if (!hasData) return { key: 'offline', label: 'Sem telemetria', icon: WifiOff };
+  if (hasNotification || (Number.isFinite(max) && value > max) || (Number.isFinite(min) && value < min)) return { key: 'alert', label: 'Em alerta', icon: AlertTriangle };
+  if (equipment.em_degelo) return { key: 'defrost', label: 'Em degelo', icon: Snowflake };
+  if (equipment.motor_ligado) return { key: 'cooling', label: 'Refrigerando', icon: Thermometer };
+  return { key: 'rest', label: 'Em repouso', icon: CheckCircle2 };
+}
+
+/**
+ * Remonta o estado local quando a filial muda, evitando misturar plantas.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+export default function MapaCalor(props) {
+  const branchKey = String(props.filialAtiva || 'Matriz').replaceAll(/[^a-zA-Z0-9_-]/g, '_');
+  return <MapaCalorFilial key={branchKey} {...props} branchKey={branchKey} />;
+}
+
+/**
+ * Planta interativa que posiciona e acompanha os ativos da filial em tempo real.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.equipamentosDaFilial - Propriedade equipamentosDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.notificacoesDaFilial - Propriedade notificacoesDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {Function} options.onNavigate - Callback onNavigate fornecido pelo componente responsável.
+ * @param {unknown} options.branchKey - Propriedade branchKey usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+function MapaCalorFilial({ equipamentosDaFilial = [], notificacoesDaFilial = [], filialAtiva, showToast, onNavigate, branchKey }) {
+  const positionsKey = `termosync_floor_positions_${branchKey}`;
+  const imageKey = `termosync_floor_image_${branchKey}`;
   const fileInputRef = useRef(null);
-
-  // Carrega as posições salvas com proteção
-  const [posicoes, setPosicoes] = useState(() => {
+  const [positions, setPositions] = useState(() => {
     try {
-      const salvas = localStorage.getItem('termosync_posicoes_mapa');
-      return salvas ? JSON.parse(salvas) : {};
-    } catch (e) { return {}; }
-  });
-
-  // [NOVIDADE] Carrega a imagem real da planta baixa
-  const [imagemPlanta, setImagemPlanta] = useState(() => {
-    try { return localStorage.getItem('termosync_planta_img') || null; } 
-    catch (e) { return null; }
-  });
-
-  const [maquinaSelecionada, setMaquinaSelecionada] = useState(null);
-
-  useEffect(() => {
-    localStorage.setItem('termosync_posicoes_mapa', JSON.stringify(posicoes));
-  }, [posicoes]);
-
-  /**
-   * Concentra a logica de disparar toast para manter o restante do tela mais legivel.
-   */
-  const dispararToast = (msg, tipo = 'info') => {
-    window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg, type: tipo } }));
-  };
-
-  // Processa o Upload da imagem
-  const handleUploadPlanta = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Limita a 3MB para não estourar a memória local
-      if (file.size > 3 * 1024 * 1024) {
-        dispararToast('A imagem é muito grande! Escolha um arquivo de até 3MB.', 'error');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        try {
-          setImagemPlanta(reader.result);
-          localStorage.setItem('termosync_planta_img', reader.result);
-          dispararToast('Planta Digital carregada com sucesso!', 'success');
-        } catch(err) {
-          dispararToast('Erro de armazenamento. A imagem excedeu o limite do navegador.', 'error');
-        }
-      };
-      reader.readAsDataURL(file);
+      const stored = localStorage.getItem(positionsKey);
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      return {};
     }
+  });
+  const [floorImage, setFloorImage] = useState(() => {
+    try {
+      return localStorage.getItem(imageKey) || null;
+    } catch (error) {
+      return null;
+    }
+  });
+  const [placementId, setPlacementId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [zoom, setZoom] = useState(1);
+  const equipment = useMemo(() => equipamentosDaFilial.map((item) => ({ ...item, mapStatus: getEquipmentStatus(item, notificacoesDaFilial) })), [equipamentosDaFilial, notificacoesDaFilial]);
+  const positionedCount = equipment.filter((item) => positions[String(item.id)]).length;
+  const alertCount = equipment.filter((item) => item.mapStatus.key === 'alert').length;
+  const offlineCount = equipment.filter((item) => item.mapStatus.key === 'offline').length;
+  const filtered = equipment.filter((item) => (statusFilter === 'all' || item.mapStatus.key === statusFilter) && `${item.nome} ${item.setor}`.toLowerCase().includes(search.toLowerCase()));
+  const selected = equipment.find((item) => String(item.id) === String(selectedId)) || null;
+
+  /**
+   * Exibe feedback usando o toast principal da aplicação.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @param {unknown} message - Valor de message consumido por esta rotina.
+   * @param {unknown} type - Valor de type consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const notify = (message, type = 'info') => {
+    if (showToast) showToast(message, type);
+    else window.dispatchEvent(new CustomEvent('forceToast', { detail: { msg: message, type } }));
+  };
+
+  // Cada filial mantém sua própria disposição dos equipamentos na planta.
+  useEffect(() => {
+    try {
+      localStorage.setItem(positionsKey, JSON.stringify(positions));
+    } catch (_error) {
+      // O mapa continua funcionando na sessão quando o armazenamento está indisponível.
+    }
+  }, [positions, positionsKey]);
+  /**
+   * Concentra a logica de upload floor para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const uploadFloor = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2.5 * 1024 * 1024) {
+      notify('Use uma imagem JPG ou PNG de até 2,5 MB.', 'error');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        localStorage.setItem(imageKey, reader.result);
+        setFloorImage(reader.result);
+        notify('Planta da filial atualizada.', 'success');
+      } catch (error) { notify('Não há espaço local suficiente para esta imagem.', 'error'); }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   /**
-   * Concentra a logica de remover planta para manter o restante do tela mais legivel.
+   * Posiciona no ponto clicado o ativo selecionado na fila de edição.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const removerPlanta = () => {
-    setImagemPlanta(null);
-    localStorage.removeItem('termosync_planta_img');
-    dispararToast('Planta customizada removida.', 'warning');
+  const placeEquipment = (event) => {
+    if (!editMode || !placementId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(1, Math.min(99, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(1, Math.min(99, ((event.clientY - rect.top) / rect.height) * 100));
+    setPositions((current) => ({ ...current, [String(placementId)]: { x, y } }));
+    setSelectedId(placementId);
+    setPlacementId(null);
+    notify('Ativo posicionado na planta.', 'success');
   };
 
   /**
-   * Processa a interacao de handle clique mapa e atualiza a interface conforme o resultado.
+   * Remove apenas a posição do ativo, preservando seu cadastro.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const handleCliqueMapa = (e) => {
-    if (!maquinaSelecionada) return; 
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-
-    const xPerc = ((e.clientX - rect.left) / rect.width) * 100;
-    const yPerc = ((e.clientY - rect.top) / rect.height) * 100;
-
-    setPosicoes(prev => ({
-      ...prev,
-      [String(maquinaSelecionada)]: { x: xPerc, y: yPerc }
-    }));
-    
-    setMaquinaSelecionada(null);
-  };
-
-  /**
-   * Concentra a logica de remover do mapa para manter o restante do tela mais legivel.
-   */
-  const removerDoMapa = (e, idEquipamento) => {
-    e.stopPropagation(); 
-    setPosicoes(prev => {
-      const novasPosicoes = { ...prev };
-      delete novasPosicoes[String(idEquipamento)];
-      return novasPosicoes;
+  const removePosition = (event, id) => {
+    event.stopPropagation();
+    setPositions((current) => {
+      const next = { ...current };
+      delete next[String(id)];
+      return next;
     });
-    if (String(maquinaSelecionada) === String(idEquipamento)) setMaquinaSelecionada(null);
+    if (String(selectedId) === String(id)) setSelectedId(null);
   };
 
   /**
-   * Busca ou monta os dados de get status equipamento usados no fluxo atual.
+   * Limpa a imagem atual após confirmação, mantendo as posições cadastradas.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const getStatusEquipamento = (eq) => {
-    const temFalha = notificacoesDaFilial?.some(n => String(n.equipamento_id) === String(eq.id));
-    if (temFalha) return { cor: '#ef4444', icone: <AlertTriangle size={18} color="white" />, estado: 'alerta', pulse: true };
-    if (eq.em_degelo) return { cor: '#38bdf8', icone: <Snowflake size={18} color="white" />, estado: 'degelo', pulse: false };
-    if (eq.motor_ligado) return { cor: '#10b981', icone: <CheckCircle2 size={18} color="white" />, estado: 'gelando', pulse: false };
-    return { cor: '#64748b', icone: <CheckCircle2 size={18} color="white" />, estado: 'repouso', pulse: false };
+  const removeFloorImage = () => {
+    if (!window.confirm('Remover a imagem da planta desta filial?')) return;
+    localStorage.removeItem(imageKey);
+    setFloorImage(null);
+    notify('Imagem da planta removida.', 'success');
   };
 
   return (
-    <div className="anim-fade-in" style={{ display: 'flex', gap: '1.5rem', minHeight: '75vh', width: '100%', alignItems: 'stretch' }}>
-      
-      {/* ========================================================= */}
-      {/* BARRA LATERAL ESTREITA (PROPORÇÃO CORRETA) */}
-      {/* ========================================================= */}
-      <div style={{ width: '300px', flexShrink: 0, background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-        <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
-          <Map size={18} color="#3b82f6" /> Ferramentas
-        </h3>
-        <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0, lineHeight: '1.4' }}>
-          Clique no ativo abaixo e em seguida posicione-o na planta.
-        </p>
-
-        {/* BOTÃO DE UPLOAD DA PLANTA */}
-        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '10px' }}>
-          <input type="file" accept="image/png, image/jpeg" ref={fileInputRef} style={{ display: 'none' }} onChange={handleUploadPlanta} />
-          
-          {!imagemPlanta ? (
-            <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#3b82f6', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
-              <UploadCloud size={16} /> Importar Planta (JPG/PNG)
-            </button>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-               <button onClick={() => fileInputRef.current?.click()} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid #3b82f6', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                <ImageIcon size={14} /> Trocar Imagem
-              </button>
-              <button onClick={removerPlanta} style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid #ef4444', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Remover Planta">
-                <XSquare size={14} />
-              </button>
-            </div>
-          )}
+    <main className="digital-floor anim-fade-in">
+      <header className="digital-floor-header">
+        <div className="floor-title"><span><Map size={21} /></span><div><small>{filialAtiva || 'Filial atual'}</small><h2>Planta digital</h2><p>Localização física e condição térmica dos ativos.</p></div></div>
+        <div className="floor-header-actions">
+          <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" onChange={uploadFloor} hidden />
+          <button type="button" onClick={() => fileInputRef.current?.click()}><UploadCloud size={16} /> {floorImage ? 'Trocar planta' : 'Importar planta'}</button>
+          {floorImage && <button type="button" className="icon-button danger" onClick={removeFloorImage} title="Remover imagem"><Trash2 size={16} /></button>}
+          <button type="button" className={editMode ? 'active' : ''} onClick={() => { setEditMode((current) => !current); setPlacementId(null); }}><Edit3 size={16} /> {editMode ? 'Concluir edição' : 'Editar posições'}</button>
         </div>
+      </header>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '0.5rem' }}>
-          {equipamentosDaFilial?.map(eq => {
-            const eqIdStr = String(eq.id); 
-            const isPosicionado = !!posicoes[eqIdStr];
-            const isSelecionado = String(maquinaSelecionada) === eqIdStr;
-            const status = getStatusEquipamento(eq);
+      <section className="floor-kpis">
+        <div><Layers3 size={17} /><span><strong>{equipment.length}</strong> ativos</span></div>
+        <div><MapPin size={17} /><span><strong>{positionedCount}</strong> posicionados</span></div>
+        <div className={alertCount ? 'danger' : ''}><AlertTriangle size={17} /><span><strong>{alertCount}</strong> alertas</span></div>
+        <div className={offlineCount ? 'warning' : ''}><WifiOff size={17} /><span><strong>{offlineCount}</strong> sem dados</span></div>
+        <div className="coverage"><span>Cobertura da planta</span><strong>{equipment.length ? Math.round((positionedCount / equipment.length) * 100) : 0}%</strong><i><b style={{ width: `${equipment.length ? (positionedCount / equipment.length) * 100 : 0}%` }} /></i></div>
+      </section>
 
-            return (
-              <div 
-                key={eq.id}
-                onClick={() => setMaquinaSelecionada(eqIdStr)}
-                style={{ 
-                  background: isSelecionado ? 'rgba(59, 130, 246, 0.15)' : 'rgba(0,0,0,0.4)', 
-                  border: `1px solid ${isSelecionado ? '#3b82f6' : 'rgba(255,255,255,0.05)'}`,
-                  padding: '0.8rem', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s',
-                  borderLeft: `4px solid ${status.cor}`
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ overflow: 'hidden' }}>
-                    <strong style={{ color: 'white', fontSize: '0.85rem', display: 'block', marginBottom: '2px', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{eq.nome}</strong>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase' }}>{eq.setor}</span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isPosicionado && (
-                      <button 
-                        onClick={(e) => removerDoMapa(e, eq.id)} 
-                        title="Remover do Mapa"
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    {isSelecionado ? <Crosshair size={16} color="#3b82f6" className="pulse-blue-shadow" /> : (isPosicionado ? <MapPin size={16} color="#10b981" /> : <MousePointerClick size={16} color="#64748b" />)}
-                  </div>
-                </div>
-
-                {isSelecionado && (
-                  <div style={{ marginTop: '8px', background: '#3b82f6', color: 'white', fontSize: '0.7rem', padding: '4px', borderRadius: '4px', fontWeight: 'bold', textAlign: 'center' }}>
-                    AGUARDANDO CLIQUE...
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* ÁREA DA PLANTA BAIXA (AMPLA E À PROVA DE COLAPSO) */}
-      {/* ========================================================= */}
-      <div 
-        style={{ 
-          flex: '1 1 auto', 
-          minHeight: '650px', // <-- ISSO IMPEDE O MAPA DE SUMIR!
-          position: 'relative', borderRadius: '16px', overflow: 'hidden', 
-          cursor: maquinaSelecionada ? 'crosshair' : 'default',
-          border: maquinaSelecionada ? '3px dashed #3b82f6' : '1px solid rgba(255,255,255,0.1)',
-          
-          // Se tiver imagem faz o fundo, senão exibe o grid azul da engenharia
-          backgroundColor: imagemPlanta ? '#000' : '#0a3a60',
-          backgroundImage: imagemPlanta ? `url(${imagemPlanta})` : `
-            linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
-          `,
-          backgroundSize: imagemPlanta ? 'contain' : '80px 80px, 80px 80px, 20px 20px, 20px 20px',
-          backgroundPosition: imagemPlanta ? 'center' : '-1px -1px, -1px -1px, -1px -1px, -1px -1px',
-          backgroundRepeat: 'no-repeat',
-
-          boxShadow: maquinaSelecionada ? 'inset 0 0 30px rgba(59, 130, 246, 0.4)' : 'none',
-          transition: 'all 0.3s ease'
-        }}
-        onClick={handleCliqueMapa}
-      >
-        {/* RENDERIZA OS SENSORES POSICIONADOS NO MAPA */}
-        {equipamentosDaFilial?.map(eq => {
-          const pos = posicoes[String(eq.id)];
-          if (!pos) return null; 
-
-          const status = getStatusEquipamento(eq);
-          const tAtual = parseFloat(eq.ultima_temp);
-
-          return (
-            <div 
-              key={eq.id}
-              style={{
-                position: 'absolute',
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
-                transform: 'translate(-50%, -50%)', 
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                zIndex: status.pulse ? 50 : 10,
-                pointerEvents: 'none' 
-              }}
-            >
-              {/* ÍCONE REDUZIDO (Proporção de planta baixa) */}
-              <div style={{
-                width: '32px', height: '32px', borderRadius: '50%', background: status.cor,
-                display: 'flex', justifyContent: 'center', alignItems: 'center',
-                boxShadow: status.pulse ? `0 0 0 0 ${status.cor}` : '0 4px 8px rgba(0,0,0,0.5)',
-                animation: status.pulse ? 'pulse-alert-mini 1.5s infinite' : 'none',
-                border: '2px solid white'
-              }}>
-                {status.icone}
-              </div>
-              
-              {/* ETIQUETA COMPACTA E LEGÍVEL */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.95)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', textAlign: 'center', minWidth: '90px', backdropFilter: 'blur(4px)', boxShadow: '0 4px 10px rgba(0,0,0,0.4)' }}>
-                <div style={{ color: 'white', fontSize: '0.7rem', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{eq.nome}</div>
-                <div style={{ color: status.cor, fontSize: '0.85rem', fontWeight: '900', marginTop: '1px' }}>
-                  {!isNaN(tAtual) ? tAtual.toFixed(1) : '--'}°C
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* MENSAGEM SE O MAPA ESTIVER VAZIO */}
-        {Object.keys(posicoes).length === 0 && !maquinaSelecionada && !imagemPlanta && (
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.5)', padding: '2rem', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
-            <Map size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>Planta Digital Vazia</h3>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>Selecione um ativo na barra lateral ou faça o Upload da planta da loja.</p>
+      <section className="floor-workspace">
+        <aside className="floor-sidebar">
+          <div className="floor-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar ativo" />{search && <button type="button" onClick={() => setSearch('')}><X size={14} /></button>}</div>
+          <div className="floor-filter">{[['all', 'Todos'], ['alert', 'Alertas'], ['offline', 'Sem dados']].map(([value, label]) => <button key={value} type="button" className={statusFilter === value ? 'active' : ''} onClick={() => setStatusFilter(value)}>{label}</button>)}</div>
+          {editMode && <div className="placement-help"><Crosshair size={16} /><span>{placementId ? 'Clique na planta para posicionar o ativo selecionado.' : 'Selecione um ativo para posicionar ou mover.'}</span></div>}
+          <div className="floor-assets">
+            {filtered.map((item) => {
+              const id = String(item.id);
+              const StatusIcon = item.mapStatus.icon;
+              const isPositioned = Boolean(positions[id]);
+              return <button key={item.id} type="button" className={`floor-asset status-${item.mapStatus.key} ${String(placementId) === id ? 'placing' : ''}`} onClick={() => editMode ? setPlacementId(id) : setSelectedId(id)}>
+                <span className="asset-status"><StatusIcon size={15} /></span><span className="asset-name"><strong>{item.nome}</strong><small>{item.setor || 'Sem setor'} · {isPositioned ? 'Na planta' : 'Não posicionado'}</small></span>
+                {editMode && isPositioned ? <span className="remove-position" role="button" tabIndex={0} onClick={(event) => removePosition(event, item.id)} title="Remover posição"><Trash2 size={14} /></span> : isPositioned ? <Check size={15} /> : <ChevronRight size={15} />}
+              </button>;
+            })}
           </div>
-        )}
-        
-        {/* Animação CSS para o pulso crítico */}
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes pulse-alert-mini {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-          }
-        `}} />
-      </div>
+        </aside>
 
-    </div>
+        <div className="floor-stage">
+          <div className="floor-stage-toolbar"><span><span className="legend-dot alert" /> Alerta</span><span><span className="legend-dot cooling" /> Refrigerando</span><span><span className="legend-dot defrost" /> Degelo</span><span><span className="legend-dot rest" /> Repouso</span><div><button type="button" onClick={() => setZoom((value) => Math.max(.75, value - .25))} title="Reduzir zoom"><Minus size={15} /></button><strong>{Math.round(zoom * 100)}%</strong><button type="button" onClick={() => setZoom((value) => Math.min(1.75, value + .25))} title="Aumentar zoom"><Plus size={15} /></button></div></div>
+          <div className="floor-viewport">
+            <div className={`floor-canvas ${editMode && placementId ? 'placement-active' : ''}`} style={{ width: `${zoom * 100}%`, backgroundImage: floorImage ? `url("${floorImage}")` : undefined }} onClick={placeEquipment}>
+              {!floorImage && <div className="floor-grid-label"><ImageIcon size={34} /><strong>Área de implantação</strong><span>Importe a planta baixa ou use a grade para posicionar os ativos.</span></div>}
+              {equipment.map((item) => {
+                const position = positions[String(item.id)];
+                if (!position) return null;
+                const StatusIcon = item.mapStatus.icon;
+                const temperature = Number.parseFloat(item.ultima_temp);
+                return <button type="button" key={item.id} className={`floor-marker status-${item.mapStatus.key} ${String(selectedId) === String(item.id) ? 'selected' : ''}`} style={{ left: `${position.x}%`, top: `${position.y}%` }} onClick={(event) => { event.stopPropagation(); if (editMode) setPlacementId(String(item.id)); else setSelectedId(item.id); }}>
+                  <span><StatusIcon size={15} /></span><strong>{item.nome}</strong><small>{Number.isFinite(temperature) ? temperature.toFixed(1) : '--'}°C</small>
+                </button>;
+              })}
+            </div>
+          </div>
+        </div>
+
+        {selected && <aside className="floor-detail">
+          <button type="button" className="detail-close" onClick={() => setSelectedId(null)}><X size={17} /></button>
+          <span className={`detail-state status-${selected.mapStatus.key}`}>{React.createElement(selected.mapStatus.icon, { size: 15 })} {selected.mapStatus.label}</span>
+          <h3>{selected.nome}</h3><p><MapPin size={13} /> {selected.setor || 'Sem setor'}</p>
+          <div className="detail-temperature"><span>Temperatura atual</span><strong>{Number.isFinite(Number.parseFloat(selected.ultima_temp)) ? Number.parseFloat(selected.ultima_temp).toFixed(1) : '--'}<small>°C</small></strong></div>
+          <div className="detail-specs"><div><span>Faixa mínima</span><strong>{selected.temp_min ?? '--'}°C</strong></div><div><span>Faixa máxima</span><strong>{selected.temp_max ?? '--'}°C</strong></div><div><span>Motor</span><strong>{selected.motor_ligado ? 'Ligado' : 'Repouso'}</strong></div><div><span>Posição</span><strong>{positions[String(selected.id)] ? 'Mapeada' : 'Pendente'}</strong></div></div>
+          <button type="button" className="detail-action" onClick={() => onNavigate?.('motores')}>Abrir monitor térmico <ChevronRight size={15} /></button>
+        </aside>}
+      </section>
+    </main>
   );
 }

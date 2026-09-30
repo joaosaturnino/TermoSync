@@ -1,3 +1,8 @@
+/**
+ * Módulo: mobile/App.js
+ * Responsabilidade: Orquestra autenticação, navegação e integração do aplicativo móvel com a API.
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,13 +27,26 @@ const STORAGE_KEYS = {
   apiUrl: '@termosync/mobile/api-url'
 };
 
-const FALLBACK_HOST = '172.16.0.81';
+const PRODUCTION_WEB_URL = 'https://thermosync.com.br';
+const PRODUCTION_API_URL = 'https://thermosync.com.br';
 const DEFAULT_WEB_PORT = '5173';
 const DEFAULT_API_PORT = '3001';
 const LEGACY_HOSTS = ['192.168.200.27'];
 
 /**
  * Controla normalize url dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const normalizeUrl = (value) => {
   const clean = String(value || '').trim().replace(/\/+$/, '');
@@ -37,13 +55,43 @@ const normalizeUrl = (value) => {
   return `http://${clean}`;
 };
 
+/** Retorna somente esquema e host para limitar as navegações aceitas pelo WebView. */
+const getUrlOrigin = (value) => normalizeUrl(value).match(/^(https?:\/\/[^/]+)/i)?.[1] || '';
+
+
 /**
  * Controla normalize document url dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const normalizeDocumentUrl = (value) => normalizeUrl(value).replace(/[?#].*$/, '').replace(/\/+$/, '');
 
+
 /**
  * Controla is main document error dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} eventUrl - Valor de event url consumido por esta rotina.
+ * @param {unknown} currentWebUrl - Valor de current web url consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const isMainDocumentError = (eventUrl, currentWebUrl) => {
   const source = normalizeDocumentUrl(eventUrl);
@@ -51,21 +99,61 @@ const isMainDocumentError = (eventUrl, currentWebUrl) => {
   return Boolean(source && target && source === target);
 };
 
+
 /**
  * Controla get url host dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getUrlHost = (value) => normalizeUrl(value).replace(/^https?:\/\//i, '').split(/[/:?#]/)[0] || '';
 
+
 /**
  * Controla get url port dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getUrlPort = (value) => {
   const match = normalizeUrl(value).match(/^https?:\/\/[^/:]+:(\d+)/i);
   return match?.[1] || '';
 };
 
+
 /**
  * Controla repair legacy url dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @param {unknown} defaultUrl - Valor de default url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const repairLegacyUrl = (value, defaultUrl) => {
   let normalized = normalizeUrl(value);
@@ -89,8 +177,21 @@ const repairLegacyUrl = (value, defaultUrl) => {
   return normalized;
 };
 
+
 /**
  * Controla get expo host dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getExpoHost = () => {
   const candidates = [
@@ -100,23 +201,61 @@ const getExpoHost = () => {
     Constants.manifest2?.extra?.expoClient?.hostUri
   ].filter(Boolean);
 
-  const host = String(candidates[0] || '').split(':')[0];
-  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host) ? host : '';
+  for (const candidate of candidates) {
+    const host = String(candidate).match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/)?.[0];
+    if (host && host !== '127.0.0.1' && host !== '0.0.0.0') return host;
+  }
+
+  return '';
 };
+
 
 /**
  * Controla get default config dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getDefaultConfig = () => {
-  const host = getExpoHost() || FALLBACK_HOST;
+  const configuredWebUrl = normalizeUrl(Constants.expoConfig?.extra?.webUrl);
+  const configuredApiUrl = normalizeUrl(Constants.expoConfig?.extra?.apiUrl);
+  const host = getExpoHost();
+  if (!host) {
+    return {
+      webUrl: configuredWebUrl || PRODUCTION_WEB_URL,
+      apiUrl: configuredApiUrl || PRODUCTION_API_URL
+    };
+  }
   return {
     webUrl: `http://${host}:${DEFAULT_WEB_PORT}`,
     apiUrl: `http://${host}:${DEFAULT_API_PORT}`
   };
 };
 
+
 /**
  * Controla needs connection review dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} webUrl - Valor de web url consumido por esta rotina.
+ * @param {unknown} apiUrl - Valor de api url consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const needsConnectionReview = (webUrl, apiUrl) => {
   const webPort = getUrlPort(webUrl);
@@ -124,8 +263,22 @@ const needsConnectionReview = (webUrl, apiUrl) => {
   return !webUrl || !apiUrl || webPort === DEFAULT_API_PORT || apiPort === DEFAULT_WEB_PORT || apiPort === '5174';
 };
 
+
 /**
  * Controla get connection warning dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} webUrl - Valor de web url consumido por esta rotina.
+ * @param {unknown} apiUrl - Valor de api url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getConnectionWarning = (webUrl, apiUrl) => {
   const nextWebUrl = normalizeUrl(webUrl);
@@ -159,8 +312,21 @@ const IOS_APP_CSS = `
   }
 `;
 
+
 /**
  * Controla build injected script dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} apiUrl - Valor de api url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const buildInjectedScript = (apiUrl) => `
   (function () {
@@ -191,8 +357,25 @@ const buildInjectedScript = (apiUrl) => `
   })();
 `;
 
+
 /**
  * Controla app button dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.icon - Propriedade icon usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.label - Propriedade label usada para configurar dados ou comportamento do componente.
+ * @param {Function} options.onPress - Callback onPress fornecido pelo componente responsável.
+ * @param {unknown} options.disabled - Propriedade disabled usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function AppButton({ icon, label, onPress, disabled }) {
   return (
@@ -207,8 +390,22 @@ function AppButton({ icon, label, onPress, disabled }) {
   );
 }
 
+
 /**
  * Controla floating setup button dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {Function} options.onPress - Callback onPress fornecido pelo componente responsável.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function FloatingSetupButton({ onPress }) {
   return (
@@ -220,8 +417,31 @@ function FloatingSetupButton({ onPress }) {
   );
 }
 
+
 /**
  * Controla setup modal dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.visible - Propriedade visible usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.draftWebUrl - Propriedade draftWebUrl usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.draftApiUrl - Propriedade draftApiUrl usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.defaultConfig - Propriedade defaultConfig usada para configurar dados ou comportamento do componente.
+ * @param {boolean} options.canClose - Sinalizador canClose que controla este comportamento visual.
+ * @param {Function} options.onChangeWebUrl - Callback onChangeWebUrl fornecido pelo componente responsável.
+ * @param {Function} options.onChangeApiUrl - Callback onChangeApiUrl fornecido pelo componente responsável.
+ * @param {Function} options.onUseDefaults - Callback onUseDefaults fornecido pelo componente responsável.
+ * @param {Function} options.onClose - Callback onClose fornecido pelo componente responsável.
+ * @param {Function} options.onSave - Callback onSave fornecido pelo componente responsável.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function SetupModal({
   visible,
@@ -287,8 +507,23 @@ function SetupModal({
   );
 }
 
+
 /**
  * Controla loading overlay dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.loading - Propriedade loading usada para configurar dados ou comportamento do componente.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function LoadingOverlay({ loading }) {
   if (!loading) return null;
@@ -303,8 +538,27 @@ function LoadingOverlay({ loading }) {
   );
 }
 
+
 /**
  * Controla error overlay dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} options - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} options.error - Propriedade error usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.webUrl - Propriedade webUrl usada para configurar dados ou comportamento do componente.
+ * @param {unknown} options.apiUrl - Propriedade apiUrl usada para configurar dados ou comportamento do componente.
+ * @param {Function} options.onRetry - Callback onRetry fornecido pelo componente responsável.
+ * @param {Function} options.onConfigure - Callback onConfigure fornecido pelo componente responsável.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function ErrorOverlay({ error, webUrl, apiUrl, onRetry, onConfigure }) {
   if (!error) return null;
@@ -334,8 +588,22 @@ function ErrorOverlay({ error, webUrl, apiUrl, onRetry, onConfigure }) {
   );
 }
 
+
 /**
  * Controla web view app dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function WebViewApp() {
   const webViewRef = useRef(null);
@@ -354,8 +622,22 @@ function WebViewApp() {
   useEffect(() => {
     let isMounted = true;
 
+
     /**
      * Controla load saved config dentro do aplicativo mobile.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+     * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+     *
+     * Efeitos colaterais: atualiza estado reativo da interface
+     *
+     * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
      */
     async function loadSavedConfig() {
       try {
@@ -437,19 +719,19 @@ function WebViewApp() {
           ref={webViewRef}
           source={{ uri: webUrl }}
           style={styles.webview}
-          originWhitelist={['http://*', 'https://*']}
+          originWhitelist={[getUrlOrigin(webUrl)]}
           injectedJavaScriptBeforeContentLoaded={injectedScript}
           injectedJavaScript={injectedScript}
           javaScriptEnabled
           domStorageEnabled
           sharedCookiesEnabled
-          thirdPartyCookiesEnabled
+          thirdPartyCookiesEnabled={false}
           cacheEnabled
           pullToRefreshEnabled
           allowsBackForwardNavigationGestures
           contentInsetAdjustmentBehavior="never"
           mediaPlaybackRequiresUserAction={false}
-          mixedContentMode="always"
+          mixedContentMode={webUrl.startsWith('https://') ? 'never' : 'compatibility'}
           setSupportMultipleWindows={false}
           onLoadStart={() => {
             setIsLoading(true);
@@ -505,8 +787,20 @@ function WebViewApp() {
   );
 }
 
+
 /**
  * Controla app dentro do aplicativo mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function App() {
   return (

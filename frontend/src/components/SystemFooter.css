@@ -1,0 +1,209 @@
+/** Define o layout, os estados visuais e os breakpoints de System Footer. */
+
+.system-footer {
+  color: var(--text-muted);
+}
+
+.system-footer-desktop {
+  position: relative;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(170px, .8fr) minmax(280px, 1.5fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 8px clamp(16px, 2.4vw, 30px) 18px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.system-footer-desktop::before {
+  position: absolute;
+  top: -1px;
+  left: 14px;
+  width: 72px;
+  height: 2px;
+  background: var(--brand-spectrum);
+  content: '';
+}
+
+.system-footer-brand {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.system-footer-brand strong {
+  color: var(--text-main);
+  font-size: .64rem;
+}
+
+.system-footer-brand>span {
+  color: var(--primary);
+  font-size: .51rem;
+  font-weight: 850;
+}
+
+.system-footer-brand small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: .49rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-footer-runtime {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.system-footer-runtime>span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: .5rem;
+  white-space: nowrap;
+}
+
+.system-footer-runtime svg {
+  opacity: .7;
+}
+
+.system-footer-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.system-footer-status.online {
+  color: var(--success);
+}
+
+.system-footer-status.online i {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.system-footer-status.degraded {
+  color: var(--warning);
+}
+
+.system-footer-status.degraded i {
+  background: var(--warning);
+}
+
+.system-footer-status.offline {
+  color: var(--danger);
+}
+
+.system-footer-status.offline i {
+  background: var(--danger);
+}
+
+.system-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.system-footer-links button,
+.system-footer-links a {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: .5rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.system-footer-links button:hover,
+.system-footer-links a:hover {
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+  color: var(--primary);
+}
+
+.system-footer-sidebar {
+  display: none;
+}
+
+@media (max-width: 1120px) {
+  .system-footer-desktop {
+    grid-template-columns: 1fr auto;
+  }
+
+  .system-footer-desktop .system-footer-runtime {
+    justify-content: flex-start;
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .system-footer-desktop {
+    display: none;
+  }
+
+  .system-footer-sidebar {
+    display: grid;
+    gap: 8px;
+    padding: 9px 12px;
+    border-top: 1px solid rgba(148, 163, 184, .12);
+    background: #071015;
+  }
+
+  .system-footer-sidebar .system-footer-brand {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+  }
+
+  .system-footer-sidebar .system-footer-brand strong {
+    color: #dce7ee;
+  }
+
+  .system-footer-sidebar .system-footer-brand small {
+    text-align: right;
+  }
+
+  .system-footer-sidebar .system-footer-runtime {
+    justify-content: flex-start;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .system-footer-sidebar .system-footer-runtime>span:nth-child(n + 3) {
+    display: none;
+  }
+
+  .system-footer-sidebar .system-footer-links {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .system-footer-sidebar .system-footer-links button,
+  .system-footer-sidebar .system-footer-links a {
+    flex: 0 0 auto;
+    padding-inline: 6px;
+    color: #78909f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-footer * {
+    transition-duration: .01ms !important;
+  }
+}

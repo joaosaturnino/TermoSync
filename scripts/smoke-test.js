@@ -1,3 +1,8 @@
+/**
+ * Módulo: scripts/smoke-test.js
+ * Responsabilidade: Automatiza a rotina operacional smoke test.
+ */
+
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -5,6 +10,18 @@ const path = require('path');
 
 /**
  * Executa a etapa read env value usada em verificacoes ou automacoes do projeto.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: lê ou grava arquivos locais
+ *
+ * @param {unknown} key - Valor de key consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function readEnvValue(key) {
   const envPath = path.resolve(__dirname, '..', 'backend', '.env');
@@ -19,8 +36,21 @@ const detectedPort = process.env.PORT || readEnvValue('PORT') || '3000';
 const baseUrl = process.env.SMOKE_BASE_URL || process.env.API_BASE_URL || `http://localhost:${detectedPort}`;
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 8000);
 
+
 /**
  * Executa a etapa request json usada em verificacoes ou automacoes do projeto.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; troca eventos em tempo real
+ *
+ * @param {unknown} pathname - Valor de pathname consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function requestJson(pathname) {
   return new Promise((resolve, reject) => {
@@ -42,8 +72,21 @@ function requestJson(pathname) {
   });
 }
 
+
 /**
  * Executa a etapa main usada em verificacoes ou automacoes do projeto.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: registra informações de diagnóstico
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function main() {
   console.log(`TermoSync smoke test: ${baseUrl}`);

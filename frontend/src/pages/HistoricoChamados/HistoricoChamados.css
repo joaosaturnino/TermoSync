@@ -125,7 +125,7 @@
   gap: 8px;
   background: rgba(239, 68, 68, 0.05);
   color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
   padding: 8px 14px;
   border-radius: 12px;
   font-weight: 700;
@@ -135,7 +135,7 @@
 }
 
 .btn-danger-outline:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
   border-color: var(--danger);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
@@ -192,12 +192,12 @@
 }
 
 .kpi-icon-wrap.info {
-  background: rgba(56, 189, 248, 0.1);
+  background: color-mix(in srgb, var(--info) 10%, transparent);
   color: var(--secondary);
 }
 
 .kpi-icon-wrap.success {
-  background: rgba(16, 185, 129, 0.1);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
   color: var(--success);
 }
 
@@ -385,7 +385,7 @@
   padding: 16px;
   border-radius: 12px;
   background: rgba(16, 185, 129, 0.04);
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  border: 1px solid color-mix(in srgb, var(--success) 15%, transparent);
   position: relative;
 }
 
@@ -418,7 +418,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  border-top: 1px dashed rgba(16, 185, 129, 0.3);
+  border-top: 1px dashed color-mix(in srgb, var(--success) 30%, transparent);
   padding-top: 12px;
   gap: 10px;
   flex-wrap: wrap;
@@ -477,7 +477,7 @@
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(239, 68, 68, 0.3) !important;
+  box-shadow: 0 25px 50px -12px color-mix(in srgb, var(--danger) 30%, transparent) !important;
 }
 
 .modal-actions-historico {
@@ -589,5 +589,48 @@
     width: 100%;
     justify-content: center;
     padding: 14px;
+  }
+}
+
+.historico-badge.incomplete {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+
+.historico-badge svg {
+  vertical-align: -2px;
+  margin-right: 3px;
+}
+
+.audit-stamp.pending {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.kpi-icon-wrap.warning {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.historico-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .action-group {
+    width: 100%;
+  }
+
+  .historico-filter-select {
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+
+  .historico-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .historico-meta-grid {
+    grid-template-columns: 1fr;
   }
 }

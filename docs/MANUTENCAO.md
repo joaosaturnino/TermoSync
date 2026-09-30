@@ -79,6 +79,24 @@ Orquestrador principal da aplicacao. Mantem sessao, tema, densidade visual, dado
 
 Ao alterar dados compartilhados, verifique quais telas recebem a prop correspondente antes de mudar o formato.
 
+### Saude do Sistema
+
+`frontend/src/pages/CentralSaudeSistema/CentralSaudeSistema.jsx` consulta `/api/health` e `/api/system/host-info` ao abrir a tela e a cada 30 segundos enquanto a pagina esta visivel. A tela e compartilhada pelo navegador desktop e pela WebView mobile.
+
+`HealthServiceDiagnostics.jsx` mostra o estado atual de cada servico, filtra os que exigem atencao e oferece orientacoes de diagnostico. Ajuste as orientacoes quando os estados ou procedimentos de recuperacao do backend mudarem. Estados desconhecidos nao devem ser classificados automaticamente como falha.
+
+`HealthRecentChecks.jsx` lista as ultimas 12 consultas realizadas nesta sessao do navegador, incluindo falhas de resposta. Esses registros ficam em `sessionStorage`; nao sao historico persistente nem monitoramento de disponibilidade do servidor. Limpar a sessao ou fazer logout remove os registros.
+
+`HealthSessionAnalytics.jsx` deriva disponibilidade observada, distribuicao de estados, faixa de latencia e tendencia recente a partir dessas mesmas amostras locais. A tendencia compara as tres verificacoes mais recentes com as tres anteriores e so apresenta conclusao quando as duas janelas possuem dados.
+
+`HealthTelemetryExplorer.jsx` usa Recharts para plotar a latencia das amostras e calcula a estabilidade observada de API, banco, MQTT e WhatsApp. O grafico mede seu contêiner com `ResizeObserver`, pois o painel pode nascer fora da area visivel da rolagem mobile. A tela preserva no maximo 30 verificacoes por sessao e permite coleta automatica a cada 15, 30 ou 60 segundos. Esse intervalo controla apenas o navegador atual.
+
+`HealthSettingsModal.jsx` centraliza as preferencias locais do monitoramento: coleta automatica, intervalo e limites de latencia. Os valores ficam em `localStorage` sob a chave `termosync-health-settings`; nao alteram configuracoes do servidor. O limite de atencao deve ser pelo menos 50 ms e o limite critico deve ser maior que ele.
+
+`HealthRuntimeOverview.jsx` apresenta latencia, uptime e consumo de memoria do host e do processo da API. Os percentuais sao calculados no frontend a partir dos valores absolutos retornados pela API. O endpoint autenticado `/api/system/host-info` informa versao do Node, PID, ambiente, arquitetura, CPU, carga media e uptime do host. Nao mova esses detalhes para `/api/health`, pois essa rota publica deve manter uma resposta minima.
+
+A tela deve permanecer focada na infraestrutura e nos servicos tecnicos. Contadores de equipamentos, ordens de servico, chamados e notificacoes pertencem aos modulos operacionais e nao devem ser adicionados a este painel.
+
 ### `frontend/src/hooks/useSecurity.jsx`
 
 Valida a sessao contra o backend ao abrir/recarregar o app. Se a sessao foi revogada, limpa o navegador e chama logout.
@@ -124,6 +142,27 @@ Calcula consumo, custo estimado, carbono, pico de demanda e ranking de equipamen
 ### `frontend/src/components/DevBootScreen.jsx`
 
 Terminal visual de acesso administrativo. A autenticacao real acontece no backend; comandos publicos sao apenas auxiliares visuais. Nunca coloque credenciais fixas neste componente.
+
+## Deploy pelo painel
+
+O centro de deploy pertence a `Desenvolvimento > Entregas` e sua execucao e exclusiva do perfil `DEV`. Em producao, o endpoint permanece bloqueado ate `ALLOW_WEB_DEPLOY=true` ser configurado explicitamente. Quando habilitado, mantenha `REQUIRE_DEPLOY_MFA=true`.
+
+Cada execucao exige a senha da propria conta DEV ou o passcode root, alem da frase `DEPLOY <NODE_ENV>`. Sessoes impersonadas nao podem publicar versoes. O servidor limita tentativas, impede deploys concorrentes e cria um backup JSON do banco antes de alterar arquivos.
+
+Pacotes de frontend e backend sao extraidos no alvo escolhido. Um pacote `FULLSTACK` deve ter obrigatoriamente esta estrutura na raiz:
+
+```text
+frontend/
+  index.html
+  assets/
+backend/
+  server.js
+  routes/
+```
+
+O ZIP nao pode conter `.env`, `.git`, `node_modules`, backups, uploads ou arquivos temporarios. Os limites compactado e descompactado sao definidos por `UPDATE_PACKAGE_MAX_MB` e `UPDATE_PACKAGE_MAX_UNCOMPRESSED_MB`.
+
+O painel e uma contingencia administrativa. Para producao recorrente, prefira uma esteira CI/CD com artefatos assinados, testes, aprovacao e rollback externos ao processo em execucao.
 
 ## Mobile
 

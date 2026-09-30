@@ -1,223 +1,218 @@
+/**
+ * Módulo: frontend/src/pages/Metrologia/Metrologia.jsx
+ * Responsabilidade: Implementa a tela Metrologia, seus estados, interações e integrações de dados.
+ */
+
+import usePersistentState from '../../hooks/usePersistentState';
+import { CalendarClock, CheckCircle2, Download, Edit3, Gauge } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { 
-  ClipboardCheck, Target, Search, ShieldCheck, ShieldAlert, 
-  AlertTriangle, Calendar, Edit, Server, MapPin, Lock, Shield
+  ClipboardCheck, Search, ShieldAlert, 
+  AlertTriangle, Server, MapPin, Lock, Shield
 } from 'lucide-react';
 import './Metrologia.css';
 
 /**
- * Gestão Metrológica
+ * Extrai parse data de uma entrada externa ou configuracao local.
  *
- * Responsabilidades:
- * - Controlar e auditar certificados de calibração dos sensores
- * - Fornecer mecanismos de pesquisa, filtros e ações de registro de aferição
- * - Isolar dados por filial e aplicar permissões de edição baseadas em roles
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
  *
- * Props:
- * - `equipamentosDaFilial`: lista de equipamentos visíveis
- * - `editarEquipamento`: callback para abrir o editor de aferição
- * - `userRole`: papel do usuário atual (para controle de permissões)
- * - `filialAtiva`: filial atualmente selecionada
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object|Array} data - Dados de entrada que serão validados e transformados pelo fluxo.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function Metrologia({ equipamentosDaFilial, editarEquipamento, userRole, filialAtiva }) {
-  
-  const [busca, setBusca] = useState('');
+function parseData(data) {
+  if (!data) return null;
+  const valor = new Date(data);
+  return Number.isNaN(valor.getTime()) ? null : valor;
+}
 
-  // ============================================================================
-  // MOTOR DE SEGURANÇA E ISOLAMENTO DE ACESSO
-  // ============================================================================
+/**
+ * Formata datas de certificado para o padrao utilizado nas telas operacionais.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object|Array} data - Dados de entrada que serão validados e transformados pelo fluxo.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+function formatarData(data) {
+  const valor = parseData(data);
+  return valor ? valor.toLocaleDateString('pt-BR') : 'Nao informada';
+}
+
+/**
+ * Controle de validade, vencimentos e acoes de afericao dos ativos da filial.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador; interage com APIs do navegador
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.equipamentosDaFilial - Propriedade equipamentosDaFilial usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.editarEquipamento - Propriedade editarEquipamento usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+export default function Metrologia({ equipamentosDaFilial = [], editarEquipamento, userRole, filialAtiva }) {
+  const [busca, setBusca] = usePersistentState('termosync_metrology_search', '');
+  const [filtro, setFiltro] = usePersistentState('termosync_metrology_filter', 'TODOS');
+  const [instanteReferencia] = useState(Date.now);
+
   const roleLogada = userRole || sessionStorage.getItem('userRole') || 'LOJA';
-  const papelLogado = sessionStorage.getItem('papelLogado') || ''; 
-  const isGestorLoja = papelLogado.toLowerCase().includes('gerente') || papelLogado.toLowerCase().includes('coordenador');
-  
-  // Apenas Gestores da Loja, Manutenção e NOC podem registrar aferições (alterar a data do certificado).
-  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV' || roleLogada === 'MANUTENCAO' || (roleLogada === 'LOJA' && isGestorLoja);
+  const papelLogado = sessionStorage.getItem('papelLogado') || '';
+  const isGestorLoja = /gerente|coordenador/i.test(papelLogado);
+  const canEdit = ['ADMIN', 'DEV', 'MANUTENCAO'].includes(roleLogada) || (roleLogada === 'LOJA' && isGestorLoja);
 
-  // Isolamento Rigoroso de Filial (Tenancy tolerante a dados de teste)
+  // Restringe a analise a filial ativa, mesmo quando a lista recebida contem varias unidades.
   const equipamentosSeguros = useMemo(() => {
-    let lista = equipamentosDaFilial || [];
-    if (filialAtiva && filialAtiva !== 'Todas') {
-      const f = filialAtiva.trim().toLowerCase();
-      lista = lista.filter(eq => (eq.filial || 'Loja Principal').trim().toLowerCase() === f);
-    }
-    return lista;
+    if (!filialAtiva || filialAtiva === 'Todas') return equipamentosDaFilial;
+    const filial = filialAtiva.trim().toLowerCase();
+    return equipamentosDaFilial.filter((eq) => String(eq.filial || 'Loja Principal').trim().toLowerCase() === filial);
   }, [equipamentosDaFilial, filialAtiva]);
+  /**
+   * Concentra a logica de exportar csv para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+   *
+   * Efeitos colaterais: interage com APIs do navegador
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const exportarCsv = () => {
+    const cabecalho = ['Ativo', 'Tipo', 'Setor', 'Filial', 'Ultima calibracao', 'Vencimento', 'Status', 'Dias restantes'];
+    const linhas = equipamentosFiltrados.map((eq) => [
+      eq.nome, eq.tipo, eq.setor, eq.filial, formatarData(eq.data_calibracao),
+      eq.vencimento ? formatarData(eq.vencimento) : '', eq.status_calibracao, eq.dias_restantes ?? ''
+    ]);
+    const csv = [cabecalho, ...linhas]
+      .map((linha) => linha.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';'))
+      .join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    link.download = `controle-metrologico-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
-  // Processa o tempo e o estado da calibração baseado nos dados permitidos
+  const statusConfig = {
+    OK: { label: 'Conforme', icon: CheckCircle2 },
+    ALERTA: { label: 'Renovar em breve', icon: AlertTriangle },
+    VENCIDO: { label: 'Vencido', icon: ShieldAlert },
+    SEM_REGISTRO: { label: 'Sem certificado', icon: ClipboardCheck }
+  };
+
   const analise = useMemo(() => {
-    const hoje = new Date().getTime();
-    return equipamentosSeguros.map(eq => {
+    const hoje = instanteReferencia;
+    return equipamentosSeguros.map((eq) => {
       const dias = eq.data_calibracao ? Math.floor((hoje - new Date(eq.data_calibracao).getTime()) / (1000 * 60 * 60 * 24)) : 999;
       const status = dias > 365 ? 'VENCIDO' : (dias > 330 ? 'ALERTA' : 'OK');
       return { ...eq, dias_calibracao: dias, status_calibracao: status };
     }).sort((a, b) => b.dias_calibracao - a.dias_calibracao);
-  }, [equipamentosSeguros]);
+  }, [equipamentosSeguros, instanteReferencia]);
 
-  // Motor de Pesquisa
-  const equipamentosFiltrados = useMemo(() => {
-    if (!busca.trim()) return analise;
+  const equipamentosFiltrados = (() => {
     const termo = busca.toLowerCase().trim();
-    return analise.filter(eq => 
-      (eq.nome || '').toLowerCase().includes(termo) || 
-      (eq.filial || '').toLowerCase().includes(termo) ||
-      (eq.setor || '').toLowerCase().includes(termo)
-    );
-  }, [analise, busca]);
+    return analise.filter((eq) => {
+      const matchesSearch = !termo || [eq.nome, eq.filial, eq.setor].some((value) => String(value || '').toLowerCase().includes(termo));
+      return matchesSearch && (filtro === 'TODOS' || eq.status_calibracao === filtro);
+    });
+  })();
 
-  // KPIs de Auditoria
   const kpis = useMemo(() => {
     const total = analise.length;
-    let conforme = 0; let alerta = 0; let vencidos = 0;
-    analise.forEach(eq => {
-      if (eq.status_calibracao === 'OK') conforme++;
-      else if (eq.status_calibracao === 'ALERTA') alerta++;
-      else vencidos++;
-    });
-    return { total, conforme, alerta, vencidos };
+    const conforme = analise.filter((eq) => eq.status_calibracao === 'OK').length;
+    const alerta = analise.filter((eq) => eq.status_calibracao === 'ALERTA').length;
+    return { total, conforme, alerta, vencidos: total - conforme - alerta };
   }, [analise]);
 
-  return (
-    <div className="anim-fade-in stagger-1">
-      
-      {/* HEADER & SEARCH */}
-      <div className="metrologia-header-actions">
+return (
+    <div className="metrologia-page anim-fade-in">
+      <header className="metrologia-header">
         <div>
-          <h3 className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-            <Target style={{ marginRight: '10px', color: 'var(--info)' }}/> Controle Metrológico
-          </h3>
-          <p className="text-muted" style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-            Governança e auditoria de certificados de calibração (Normas RDC / HACCP).
-          </p>
+          <span className="metrologia-eyebrow"><Gauge size={14} /> Qualidade e conformidade</span>
+          <h2>Controle metrologico</h2>
+          <p>Validade dos certificados, agenda de afericao e rastreabilidade dos sensores.</p>
         </div>
+        <div className="metrologia-header-actions">
+          {!canEdit && <span className="metrologia-readonly"><Lock size={15} /> Somente leitura</span>}
+          <button className="btn btn-outline" type="button" onClick={exportarCsv} disabled={!equipamentosFiltrados.length}>
+            <Download size={17} /> Exportar CSV
+          </button>
+        </div>
+      </header>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="search-box-metrologia">
-            <Search size={16} color="var(--text-muted)" />
-            <input type="text" placeholder="Pesquisar equipamento ou filial..." value={busca} onChange={e => setBusca(e.target.value)} />
-          </div>
+      <section className="metrologia-overview" aria-label="Resumo metrologico">
+        <article className="metrologia-score">
+          <div className="metrologia-score-ring" style={{ '--score': `${kpis.taxa * 3.6}deg` }}><strong>{kpis.taxa}%</strong></div>
+          <div><span>Indice de conformidade</span><small>{kpis.conforme} de {kpis.total} ativos dentro da validade</small></div>
+        </article>
+        <article><ShieldAlert /><strong>{kpis.vencidos}</strong><span>Certificados vencidos</span></article>
+        <article><AlertTriangle /><strong>{kpis.alerta}</strong><span>Renovacoes proximas</span></article>
+        <article><ClipboardCheck /><strong>{kpis.semRegistro}</strong><span>Sem certificado</span></article>
+        <article className="metrologia-next"><CalendarClock /><div><span>Proximo vencimento</span><strong>{kpis.proximo ? `${kpis.proximo.nome} - ${kpis.proximo.dias_restantes} dias` : 'Sem vencimentos programados'}</strong></div></article>
+      </section>
 
-          {!canEdit && (
-            <div className="read-only-banner" title="Modo de Leitura: Apenas Manutenção ou Gestores podem alterar a data da calibração.">
-              <Lock size={16} /> Auditoria Estrita
-            </div>
-          )}
+      <section className="metrologia-toolbar">
+        <div className="metrologia-search"><Search size={17} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar ativo, setor, tipo ou filial" /></div>
+        <div className="metrologia-filters" aria-label="Filtrar certificados">
+          {[
+            ['TODOS', `Todos (${kpis.total})`], ['VENCIDO', `Vencidos (${kpis.vencidos})`],
+            ['ALERTA', `A vencer (${kpis.alerta})`], ['SEM_REGISTRO', `Sem registro (${kpis.semRegistro})`], ['OK', `Conformes (${kpis.conforme})`]
+          ].map(([valor, label]) => <button type="button" key={valor} className={filtro === valor ? 'active' : ''} onClick={() => setFiltro(valor)}>{label}</button>)}
         </div>
-      </div>
+      </section>
 
-      {/* KPI BAR */}
-      <div className="metrologia-kpi-bar stagger-2">
-        <div className="kpi-item total">
-          <div className="kpi-icon" style={{color: 'var(--info)', background: 'color-mix(in srgb, var(--info) 10%, transparent)'}}><ClipboardCheck size={22}/></div>
-          <div className="kpi-data"><span className="kpi-value">{kpis.total}</span><span className="kpi-label">Ativos Auditados</span></div>
+      <section className="metrologia-table-wrap">
+        <div className="metrologia-table-heading"><div><h3>Agenda de certificados</h3><p>{equipamentosFiltrados.length} registro(s) na visao atual</p></div><Shield size={20} /></div>
+        <div className="table-responsive">
+          <table className="table metrologia-table">
+            <thead><tr><th>Ativo</th><th>Localizacao</th><th>Ultima afericao</th><th>Validade</th><th>Situacao</th><th aria-label="Acoes" /></tr></thead>
+            <tbody>
+              {equipamentosFiltrados.map((eq) => {
+                const config = statusConfig[eq.status_calibracao];
+                const StatusIcon = config.icon;
+                return (
+                  <tr key={eq.id}>
+                    <td data-label="Ativo"><div className="metrologia-asset"><span><Server size={18} /></span><div><strong>{eq.nome || 'Ativo sem nome'}</strong><small>{eq.tipo || 'Tipo nao informado'}</small></div></div></td>
+                    <td data-label="Localizacao"><span className="metrologia-location"><MapPin size={14} /> {eq.setor || 'Sem setor'} - {eq.filial || 'Sem filial'}</span></td>
+                    <td data-label="Ultima afericao">{formatarData(eq.data_calibracao)}</td>
+                    <td data-label="Validade"><strong>{eq.vencimento ? formatarData(eq.vencimento) : 'Pendente'}</strong>{eq.dias_restantes !== null && <small className="metrologia-days">{eq.dias_restantes < 0 ? `${Math.abs(eq.dias_restantes)} dias em atraso` : `${eq.dias_restantes} dias restantes`}</small>}</td>
+                    <td data-label="Situacao"><span className={`metrologia-status ${eq.status_calibracao.toLowerCase()}`}><StatusIcon size={14} /> {config.label}</span></td>
+                    <td data-label="Acao">{canEdit ? <button className="metrologia-edit" type="button" onClick={() => editarEquipamento(eq)} title="Registrar nova afericao"><Edit3 size={16} /><span>Registrar</span></button> : <Shield size={16} className="metrologia-locked" />}</td>
+                  </tr>
+                );
+              })}
+              {!equipamentosFiltrados.length && <tr><td colSpan="6" className="metrologia-empty"><ClipboardCheck size={34} /><strong>Nenhum certificado encontrado</strong><span>Ajuste os filtros ou cadastre a calibracao no equipamento.</span></td></tr>}
+            </tbody>
+          </table>
         </div>
-        <div className="kpi-item success">
-          <div className="kpi-icon"><ShieldCheck size={22}/></div>
-          <div className="kpi-data"><span className="kpi-value" style={{color: 'var(--success)'}}>{kpis.conforme}</span><span className="kpi-label">Selos Conformes</span></div>
-        </div>
-        <div className="kpi-item warning" style={{ background: 'color-mix(in srgb, var(--warning) 5%, var(--card-bg))', borderColor: 'color-mix(in srgb, var(--warning) 20%, transparent)' }}>
-          <div className="kpi-icon" style={{color: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 10%, transparent)'}}><AlertTriangle size={22}/></div>
-          <div className="kpi-data"><span className="kpi-value" style={{color: 'var(--warning)'}}>{kpis.alerta}</span><span className="kpi-label">Renovações Próximas</span></div>
-        </div>
-        <div className="kpi-item danger">
-          <div className="kpi-icon"><ShieldAlert size={22}/></div>
-          <div className="kpi-data"><span className="kpi-value" style={{color: 'var(--danger)'}}>{kpis.vencidos}</span><span className="kpi-label">Selos Vencidos</span></div>
-        </div>
-      </div>
-
-      {/* TABELA DE AUDITORIA */}
-      <div className="metrologia-table-card stagger-3">
-        <table className="table metrologia-table">
-          <thead>
-            <tr>
-              <th>Identificação do Ativo</th>
-              <th>Localização</th>
-              <th>Última Calibração</th>
-              <th>Status (Conformidade)</th>
-              <th style={{ textAlign: 'right' }}>Ações de Auditoria</th>
-            </tr>
-          </thead>
-          <tbody>
-            {equipamentosFiltrados.map(eq => (
-              <tr key={eq.id} className={`metrologia-row ${eq.status_calibracao === 'VENCIDO' ? 'row-vencida' : ''}`}>
-                
-                <td data-label="Hardware">
-                  <div className="equip-ident-box">
-                    <div className="equip-icon"><Server size={18} /></div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{eq.nome}</strong>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>{eq.setor}</span>
-                    </div>
-                  </div>
-                </td>
-                
-                <td data-label="Localização">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                    <MapPin size={14} /> {eq.filial || 'Matriz / Loja Principal'}
-                  </div>
-                </td>
-                
-                <td data-label="Auditoria">
-                  <div className="dias-box" style={{ color: eq.status_calibracao === 'VENCIDO' ? 'var(--danger)' : 'var(--text-main)' }}>
-                    <Calendar size={14} /> 
-                    {eq.dias_calibracao === 999 ? 'Sem Registro' : `${eq.dias_calibracao} dias atrás`}
-                  </div>
-                  {eq.data_calibracao && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'Montserrat' }}>
-                      Aferido em: {new Date(eq.data_calibracao).toLocaleDateString('pt-BR')}
-                    </div>
-                  )}
-                </td>
-                
-                <td data-label="SLA Compliance">
-                  {eq.status_calibracao === 'VENCIDO' && (
-                    <span className="badge-metro badge-vencido">
-                      <ShieldAlert size={14}/> CERTIFICADO VENCIDO
-                    </span>
-                  )}
-                  {eq.status_calibracao === 'ALERTA' && (
-                    <span className="badge-metro badge-alerta">
-                      <AlertTriangle size={14}/> RENOVAÇÃO PENDENTE
-                    </span>
-                  )}
-                  {eq.status_calibracao === 'OK' && (
-                    <span className="badge-metro badge-conforme">
-                      <ShieldCheck size={14}/> CONFORME NORMAS
-                    </span>
-                  )}
-                </td>
-                
-                <td data-label="Ação" style={{ textAlign: 'right' }}>
-                  {canEdit ? (
-                    <button 
-                      className="btn btn-outline" 
-                      onClick={() => editarEquipamento(eq)}
-                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Edit size={14} /> REGISTRAR AFERIÇÃO
-                    </button>
-                  ) : (
-                    <div className="lock-icon-read" title="Apenas Gestores, Manutenção ou NOC podem registrar aferições">
-                      <Shield size={16} /> <span className="desktop-only-inline" style={{fontSize: '0.7rem', marginLeft: '6px'}}>Protegido</span>
-                    </div>
-                  )}
-                </td>
-                
-              </tr>
-            ))}
-            
-            {equipamentosFiltrados.length === 0 && (
-              <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                  <ClipboardCheck size={40} style={{ opacity: 0.2, margin: '0 auto 1rem auto', display: 'block' }}/>
-                  <p style={{ fontWeight: 'bold', fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>Nenhum ativo localizado.</p>
-                  <p style={{ fontSize: '0.85rem' }}>A pesquisa não retornou resultados ou a filial atual não possui sensores.</p>
-                </td>
-              </tr>
-            )}
-            
-          </tbody>
-        </table>
-      </div>
+      </section>
     </div>
   );
 }

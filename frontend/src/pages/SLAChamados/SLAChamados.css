@@ -1,3 +1,5 @@
+/** Define o layout, os estados visuais e os breakpoints de SLAChamados. */
+
 .sla-page {
   display: flex;
   flex-direction: column;
@@ -14,6 +16,10 @@
 }
 
 .sla-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   padding: 1.2rem;
 }
 
@@ -39,8 +45,93 @@
 
 .sla-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 1rem;
+}
+
+.sla-policy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 390px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--primary);
+}
+
+.sla-policy div {
+  display: grid;
+  gap: 3px;
+}
+
+.sla-policy strong {
+  color: var(--text-main);
+  font-size: .76rem;
+}
+
+.sla-policy span {
+  color: var(--text-muted);
+  font-size: .66rem;
+  text-transform: none;
+}
+
+.sla-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sla-search {
+  min-width: 250px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card-bg);
+  color: var(--text-muted);
+}
+
+.sla-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-main);
+}
+
+.sla-toolbar select {
+  min-height: 42px;
+  padding: 0 34px 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card-bg);
+  color: var(--text-main);
+}
+
+.sla-card-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+
+.sla-card-context span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sla-column.done .sla-card {
+  border-left-color: var(--info);
+}
+
+.sla-column.done .sla-progress div {
+  background: var(--info);
 }
 
 .sla-kpis article {
@@ -53,9 +144,17 @@
   color: var(--secondary);
 }
 
-.sla-kpis article.late svg { color: var(--danger); }
-.sla-kpis article.risk svg { color: var(--warning); }
-.sla-kpis article.ok svg { color: var(--success); }
+.sla-kpis article.late svg {
+  color: var(--danger);
+}
+
+.sla-kpis article.risk svg {
+  color: var(--warning);
+}
+
+.sla-kpis article.ok svg {
+  color: var(--success);
+}
 
 .sla-kpis strong {
   color: var(--text-main);
@@ -111,9 +210,17 @@
   background: color-mix(in srgb, var(--bg-color) 72%, transparent);
 }
 
-.sla-column.late .sla-card { border-left-color: var(--danger); }
-.sla-column.risk .sla-card { border-left-color: var(--warning); }
-.sla-column.ok .sla-card { border-left-color: var(--success); }
+.sla-column.late .sla-card {
+  border-left-color: var(--danger);
+}
+
+.sla-column.risk .sla-card {
+  border-left-color: var(--warning);
+}
+
+.sla-column.ok .sla-card {
+  border-left-color: var(--success);
+}
 
 .sla-card-head,
 .sla-card footer {
@@ -150,7 +257,7 @@
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .sla-progress div {
@@ -159,9 +266,17 @@
   background: var(--primary);
 }
 
-.sla-column.late .sla-progress div { background: var(--danger); }
-.sla-column.risk .sla-progress div { background: var(--warning); }
-.sla-column.ok .sla-progress div { background: var(--success); }
+.sla-column.late .sla-progress div {
+  background: var(--danger);
+}
+
+.sla-column.risk .sla-progress div {
+  background: var(--warning);
+}
+
+.sla-column.ok .sla-progress div {
+  background: var(--success);
+}
 
 .sla-empty {
   min-height: 110px;
@@ -179,8 +294,38 @@
 }
 
 @media (max-width: 720px) {
+
   .sla-kpis,
   .sla-board {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sla-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sla-policy {
+    max-width: none;
+  }
+
+  .sla-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sla-search {
+    min-width: 0;
+  }
+
+  .sla-board {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .sla-column {
+    min-width: 88vw;
+    scroll-snap-align: start;
   }
 }

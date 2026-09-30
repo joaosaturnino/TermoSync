@@ -1,32 +1,53 @@
-import React, { Component } from 'react';
-import { Terminal, Activity } from 'lucide-react';
-import logger from '../utils/logger';
-import './ErrorBoundary.css';
+/**
+ * Módulo: frontend/src/components/ErrorBoundary.jsx
+ * Responsabilidade: Implementa o componente reutilizável Error Boundary e seu contrato visual.
+ */
 
-/*
-  Componente: ErrorBoundary
-  Propósito: Capturar erros de renderização em qualquer subtree React e mostrar uma tela de recuperação.
-  Uso: Envolva o `App` ou partes críticas com <ErrorBoundary> para evitar que falhas quebrem toda a UI.
-  Nota: registra o erro via `logger.error` e fornece botão para recarregar a aplicação.
-*/
+import SystemErrorScreen from './SystemErrorScreen';
+import React, { Component } from 'react';
+import logger from '../utils/logger';
+
+/**
+ * import './ErrorBoundary.css';
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface
+ *
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 export default class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
-  static getDerivedStateFromError() { return { hasError: true }; }
+  // Preserva o erro e a árvore de componentes para compor um diagnóstico útil.
+  constructor(props) { super(props); this.state = { hasError: false, error: null, errorInfo: null }; }
+
+  // React exige que a transição para o fallback aconteça nesta fase estática.
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+
+  // A captura posterior registra detalhes que não devem ser exibidos diretamente ao usuário.
   componentDidCatch(error, errorInfo) { logger.error('ErrorBoundary caught:', error, errorInfo); this.setState({ errorInfo }); }
+
+  // Permite remontar a subtree sem recarregar toda a aplicação.
+  retry = () => this.setState({ hasError: false, error: null, errorInfo: null });
+
   render() {
-    if (this.state.hasError) {
+    // `forceError` existe somente para a prévia controlada em desenvolvimento.
+    if (this.props.forceError || this.state.hasError) {
       return (
-        <div className="ts-crash-screen" role="alert" aria-live="assertive">
-          <div className="ts-crash-box">
-            <Terminal size={56} className="ts-crash-icon" />
-            <h2>Sistema interrompido</h2>
-            <p>Ocorreu um erro inesperado na interface. Sua sessão permanece segura.</p>
-            <div className="ts-crash-code">ERR_UI_RENDER_FAIL</div>
-            <button className="btn btn-danger" onClick={() => window.location.reload()} aria-label="Recarregar aplicação">
-              <Activity size={16} /> Reiniciar
-            </button>
-          </div>
-        </div>
+        <SystemErrorScreen
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+          moduleName={this.props.moduleName}
+          scope={this.props.scope}
+          onRetry={this.props.onRetry || this.retry}
+          onGoHome={this.props.onGoHome}
+          onOpenSupport={this.props.onOpenSupport}
+        />
       );
     }
     return this.props.children;

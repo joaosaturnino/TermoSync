@@ -1,35 +1,127 @@
+/**
+ * Contrato visual global do TermoSync.
+ *
+ * Manutenção:
+ * - telas e componentes devem consumir estes tokens, sem repetir cores literais;
+ * - `--success`, `--caution`, `--warning` e `--danger` representam estados e não decoração;
+ * - a escala `--neutral-*` atende conteúdo fixo de superfícies técnicas escuras;
+ * - superfícies comuns devem preferir `--surface-*`, pois acompanham o tema claro/escuro;
+ * - uma nova cor só deve entrar aqui quando possuir função reutilizável documentada.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 /* =========================================
    1. DESIGN TOKENS E VARIÁVEIS GLOBAIS
    ========================================= */
 :root {
-  --primary: #059669;
-  --primary-hover: #047857;
-  --secondary: #38bdf8;
-  --success: #10b981;
-  --danger: #ef4444;
-  --danger-light: rgba(239, 68, 68, 0.1);
-  --warning: #f59e0b;
-  --info: #3b82f6;
+  --brand-cold: #67b7ff;
+  --brand-core: #42d9ae;
+  --brand-warm: #ff756d;
+  --brand-ink: #071318;
+  --brand-panel: #0b1b21;
+  --brand-spectrum: linear-gradient(90deg, var(--brand-cold) 0 32%, var(--brand-core) 32% 68%, var(--brand-warm) 68% 100%);
+  --font-ui: 'Montserrat', 'Segoe UI', sans-serif;
+  --font-data: 'Montserrat', 'Segoe UI', sans-serif;
 
-  --bg-color: #f8fafc;
-  --card-bg: rgba(255, 255, 255, 0.65);
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --border: rgba(0, 0, 0, 0.08);
+  /*
+   * Escala neutra canônica. Ela substitui os cinzas antes duplicados nas telas
+   * técnicas e mantém contraste previsível em terminais, tabelas e telemetria.
+   */
+  --neutral-0: #ffffff;
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-700: #334155;
+
+  /* Acentos complementares são reservados a gráficos e ferramentas técnicas. */
+  --accent-violet: #8b5cf6;
+  --accent-rose: #e85d75;
+
+  /* Escala operacional: cada gravidade mantém uma cor própria e inequívoca. */
+  --alert-green: #10b981;
+  --alert-yellow: #fbbf24;
+  --alert-orange: #f59e0b;
+  --alert-red: #ef4444;
+
+  --primary: #168f73;
+  --primary-hover: #0f725d;
+  --secondary: #3e91d3;
+  --success: var(--alert-green);
+  --caution: var(--alert-yellow);
+  --warning: var(--alert-orange);
+  --danger: var(--alert-red);
+  --danger-light: rgba(239, 68, 68, 0.1);
+  --info: #3e91d3;
+
+  /* Superfícies e conteúdo: toda tela autenticada deve partir desta escala. */
+  --bg-color: #f3f7f6;
+  --card-bg: rgba(255, 255, 255, 0.82);
+  --surface-base: var(--neutral-0);
+  --surface-raised: var(--neutral-0);
+  --surface-subtle: #e9f0ef;
+  --surface-hover: #e1ebe9;
+  --text-main: #13282e;
+  --text-soft: #3f575d;
+  --text-muted: #60777d;
+  --border: rgba(19, 40, 46, 0.12);
+  --border-strong: rgba(19, 40, 46, 0.24);
+  --text-inverse: var(--neutral-50);
+  --surface-inverse: #071318;
+
+  /* Superfícies técnicas permanecem escuras nos dois temas para terminais e telemetria. */
+  --technical-canvas: #071318;
+  --technical-surface: #0b1b21;
+  --technical-raised: #10242b;
+  --technical-border: rgba(151, 190, 191, 0.16);
+  --technical-text: #edf7f5;
+  --technical-muted: #8da5aa;
+  --technical-text-strong: var(--neutral-50);
+  --technical-text-soft: var(--neutral-200);
+  --technical-text-muted: var(--neutral-300);
+  --technical-divider: var(--neutral-700);
+
+  /*
+   * Conteudo sobre fundos escuros de acesso, cadastro e apresentacao publica.
+   * Estes tons nao acompanham o tema porque essas experiencias possuem fundo
+   * escuro fixo; use a intensidade correspondente a hierarquia do texto.
+   */
+  --on-dark-text: #e5edf7;
+  --on-dark-text-soft: #c5d2df;
+  --on-dark-text-muted: #8fa3b5;
+  --on-dark-text-subtle: #60778b;
+  --on-dark-text-panel: #aebbd0;
+
+  /* Compatibilidade para módulos anteriores à adoção da política visual central. */
+  --primary-color: var(--primary);
+  --secondary-color: var(--secondary);
+  --text-primary: var(--text-main);
+  --text-secondary: var(--text-muted);
+  --border-color: var(--border);
+  --background: var(--bg-color);
+  --background-color: var(--bg-color);
+  --surface: var(--card-bg);
+  --panel-bg: var(--card-bg);
 
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 10px 30px -5px rgba(0, 0, 0, 0.08);
   --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
 }
 
 body.dark-theme {
-  --bg-color: #020617;
-  --card-bg: rgba(15, 23, 42, 0.55);
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
+  --bg-color: #071318;
+  --card-bg: rgba(11, 27, 33, 0.88);
+  --surface-base: #0b1b21;
+  --surface-raised: #10242b;
+  --surface-subtle: #11262d;
+  --surface-hover: #173139;
+  --text-main: #edf7f5;
+  --text-soft: #c5d5d4;
+  --text-muted: #8da5aa;
+  --border: rgba(151, 190, 191, 0.13);
+  --border-strong: rgba(151, 190, 191, 0.28);
   --danger-light: rgba(239, 68, 68, 0.1);
 
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
@@ -42,14 +134,37 @@ body.dark-theme {
   outline-color: var(--primary);
 }
 
+/* Garante Montserrat também nos módulos técnicos e componentes de terceiros. */
+html body #root,
+html body #root * {
+  font-family: var(--font-ui) !important;
+}
+
 body {
   margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-color);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
+  color-scheme: light;
+}
+
+body.dark-theme {
+  color-scheme: dark;
+}
+
+/* Controles sem estilo local herdam contraste e borda coerentes com o tema ativo. */
+:where(input, select, textarea) {
+  color: var(--text-main);
+  background-color: var(--surface-base);
+  border-color: var(--border);
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--text-muted);
+  opacity: 0.82;
 }
 
 /* =========================================
@@ -110,6 +225,20 @@ body {
   color: var(--info);
 }
 
+::selection {
+  background: color-mix(in srgb, var(--brand-core) 34%, transparent);
+  color: var(--text-main);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-cold);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-color: color-mix(in srgb, var(--brand-cold) 38%, transparent) transparent;
+}
+
 .app-health-banner {
   display: flex;
   align-items: center;
@@ -142,12 +271,12 @@ body {
   min-width: 0;
 }
 
-.app-health-banner-main > svg {
+.app-health-banner-main>svg {
   flex: 0 0 auto;
   color: var(--warning);
 }
 
-.app-health-banner.offline .app-health-banner-main > svg {
+.app-health-banner.offline .app-health-banner-main>svg {
   color: var(--danger);
 }
 
@@ -321,13 +450,13 @@ body {
 }
 
 .dark-theme ::-webkit-scrollbar-track {
-  background: #020617;
+  background: var(--technical-canvas);
 }
 
 .dark-theme ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--neutral-700);
   border-radius: 5px;
-  border: 2px solid #020617;
+  border: 2px solid var(--technical-canvas);
 }
 
 .dark-theme ::-webkit-scrollbar-thumb:hover {
@@ -424,6 +553,7 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.3) rgba(2, 6, 23, 0.4);
 }
+
 @keyframes skeletonLoading {
   0% {
     background-position: 200% 0;
@@ -435,6 +565,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

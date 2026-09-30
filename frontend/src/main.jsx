@@ -1,3 +1,5 @@
+/** Centraliza as responsabilidades do módulo main. */
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -11,14 +13,14 @@ import ErrorBoundary from './components/ErrorBoundary';
 // ==========================================
 // CYBER-NOC: SEQUÊNCIA DE BOOT DO TERMINAL
 // ==========================================
-logger.info('%c[ThermoSync NOC] %cInicializando Núcleo de Telemetria e Sistemas de Segurança...', 'color: #10b981; font-weight: 900; font-size: 14px; text-shadow: 0 0 5px #10b981;', 'color: #38bdf8; font-size: 12px;');
+logger.info('%c[ThermoSync NOC] %cInicializando Núcleo de Telemetria e Sistemas de Segurança...', 'color: var(--success); font-weight: 900; font-size: 14px; text-shadow: 0 0 5px var(--success);', 'color: #38bdf8; font-size: 12px;');
 
 // ADICIONE ESTE BLOCO ABAIXO
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <ErrorBoundary>
+        <ErrorBoundary forceError={import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewError') === 'app'}>
           <App />
         </ErrorBoundary>
       </AuthProvider>

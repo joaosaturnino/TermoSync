@@ -51,9 +51,14 @@ Pino Y (Amarelo): Ligue no pino D26 do ESP32.
 
 Pino R (Vermelho): Ligue no pino D27 do ESP32.
 
-⚡ 4. Alarme de Motor (LED Azul da Placa)
-Nenhuma fiação é necessária! Como configuramos o código para o pino 2, a própria placa vai acender a luzinha azul dela quando você disparar o comando de "Forçar Parada Abrupta" pelo painel na web.  
-Desconhecido
+⚡ 4. Indicador de bancada (LED Azul da Placa)
+Nenhuma fiação é necessária. O GPIO 2 aciona somente o LED azul e NÃO controla
+um compressor real. O firmware deve permanecer com TERMOSYNC_PHYSICAL_ACTUATOR=0.
+
+Para controlar carga real são obrigatórios driver isolado, contator dimensionado,
+realimentação e intertravamentos elétricos independentes, instalados e validados
+por profissional habilitado. Nunca conecte compressor ou bobina de potência
+diretamente ao ESP32.
 
 💡 Como organizar a energia na Protoboard:
 Como você não tem nenhum componente de 5V (o relé saiu), todo o seu projeto roda em 3.3V.

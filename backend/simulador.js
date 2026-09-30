@@ -1,46 +1,80 @@
 /**
+ * ============================================================================ ROBÔ SIMULADOR
+ * IoT (DIGITAL TWIN) - TermoSync Enterprise NOC Versão: 8.5 | MODO HÍBRIDO (VIGIA FÍSICO +
+ * SIMULADOR VIRTUAL)
  * ============================================================================
- * ROBÔ SIMULADOR IoT (DIGITAL TWIN) - TermoSync Enterprise NOC
- * Versão: 8.5 | MODO HÍBRIDO (VIGIA FÍSICO + SIMULADOR VIRTUAL)
- * ============================================================================
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '.env'), quiet: true });
 const axios = require('axios');
+
 const API_URL = process.env.API_URL || 'http://127.0.0.1:3001/api';
-const LOGIN_SIMULADOR = { usuario: 'dev_root', senha: 'rootdev' };
+const LOGIN_SIMULADOR = {
+  usuario: process.env.SIMULADOR_USUARIO || 'dev_root',
+  senha: process.env.SIMULADOR_SENHA || 'rootdev'
+};
 const IOT_INGEST_TOKEN = process.env.IOT_INGEST_TOKEN || '';
+const INTERVALO_TELEMETRIA = 2000;
 
-const INTERVALO_TELEMETRIA = 2000; 
+// IDs físicos são somente monitorados; o simulador não injeta telemetria neles.
+const IDS_FISICOS = [1];
 
-// 🛑 COLOQUE AQUI OS IDs DAS SUAS MÁQUINAS REAIS (Placas ESP32)
-// O robô vai apenas LER o banco para elas, sem injetar dados falsos.
-const IDS_FISICOS = [1]; // <-- Ajustado para apenas 1 máquina física!
-
+// Códigos ANSI usados exclusivamente para diferenciar eventos no terminal.
 const COLORS = {
-  reset: "\x1b[0m", bold: "\x1b[1m", cyan: "\x1b[36m", green: "\x1b[32m",
-  yellow: "\x1b[33m", red: "\x1b[31m", blue: "\x1b[34m", magenta: "\x1b[35m", gray: "\x1b[90m"
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  cyan: '\x1b[36m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  red: '\x1b[31m',
+  blue: '\x1b[34m',
+  magenta: '\x1b[35m',
+  gray: '\x1b[90m'
 };
 
 let tokenAtivo = '';
-let historicoTemperaturas = {}; 
-let historicoUmidades = {}; 
+const historicoTemperaturas = {};
+const historicoUmidades = {};
 let tickCount = 0;
 let historicoFinanceiroGerado = false;
+let manutencaoEmAndamento = false;
 
-/**
- * Busca ou monta os dados de get iot headers usados no fluxo atual.
- */
 function getIotHeaders() {
   return IOT_INGEST_TOKEN ? { 'x-iot-token': IOT_INGEST_TOKEN } : {};
 }
 
-console.log(`${COLORS.magenta}${COLORS.bold}
+function exibirCabecalho() {
+  console.log(`${COLORS.magenta}${COLORS.bold}
 =========================================================
   [ TermoSync NOC ] - MOTOR HÍBRIDO IoT & SAAS ATIVO
 =========================================================${COLORS.reset}`);
+}
 
-// 1. LOGIN BLINDADO
+/**
+ * 1. LOGIN BLINDADO
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function autenticar() {
   try {
     process.stdout.write(`${COLORS.yellow}⏳ Estabelecendo handshake seguro [${LOGIN_SIMULADOR.usuario}]... ${COLORS.reset}`);
@@ -54,7 +88,23 @@ async function autenticar() {
   }
 }
 
-// 2. GERA CHAMADOS (ANOMALIAS FÍSICAS REAIS)
+/**
+ * 2. GERA CHAMADOS (ANOMALIAS FÍSICAS REAIS)
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @param {unknown} eq - Valor de eq consumido por esta rotina.
+ * @param {unknown} tipoFalha - Valor de tipo falha consumido por esta rotina.
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function criarChamadoSimulado(eq, tipoFalha) {
   const falhas = {
     'MECANICA': 'URGENTE: O compressor parou inesperadamente e a máquina perdeu pressão de fluido refrigerante.',
@@ -77,12 +127,30 @@ async function criarChamadoSimulado(eq, tipoFalha) {
   } catch (e) {}
 }
 
-// 3. TÉCNICO VIRTUAL (RESOLVE OS CHAMADOS)
+/**
+ * 3. TÉCNICO VIRTUAL (RESOLVE OS CHAMADOS)
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function gerirChamadosPendentes() {
   try {
     const res = await axios.get(`${API_URL}/chamados`, { headers: { Authorization: `Bearer ${tokenAtivo}` } });
     const dados = Array.isArray(res.data) ? res.data : [];
-    const chamados = dados.filter(c => c.status !== 'Concluído');
+    // A manutenção é secundária à telemetria. Um lote limitado impede que uma
+    // fila grande de chamados interrompa por minutos o envio dos sensores.
+    const chamados = dados.filter(c => c.status !== 'Concluído').slice(0, 40);
 
     for (let c of chamados) {
       if (c.urgencia === 'Pendente') {
@@ -114,7 +182,23 @@ async function gerirChamadosPendentes() {
   } catch (error) {}
 }
 
-// 4. MOTOR TERMODINÂMICO & VIGIA FÍSICO
+/**
+ * 4. MOTOR TERMODINÂMICO & VIGIA FÍSICO
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @param {unknown} eq - Valor de eq consumido por esta rotina.
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function simularMaquina(eq) {
   
   // ========================================================================
@@ -203,7 +287,22 @@ async function simularMaquina(eq) {
   }
 }
 
-// 5. MÓDULO FINOPS AVANÇADO
+/**
+ * 5. MÓDULO FINOPS AVANÇADO
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function simularFaturamentoSaaS() {
   try {
     console.log(`\n${COLORS.magenta}${COLORS.bold}💸 [FINOPS] Processando motores de faturamento SaaS...${COLORS.reset}`);
@@ -273,7 +372,23 @@ async function simularFaturamentoSaaS() {
   }
 }
 
-// 6. LOOP BATCH PRINCIPAL
+/**
+ * 6. LOOP BATCH PRINCIPAL
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; registra informações de diagnóstico
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
 async function executarSimulacao() {
   if (!tokenAtivo) { const sucesso = await autenticar(); if (!sucesso) return; }
   try {
@@ -292,21 +407,38 @@ async function executarSimulacao() {
     }
     
     if(tickCount % 20 === 0) console.clear();
-    await gerirChamadosPendentes();
-
-    if (tickCount % 15 === 0) {
-      await simularFaturamentoSaaS();
+    if (tickCount % 15 === 0 && !manutencaoEmAndamento) {
+      manutencaoEmAndamento = true;
+      Promise.allSettled([gerirChamadosPendentes(), simularFaturamentoSaaS()])
+        .finally(() => { manutencaoEmAndamento = false; });
     }
 
   } catch (error) { if (error.response?.status === 401) tokenAtivo = ''; }
 }
 
+
 /**
  * Concentra a logica de iniciar loop seguro para manter o restante do modulo mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface
+ *
+ * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 async function iniciarLoopSeguro() {
   await executarSimulacao();
   setTimeout(iniciarLoopSeguro, tokenAtivo ? INTERVALO_TELEMETRIA : 60000);
 }
 
-iniciarLoopSeguro();
+if (require.main === module) {
+  exibirCabecalho();
+  iniciarLoopSeguro();
+}
+
+module.exports = { COLORS, IDS_FISICOS, INTERVALO_TELEMETRIA, getIotHeaders };

@@ -1,12 +1,16 @@
-import React from 'react';
-import { Menu, Bell, CheckCircle, Search, Volume2, VolumeX, Minimize, Maximize, Sun, Moon, ChevronRight, SlidersHorizontal, LifeBuoy } from 'lucide-react';
+/** Implementa o componente reutilizável Header e seu contrato visual. */
+
+import React, { useState } from 'react';
+import { Bell, CheckCircle, ChevronRight, LifeBuoy, Maximize, Menu, Minimize, Moon, MoreHorizontal, Search, Settings, SlidersHorizontal, Sun, Volume2, VolumeX, X } from 'lucide-react';
+import GlobalSystemSettingsModal from './GlobalSystemSettingsModal';
+import './Header.css';
 
 /**
  * Componente Header (barra superior)
  *
  * Responsabilidades:
- * - Exibir breadcrumbs, notificações, estado de telemetria e ações rápidas
- * - Controlar palette de comandos, tema e indicadores de conexão
+ * - Exibir a identidade da tela, notificações e ações rápidas
+ * - Controlar palette de comandos, tema e preferências visuais
  *
  * Props: várias callbacks e dados de UI (ver assinatura abaixo)
  */
@@ -16,6 +20,8 @@ export default function Header({
   setMenuRecolhido,
   NAVIGATION,
   abaAtiva,
+  activeWorkspace,
+  onNavigate,
   mostrarNotificacoes,
   setMostrarNotificacoes,
   notificacoesDaFilial,
@@ -23,8 +29,6 @@ export default function Header({
   getAlertConfig,
   isFeatureEnabled,
   isOffline,
-  socketInstance: _socketInstance,
-  latencia,
   systemHealth,
   setShowCommandPalette,
   alternarSom,
@@ -32,20 +36,36 @@ export default function Header({
   toggleFullScreen,
   isFullScreen,
   uiDensity,
+  setUiDensity,
   toggleUiDensity,
   setIsDarkMode,
   isDarkMode,
   supportContext
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   // Encontra os dados da tela ativa atual para montar o Breadcrumb
   const navItem = NAVIGATION.find(n => n.id === abaAtiva);
+  const PageIcon = navItem?.icon;
+  const workspaceParent = activeWorkspace?.tabs.find((item) => item.sidebar !== false) || activeWorkspace?.tabs[0];
 
-  // O badge de telemetria resume saúde do backend/sensores sem expor detalhes
-  // técnicos demais no cabeçalho principal.
+  // O diagnóstico de suporte usa o estado dos serviços sem expor dados sensíveis.
   const systemStatusText = systemHealth?.status === 'ok' ? 'SAUDÁVEL' : systemHealth?.status === 'degraded' ? 'DEGRADADO' : 'VERIFICANDO';
-  const systemStatusTone = systemHealth?.status === 'ok' ? 'status-good' : systemHealth?.status === 'degraded' ? 'status-slow' : 'status-offline';
+
   /**
    * Renderiza o componente copiar Resumo Suporte e encapsula sua interacao visual reutilizavel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: interage com APIs do navegador; publica ou consome mensagens MQTT
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const copiarResumoSuporte = async () => {
     // Pacote sem dados sensíveis para o usuário colar em chamados e acelerar triagem.
@@ -72,109 +92,103 @@ export default function Header({
   };
 
   return (
-    <header className="header">
-      <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <button className="btn-icon" onClick={() => { if (window.innerWidth <= 768) setMenuAberto(true); else setMenuRecolhido(!menuRecolhido); }}>
-          <Menu size={22} />
-        </button>
+    <>
+      <header className="header app-header">
+        <div className="header-left">
+          <button type="button" className="btn-icon header-menu-button" onClick={() => { if (window.matchMedia('(max-width: 768px)').matches) setMenuAberto(true); else setMenuRecolhido(!menuRecolhido); }} title={menuRecolhido ? 'Expandir navegação' : 'Recolher navegação'} aria-label={menuRecolhido ? 'Expandir navegação' : 'Abrir navegação'}><Menu size={20} /></button>
 
-        <div className="mobile-title-stack">
-          <span>{navItem?.type || 'ThermoSync'}</span>
-          <strong>{navItem?.label || 'NOC'}</strong>
+          <div className="header-page-identity">
+            {PageIcon && <span className="header-page-icon" aria-hidden="true"><PageIcon size={18} /></span>}
+            <div className="header-page-copy">
+              <nav className="header-breadcrumb" aria-label="Caminho da página">
+                <button type="button" onClick={() => onNavigate?.('dashboard')}>ThermoSync</button>
+                <ChevronRight size={11} />
+                <span>{navItem?.type || 'Usuário'}</span>
+                {activeWorkspace && <><ChevronRight size={11} /><button type="button" onClick={() => workspaceParent && onNavigate?.(workspaceParent.id)}>{activeWorkspace.label}</button></>}
+                <ChevronRight size={11} />
+                <span aria-current="page">{navItem?.label || 'Central de Operações'}</span>
+              </nav>
+              <h1 className="page-title">{navItem?.label || 'Central de Operações'}</h1>
+            </div>
+            {isOffline && <span className="header-offline-badge">Offline</span>}
+          </div>
         </div>
-        
-        {/* BREADCRUMBS DE NAVEGAÇÃO (OPÇÃO 4) */}
-        <div className="desktop-only header-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none' }}>
-          {navItem && navItem.type ? (
-            <>
-              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                {navItem.type}
-              </span>
-              <ChevronRight size={14} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-              <h1 className="page-title" style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-                {navItem.label}
-              </h1>
-            </>
-          ) : (
-            <h1 className="page-title" style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-              ThermoSync NOC
-            </h1>
-          )}
-        </div>
-      </div>
-      
-      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        
-        <div style={{ position: 'relative' }}>
-          {/* Centro de notificações: lista alarmes ativos da filial atual e permite
-              limpeza em lote quando a política do sistema libera a ação. */}
-          <button className="btn-icon" onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)} title="Centro de Notificações">
-            <Bell size={20} />
-            {notificacoesDaFilial?.length > 0 && (
-              <span style={{ position: 'absolute', top: '2px', right: '2px', background: 'var(--danger)', color: 'white', fontSize: '0.6rem', fontWeight: 'bold', minWidth: '16px', height: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', border: '2px solid var(--bg-color)' }}>
-                {notificacoesDaFilial.length}
-              </span>
-            )}
-          </button>
 
-          {mostrarNotificacoes && (
-            <>
-              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }} onClick={() => setMostrarNotificacoes(false)}></div>
-              
-              <div className="anim-slide-up header-notification-popover" style={{ position: 'absolute', top: '120%', right: '-50px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', width: '320px', zIndex: 9999, boxShadow: '0 10px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}><Bell size={16} color="var(--primary)"/> Alertas Ativos</h4>
-                  {notificacoesDaFilial?.length > 0 && (
-                    <button className="btn-action-small" onClick={() => { resolverTodasNotificacoes(); setMostrarNotificacoes(false); }} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>Limpar Todos</button>
-                  )}
-                </div>
-                <div style={{ maxHeight: '350px', overflowY: 'auto', padding: '10px' }}>
-                  {notificacoesDaFilial?.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '2rem 1rem' }}>
-                      <CheckCircle size={32} color="var(--success)" style={{ opacity: 0.5, marginBottom: '10px' }} />
-                      <p style={{ margin: 0 }}>Nenhuma anomalia detectada.</p>
-                    </div>
-                  ) : (
-                    notificacoesDaFilial?.map(n => {
-                      const cfg = getAlertConfig(n.tipo_alerta);
-                      const IconCmp = cfg.icon;
+        <div className="header-actions">
+          <button type="button" className="header-search-button desktop-only" onClick={() => setShowCommandPalette(true)}><Search size={15} /><span>Buscar módulo ou ação</span><kbd>Ctrl K</kbd></button>
+
+          <div className="header-action-anchor">
+            <button type="button" className={`btn-icon header-action-button ${mostrarNotificacoes ? 'active-soft' : ''}`} onClick={() => { setToolsOpen(false); setMostrarNotificacoes(!mostrarNotificacoes); }} title="Central de notificações" aria-label="Central de notificações" aria-expanded={mostrarNotificacoes}>
+              <Bell size={18} />
+              {notificacoesDaFilial?.length > 0 && <span className="header-alert-count">{notificacoesDaFilial.length > 99 ? '99+' : notificacoesDaFilial.length}</span>}
+            </button>
+
+            {mostrarNotificacoes && (
+              <>
+                <button type="button" className="header-popover-backdrop" aria-label="Fechar notificações" onClick={() => setMostrarNotificacoes(false)} />
+                <section className="header-notification-popover" aria-label="Alertas ativos">
+                  <header className="header-popover-heading">
+                    <span><Bell size={16} /><span><strong>Alertas ativos</strong><small>{notificacoesDaFilial?.length || 0} ocorrência(s) em acompanhamento</small></span></span>
+                    <button type="button" onClick={() => setMostrarNotificacoes(false)} title="Fechar"><X size={16} /></button>
+                  </header>
+                  {notificacoesDaFilial?.length > 0 && <div className="header-popover-toolbar"><span>Atualizados em tempo real</span><button type="button" onClick={() => { resolverTodasNotificacoes(); setMostrarNotificacoes(false); }}>Resolver todos</button></div>}
+                  <div className="header-notification-list">
+                    {notificacoesDaFilial?.length === 0 ? (
+                      <div className="header-notification-empty"><CheckCircle size={28} /><strong>Operação normal</strong><span>Nenhuma anomalia detectada nesta filial.</span></div>
+                    ) : notificacoesDaFilial?.map((notification) => {
+                      const config = getAlertConfig(notification.tipo_alerta);
+                      const AlertIcon = config.icon;
                       return (
-                        <div key={n.id} onClick={() => { setMostrarNotificacoes(false); }} style={{ background: `color-mix(in srgb, ${cfg.color} 10%, transparent)`, borderLeft: `3px solid ${cfg.color}`, padding: '10px', borderRadius: '6px', marginBottom: '8px', cursor: 'pointer', transition: '0.2s' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <IconCmp size={14} color={cfg.color} />
-                              {n.equipamento_nome}
-                            </strong>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{new Date(n.data_hora).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                          </div>
-                          <span style={{ color: cfg.color, fontSize: '0.75rem', fontWeight: '600' }}>{n.mensagem}</span>
-                        </div>
-                      )
-                    })
-                  )}
+                        <button type="button" className="header-notification-item" key={notification.id} onClick={() => setMostrarNotificacoes(false)} style={{ '--alert-color': config.color }}>
+                          <span className="header-notification-icon"><AlertIcon size={15} /></span>
+                          <span className="header-notification-copy"><span><strong>{notification.equipamento_nome}</strong><time>{new Date(notification.data_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></span><small>{notification.mensagem}</small></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+
+          <button type="button" className="btn-icon header-action-button desktop-only" onClick={() => setSettingsOpen(true)} title="Configurações do sistema" aria-label="Configurações do sistema"><Settings size={18} /></button>
+
+          <div className="header-action-anchor">
+            <button type="button" className={`btn-icon header-action-button ${toolsOpen ? 'active-soft' : ''}`} onClick={() => { setMostrarNotificacoes(false); setToolsOpen(!toolsOpen); }} title="Mais ações" aria-label="Mais ações" aria-expanded={toolsOpen}><MoreHorizontal size={19} /></button>
+            {toolsOpen && (
+              <>
+                <button type="button" className="header-popover-backdrop" aria-label="Fechar ações" onClick={() => setToolsOpen(false)} />
+                <div className="header-tools-popover" role="menu">
+                  <div className="header-tools-heading"><strong>Ações rápidas</strong><span>Preferências desta sessão</span></div>
+                  <button type="button" role="menuitem" onClick={() => { setShowCommandPalette(true); setToolsOpen(false); }}><Search size={16} /><span><strong>Busca global</strong><small>Localizar módulos e ações</small></span><kbd>Ctrl K</kbd></button>
+                  <button type="button" role="menuitem" onClick={() => { copiarResumoSuporte(); setToolsOpen(false); }}><LifeBuoy size={16} /><span><strong>Copiar diagnóstico</strong><small>Resumo técnico para suporte</small></span></button>
+                  <button type="button" role="menuitem" onClick={alternarSom}>{somAtivoState ? <Volume2 size={16} /> : <VolumeX size={16} />}<span><strong>Alertas sonoros</strong><small>{somAtivoState ? 'Ativados' : 'Desativados'}</small></span><i className={somAtivoState ? 'active' : ''} /></button>
+                  <button type="button" role="menuitem" onClick={toggleUiDensity}><SlidersHorizontal size={16} /><span><strong>Densidade visual</strong><small>{uiDensity === 'compact' ? 'Compacta' : 'Confortável'}</small></span></button>
+                  <button type="button" role="menuitem" onClick={toggleFullScreen}>{isFullScreen ? <Minimize size={16} /> : <Maximize size={16} />}<span><strong>Tela cheia</strong><small>{isFullScreen ? 'Sair do modo expandido' : 'Expandir área de trabalho'}</small></span></button>
+                  <button type="button" role="menuitem" disabled={isFeatureEnabled('forceDarkMode')} onClick={() => setIsDarkMode(!isDarkMode)}>{isDarkMode ? <Sun size={16} /> : <Moon size={16} />}<span><strong>Tema visual</strong><small>{isDarkMode ? 'Alternar para claro' : 'Alternar para escuro'}</small></span></button>
+                  <button type="button" role="menuitem" className="header-tools-settings" onClick={() => { setSettingsOpen(true); setToolsOpen(false); }}><Settings size={16} /><span><strong>Configurações do sistema</strong><small>Abrir preferências globais</small></span><ChevronRight size={15} /></button>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
-
-        <div className="telemetry-badge-simple desktop-only" title={isFeatureEnabled('telemetryStream') ? `Sistema ${systemStatusText.toLowerCase()}` : 'Fluxo Bloqueado pelas Políticas'}>
-          <div className={`signal-bars-simple ${!isFeatureEnabled('telemetryStream') ? 'status-offline' : (isOffline ? 'status-offline' : systemStatusTone)}`}><div className="bar active"></div><div className="bar active"></div><div className={`bar ${!isOffline && isFeatureEnabled('telemetryStream') ? 'active' : ''}`}></div></div>
-          <span className="conn-text">{!isFeatureEnabled('telemetryStream') ? 'STREAM PAUSADA' : systemStatusText}</span>
-          {!isOffline && isFeatureEnabled('telemetryStream') && <span className="conn-ms">{latencia}ms</span>}
-        </div>
-
-        <button className="btn-outline desktop-only header-terminal-btn" onClick={() => setShowCommandPalette(true)} style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}><Search size={14} /> Terminal <span style={{ background: 'rgba(0,0,0,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>⌘K</span></button>
-
-        <div className="header-icon-group" style={{ display: 'flex', gap: '8px' }}>
-          {/* Ações rápidas globais: som, densidade visual, fullscreen e tema. */}
-          <button className="btn-icon" onClick={copiarResumoSuporte} title="Copiar diagnóstico de suporte"><LifeBuoy size={18} /></button>
-          <button className="btn-icon" onClick={alternarSom} title={somAtivoState ? "Desarmar Sirenes" : "Armar Sirenes"}>{somAtivoState ? <Volume2 size={18} color="var(--primary)"/> : <VolumeX size={18} />}</button>
-          <button className={`btn-icon mobile-hidden-action ${uiDensity === 'compact' ? 'active-soft' : ''}`} onClick={toggleUiDensity} title={uiDensity === 'compact' ? 'Usar interface confortável' : 'Usar interface compacta'}><SlidersHorizontal size={18} /></button>
-          <button className="btn-icon desktop-only" onClick={toggleFullScreen} title="Painel de Comando TV">{isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
-          <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Modo Visual" disabled={isFeatureEnabled('forceDarkMode')} style={{ opacity: isFeatureEnabled('forceDarkMode') ? 0.3 : 1 }}>{isDarkMode ? <Sun size={18} color="var(--warning)"/> : <Moon size={18} />}</button>
-        </div>
-      </div>
-    </header>
+      </header>
+    {settingsOpen && (
+      <GlobalSystemSettingsModal
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+        forceDarkMode={isFeatureEnabled('forceDarkMode')}
+        uiDensity={uiDensity}
+        setUiDensity={setUiDensity}
+        soundEnabled={somAtivoState}
+        toggleSound={alternarSom}
+        audioAllowed={isFeatureEnabled('enableAudioAlerts')}
+        isOffline={isOffline}
+        systemHealth={systemHealth}
+        supportContext={supportContext}
+        onClose={() => setSettingsOpen(false)}
+      />
+    )}
+    </>
   );
 }

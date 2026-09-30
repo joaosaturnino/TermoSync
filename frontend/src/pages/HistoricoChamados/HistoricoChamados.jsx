@@ -1,3 +1,9 @@
+/**
+ * Módulo: frontend/src/pages/HistoricoChamados/HistoricoChamados.jsx
+ * Responsabilidade: Implementa a tela Historico Chamados, seus estados, interações e integrações de dados.
+ */
+
+import { Clock3, FileWarning } from 'lucide-react';
 import React, { useCallback, useDeferredValue, useMemo, useState, memo } from 'react';
 import { 
   Printer, Archive, MapPin, User, Wrench, CheckSquare, 
@@ -11,6 +17,18 @@ const LOAD_MORE_HISTORY = 60;
 
 /**
  * Normaliza normalize text para evitar divergencia de formato nas comparacoes.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const normalizeText = (value) =>
   String(value || '')
@@ -19,8 +37,21 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+
 /**
  * Verifica a condicao is historico status e retorna um valor booleano.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} chamado - Valor de chamado consumido por esta rotina.
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const isHistoricoStatus = (chamado) => {
   // O histórico aceita variações de status para ser tolerante a registros antigos
@@ -32,8 +63,21 @@ const isHistoricoStatus = (chamado) => {
     || chamado?.arquivado === true;
 };
 
+
 /**
  * Busca ou monta os dados de get chamado time usados no fluxo atual.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} chamado - Valor de chamado consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 const getChamadoTime = (chamado) => {
   const rawDate = chamado?.data_conclusao || chamado?.data_abertura;
@@ -41,10 +85,64 @@ const getChamadoTime = (chamado) => {
   return Number.isFinite(time) ? time : 0;
 };
 
+/**
+ * Calcula o tempo total da intervenção quando abertura e conclusão são válidas.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} chamado - Valor de chamado consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const getDuracaoChamado = (chamado) => {
+  const inicio = chamado?.data_abertura ? new Date(chamado.data_abertura).getTime() : NaN;
+  const fim = chamado?.data_conclusao ? new Date(chamado.data_conclusao).getTime() : NaN;
+  if (!Number.isFinite(inicio) || !Number.isFinite(fim) || fim < inicio) return null;
+   /**
+    * Concentra a logica de horas para manter o restante do tela mais legivel.
+    *
+    * Responsabilidade: mantém este comportamento isolado para que validação,
+    * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+    *
+    * Fluxo principal:
+    * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+    *
+    * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+    *
+    * @returns {unknown} Resultado calculado para consumo do chamador.
+    * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+    */
+
+  /**
+   * Concentra a logica de horas para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const horas = (fim - inicio) / 36e5;
+  return horas < 24 ? `${Math.max(1, Math.round(horas))}h` : `${Math.round(horas / 24)}d`;
+};
+
 // ============================================================================
 // COMPONENTE OTIMIZADO (MEMO): Evita a re-renderização massiva da lista
 // ============================================================================
 const HistoricoCard = memo(({ c }) => {
+  const laudoCompleto = Boolean(String(c.nota_resolucao || '').trim() && c.data_conclusao);
+  const duracao = getDuracaoChamado(c);
   // Card memoizado para manter scroll fluido quando há muitos laudos na lista.
   return (
     <div className="card historico-card">
@@ -54,8 +152,9 @@ const HistoricoCard = memo(({ c }) => {
           {c.equipamento_nome || 'Equipamento não especificado'}
         </div>
         <div className="historico-badges">
+          <span className="historico-badge">OS-{c.id}</span>
           {c.urgencia && <span className="historico-badge badge-urgencia">{c.urgencia}</span>}
-          <span className="historico-badge"><Shield size={10} style={{display:'inline', marginBottom:'-2px', marginRight:'2px'}}/> Autenticado</span>
+          <span className={`historico-badge ${laudoCompleto ? '' : 'incomplete'}`}>{laudoCompleto ? <Shield size={10}/> : <FileWarning size={10}/>} {laudoCompleto ? 'Laudo completo' : 'Revisão pendente'}</span>
         </div>
       </div>
 
@@ -73,6 +172,9 @@ const HistoricoCard = memo(({ c }) => {
         <div className="historico-meta-item">
           <Wrench size={15} /> Técnico: <strong>{c.tecnico_responsavel || 'Equipe Geral'}</strong>
         </div>
+        <div className="historico-meta-item">
+          <Clock3 size={15} /> Duração: <strong>{duracao || 'Não calculada'}</strong>
+        </div>
       </div>
 
       <div className="historico-resolucao">
@@ -87,29 +189,51 @@ const HistoricoCard = memo(({ c }) => {
             <CalendarCheck size={14} />
             {c.data_conclusao ? new Date(c.data_conclusao).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data indisponível'}
           </div>
-          <div className="audit-stamp">COMPLIANCE</div>
+          <div className={`audit-stamp ${laudoCompleto ? '' : 'pending'}`}>{laudoCompleto ? 'VALIDADO' : 'INCOMPLETO'}</div>
         </div>
       </div>
     </div>
   );
 });
 
-// ============================================================================
-// COMPONENTE PRINCIPAL (COM SEGURANÇA E ISOLAMENTO DE DADOS)
-// ============================================================================
 /**
- * Histórico de Chamados (Laudos)
+ * ============================================================================ COMPONENTE
+ * PRINCIPAL (COM SEGURANÇA E ISOLAMENTO DE DADOS)
+ * ============================================================================ Histórico de
+ * Chamados (Laudos) Responsabilidades:
  *
- * Responsabilidades:
- * - Exibir ordens de serviço já concluídas e seus laudos técnicos
- * - Fornecer filtros por técnico, filial e termos de busca
- * - Permitir exportação/impresão e auditoria do histórico
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.userRole - Propriedade userRole usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.filialAtiva - Propriedade filialAtiva usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.nomeLogado - Propriedade nomeLogado usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.chamados - Propriedade chamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.tecnicosDb - Propriedade tecnicosDb usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.gerarLoteOS - Propriedade gerarLoteOS usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarChamados - Propriedade carregarChamados usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function HistoricoChamados({
   userRole, filialAtiva, nomeLogado, chamados = [], tecnicosDb = [], gerarLoteOS, 
   api, carregarChamados, showToast
 }) {
   const [tecnicoFiltroOS, setTecnicoFiltroOS] = useState('todos');
+  const [periodo, setPeriodo] = useState('todos');
+  const [qualidade, setQualidade] = useState('todos');
+  const [instanteReferencia] = useState(Date.now);
   const [busca, setBusca] = useState('');
   const buscaDiferida = useDeferredValue(busca);
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_HISTORY);
@@ -131,11 +255,20 @@ export default function HistoricoChamados({
 
     const termo = normalizeText(buscaDiferida);
     const filialSelecionada = normalizeText(filialAtiva);
+    const agora = instanteReferencia;
 
     let list = chamados.filter(c => {
         // 1. REGRA: Apenas mostrar ordens finalizadas/arquivadas no Histórico
         // Usamos includes() e toLowerCase() para evitar que falte o acento de "Concluído" no banco
         if (!isHistoricoStatus(c)) return false;
+
+        const tempoChamado = getChamadoTime(c);
+        const diasPeriodo = periodo === '30d' ? 30 : periodo === '90d' ? 90 : null;
+        if (diasPeriodo && (!tempoChamado || agora - tempoChamado > diasPeriodo * 86400000)) return false;
+
+        const laudoCompleto = Boolean(String(c.nota_resolucao || '').trim() && c.data_conclusao);
+        if (qualidade === 'completo' && !laudoCompleto) return false;
+        if (qualidade === 'incompleto' && laudoCompleto) return false;
 
         // 2. ISOLAMENTO DE DADOS (TENANCY) E FILIAL
         // Usamos trim() e toLowerCase() para evitar que um espaço no banco "Loja " esconda a OS
@@ -174,7 +307,7 @@ export default function HistoricoChamados({
 
     // 5. Ordenação Padrão: Mais recente no topo
     return list.sort((a, b) => getChamadoTime(b) - getChamadoTime(a));
-  }, [chamados, filialAtiva, nomeLogado, tecnicoFiltroOS, buscaDiferida, isManutencao, isLoja]);
+  }, [chamados, filialAtiva, nomeLogado, tecnicoFiltroOS, buscaDiferida, isManutencao, isLoja, periodo, qualidade, instanteReferencia]);
 
   const chamadosVisiveis = useMemo(
     // Renderização incremental: mostra um bloco inicial e expande sob demanda.
@@ -202,12 +335,33 @@ export default function HistoricoChamados({
   const kpis = useMemo(() => {
     const total = chamadosHistoricoFiltrados.length;
     const tecnicosUnicos = new Set(chamadosHistoricoFiltrados.map(c => c.tecnico_responsavel).filter(Boolean)).size;
-    return { total, tecnicosUnicos };
+    const completos = chamadosHistoricoFiltrados.filter(c => String(c.nota_resolucao || '').trim() && c.data_conclusao).length;
+    const duracoes = chamadosHistoricoFiltrados.map(c => {
+      const inicio = c.data_abertura ? new Date(c.data_abertura).getTime() : NaN;
+      const fim = c.data_conclusao ? new Date(c.data_conclusao).getTime() : NaN;
+      return Number.isFinite(inicio) && Number.isFinite(fim) && fim >= inicio ? (fim - inicio) / 36e5 : null;
+    }).filter(Number.isFinite);
+    const tempoMedio = duracoes.length ? Math.round(duracoes.reduce((sum, value) => sum + value, 0) / duracoes.length) : 0;
+    return { total, tecnicosUnicos, completos, pendentes: total - completos, conformidade: total ? Math.round((completos / total) * 100) : 100, tempoMedio };
   }, [chamadosHistoricoFiltrados]);
 
-  // ======================================================================
-  // FUNÇÃO DE EXCLUSÃO (Protegida)
-  // ======================================================================
+  /**
+   * ====================================================================== FUNÇÃO DE EXCLUSÃO
+   * (Protegida) ======================================================================
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const handleExcluirHistorico = async () => {
     if (!isDevOrAdmin) {
       if (showToast) showToast('Acesso negado. Apenas o NOC pode purgar o banco de dados.', 'error');
@@ -273,6 +427,14 @@ export default function HistoricoChamados({
             </select>
           )}
 
+          <select className="select-input historico-filter-select" value={periodo} onChange={(event) => { setPeriodo(event.target.value); setVisibleLimit(INITIAL_VISIBLE_HISTORY); }} title="Filtrar por período">
+            <option value="todos">Todo o período</option><option value="30d">Últimos 30 dias</option><option value="90d">Últimos 90 dias</option>
+          </select>
+
+          <select className="select-input historico-filter-select" value={qualidade} onChange={(event) => { setQualidade(event.target.value); setVisibleLimit(INITIAL_VISIBLE_HISTORY); }} title="Filtrar por integridade do laudo">
+            <option value="todos">Todos os laudos</option><option value="completo">Completos</option><option value="incompleto">Com pendência</option>
+          </select>
+
           <button
             className="btn btn-outline btn-print-history"
             onClick={() => gerarLoteOS(chamadosHistoricoFiltrados || [])}
@@ -313,9 +475,17 @@ export default function HistoricoChamados({
         <div className="kpi-box" title="Todos os laudos armazenados possuem assinatura de sistema imutável.">
           <div className="kpi-icon-wrap success"><ShieldCheck size={20} /></div>
           <div>
-            <div className="kpi-value">100%</div>
-            <div className="kpi-label">Conformidade Tática</div>
+            <div className="kpi-value">{kpis.conformidade}%</div>
+            <div className="kpi-label">Laudos Completos</div>
           </div>
+        </div>
+        <div className="kpi-box">
+          <div className="kpi-icon-wrap warning"><FileWarning size={20} /></div>
+          <div><div className="kpi-value">{kpis.pendentes}</div><div className="kpi-label">Pendências Documentais</div></div>
+        </div>
+        <div className="kpi-box">
+          <div className="kpi-icon-wrap info"><Clock3 size={20} /></div>
+          <div><div className="kpi-value">{kpis.tempoMedio}h</div><div className="kpi-label">Tempo Médio de Solução</div></div>
         </div>
       </div>
 

@@ -1,282 +1,414 @@
+/**
+ * Módulo: frontend/src/pages/Simulador/Simulador.jsx
+ * Responsabilidade: Implementa a tela Simulador, seus estados, interações e integrações de dados.
+ */
+
+import { AlertTriangle, CheckCircle2, ChevronRight, CircleGauge, Gauge, History, Play, Radio, RotateCcw, Search, Server, Terminal, Trash2, Wifi } from 'lucide-react';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  Cpu, Zap, Flame, WifiOff, Terminal as TerminalIcon,
-  ShieldCheck, Siren, Sliders, Activity, Crosshair, Network, DoorOpen, ShieldAlert
+  Cpu, Zap, Flame, WifiOff,
+  ShieldCheck, Activity, DoorOpen, ShieldAlert
 } from 'lucide-react';
 import './Simulador.css';
 
+const SCENARIOS = [
+  { id: 'NORMAL', label: 'Operação normal', description: 'Leitura estável dentro dos limites.', severity: 'Informativo', tone: 'safe', icon: ShieldCheck },
+  { id: 'TEMPERATURA', label: 'Temperatura elevada', description: 'Simula valor acima do limite configurado.', severity: 'Crítico', tone: 'danger', icon: Flame },
+  { id: 'UMIDADE', label: 'Umidade elevada', description: 'Simula umidade acima da faixa esperada.', severity: 'Atenção', tone: 'warning', icon: Activity },
+  { id: 'PORTA_ABERTA', label: 'Porta aberta', description: 'Representa perda térmica por abertura prolongada.', severity: 'Atenção', tone: 'warning', icon: DoorOpen },
+  { id: 'MECANICA', label: 'Falha mecânica', description: 'Simula refrigeração ineficiente e baixo consumo.', severity: 'Crítico', tone: 'danger', icon: ShieldAlert },
+  { id: 'DEGELO', label: 'Ciclo de degelo', description: 'Simula um ciclo controlado de degelo.', severity: 'Operacional', tone: 'info', icon: Zap },
+  { id: 'REDE', label: 'Falha de comunicação', description: 'Simula indisponibilidade do equipamento na rede.', severity: 'Crítico', tone: 'danger', icon: WifiOff }
+];
+ /**
+  * Formata format time para exibicao segura na interface.
+  *
+  * Responsabilidade: mantém este comportamento isolado para que validação,
+  * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+  *
+  * Fluxo principal:
+  * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+  *
+  * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+  *
+  * @param {unknown} value - Valor de value consumido por esta rotina.
+  * @returns {unknown} Resultado calculado para consumo do chamador.
+  * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+  */
+
 /**
- * Renderiza a tela Simulador e concentra as regras de apresentacao desse modulo.
+ * Formata format time para exibicao segura na interface.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function Simulador({ api, equipamentos, showToast }) {
+const formatTime = (value = new Date()) => new Date(value).toLocaleTimeString('pt-BR', { hour12: false });
+
+/**
+ * Concentra a logica de number or para manter o restante do tela mais legivel.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} value - Valor de value consumido por esta rotina.
+ * @param {unknown} fallback - Valor de fallback consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+/**
+ * Oferece um laboratorio controlado para testar telemetria, alertas e comandos de hardware sem
+ * expor o token tecnico usado pelos dispositivos IoT.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador; publica ou consome mensagens MQTT
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.equipamentos - Propriedade equipamentos usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.socket - Propriedade socket usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+ */
+export default function Simulador({ api, equipamentos = [], showToast, socket, setModalConfig }) {
   const [targetMode, setTargetMode] = useState('SINGLE');
   const [eqId, setEqId] = useState('');
-  const [temp, setTemp] = useState('5.0');
-  const [umidade, setUmidade] = useState('60');
-  const [alerta, setAlerta] = useState('NENHUM');
-  const [isEnviando, setIsEnviando] = useState(false);
-  const [terminalLogs, setTerminalLogs] = useState([]);
-  const [wafActive, setWafActive] = useState(false);
-
-  const terminalEndRef = useRef(null);
+  const [scenario, setScenario] = useState('TEMPERATURA');
+  const [temperature, setTemperature] = useState('12.0');
+  const [humidity, setHumidity] = useState('60');
+  const [consumption, setConsumption] = useState('1.20');
+  const [sendHardware, setSendHardware] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [search, setSearch] = useState('');
+  const [logs, setLogs] = useState([{ id: 'boot', time: formatTime(), level: 'info', message: 'Laboratorio DEV pronto. Saida fisica desativada por padrao.' }]);
+  const [results, setResults] = useState([]);
+  const [liveReading, setLiveReading] = useState(null);
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('termosync:simulator-history') || '[]'); }
+    catch { return []; }
+  });
+  const logEndRef = useRef(null);
 
   useEffect(() => {
-    if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [terminalLogs]);
+    sessionStorage.setItem('termosync:simulator-history', JSON.stringify(history.slice(0, 12)));
+  }, [history]);
 
   useEffect(() => {
-    let isMounted = true;
-    const timeouts = [];
+    logEndRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [logs]);
 
-    const bootSequence = [
-      "[SYS] Inicializando KERNEL de Engenharia de Caos v10.5...",
-      "[NET] Estabelecendo uplink criptografado com servidores NOC...",
-      "[SEC] Contornando protocolos de segurança WAF/IDS...",
-      "[OK]  Canal estabelecido. Aguardando comandos de injeção de payloads..."
-    ];
-    
-    let delay = 0;
-    bootSequence.forEach((msg) => {
-      const t = setTimeout(() => {
-        if (isMounted) {
-          setTerminalLogs(prev => [...prev, { time: new Date().toLocaleTimeString('pt-BR', { hour12: false }), payload: msg, tipoLog: 'SYS' }]);
-        }
-      }, delay);
-      timeouts.push(t);
-      delay += 500;
-    });
-
-    return () => { isMounted = false; timeouts.forEach(clearTimeout); };
-  }, []);
-
-  /**
-   * Concentra a logica de adicionar log para manter o restante do tela mais legivel.
-   */
-  const adicionarLog = (payload, tipoLog = 'POST') => {
-    const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
-    setTerminalLogs(prev => [...prev, { time: timestamp, payload: typeof payload === 'string' ? payload : JSON.stringify(payload), tipoLog }]);
-  };
-
-  /**
-   * Limpa limpar terminal para manter o estado consistente.
-   */
-  const limparTerminal = () => setTerminalLogs([]);
-
-  const { defcon, threatColor, threatLabel, slaDrop } = useMemo(() => {
-    if (alerta === 'NENHUM') return { defcon: 5, threatColor: 'threat-low', threatLabel: 'OPERAÇÃO NORMAL', slaDrop: '-0.00%' };
-    if (alerta === 'DEGELO' || alerta === 'UMIDADE') return { defcon: 3, threatColor: 'threat-med', threatLabel: 'ANOMALIA MODERADA', slaDrop: '-0.15%' };
-    const dropBase = alerta === 'REDE' ? 1.2 : 2.5;
-    const dropFinal = targetMode === 'CLUSTER' ? (dropBase * (equipamentos?.length || 1)).toFixed(2) : dropBase.toFixed(2);
-    return { defcon: 1, threatColor: 'threat-high', threatLabel: 'FALHA CRÍTICA', slaDrop: `-${dropFinal}%` };
-  }, [alerta, targetMode, equipamentos]);
-
-  // ============================================================================
-  // INJEÇÃO DE CAOS (AGORA ENVIA TUDO PARA O ESP32)
-  // ============================================================================
-  const injetarDados = async (e) => {
-    if (e) e.preventDefault();
-    if (targetMode === 'SINGLE' && !eqId) return showToast('Selecione uma máquina-alvo na lista.', 'warning');
-
-    setIsEnviando(true);
-    adicionarLog(`[INIT] Iniciando ataque tipo ${alerta} em modo ${targetMode}...`, 'SYS');
-    
-    /**
-     * Concentra a logica de disparar para maquina para manter o restante do tela mais legivel.
-     */
-    const dispararParaMaquina = async (idMaquina) => {
-      // 1. Injeta no BD (Gêmeo Digital)
-      const payload = {
-        equipamento_id: idMaquina, temperatura: temp, umidade: umidade, alerta_forcado: alerta,
-        consumo_kwh: (Math.random() * 2 + 1).toFixed(2), motor_ligado: alerta !== 'MECANICA',
-        em_degelo: alerta === 'DEGELO', mac_address: 'CA:OS:00:FF:AA:BB', sinal_wifi: alerta === 'REDE' ? -99 : -50
-      };
-      await api.post('/leituras', payload);
-      adicionarLog(payload, 'POST');
-
-      // 2. MANDA PRO ESP32 FÍSICO SEMPRE!
-      try {
-        let acaoHardware = '';
-        if (alerta === 'REDE') {
-          acaoHardware = 'REBOOT';
-        } else if (alerta === 'MECANICA') {
-          acaoHardware = 'MECANICA_OFF';
-        } else {
-          // Empacota todos os dados em uma String para o Arduino ler
-          acaoHardware = `CAOS_INJETADO | Alerta: ${alerta} | Temp: ${temp}C | Umid: ${umidade}%`;
-        }
-        
-        await api.post(`/hardware/${idMaquina}/comando`, { acao: acaoHardware, estado: 0 });
-        adicionarLog(`[MQTT ATTACK] Dados transmitidos fisicamente para o Nó ID: ${idMaquina}.`, 'PATCH');
-      } catch (err) {
-        adicionarLog(`[MQTT ERROR] Falha ao comunicar com o Nó ${idMaquina}.`, 'SYS');
-      }
+  useEffect(() => {
+    if (!socket || !eqId) return undefined;
+    const receiveReading = (reading) => {
+      const equipmentId = reading?.equipamento_id ?? reading?.equipamentoId ?? reading?.id;
+      if (String(equipmentId) === String(eqId)) setLiveReading(reading);
     };
-    
-    try {
-      if (targetMode === 'SINGLE') { await dispararParaMaquina(eqId); } 
-      else {
-        for (const eq of equipamentos) {
-          await dispararParaMaquina(eq.id);
-          await new Promise(r => setTimeout(r, 200)); 
-        }
-      }
-      showToast(`Payload anômalo e ataque físico injetados com sucesso.`, 'error');
-    } catch (err) { showToast('Falha ao injetar pacote no Node.', 'error'); }
-    setIsEnviando(false);
-  };
+    socket.on('nova_leitura', receiveReading);
+    return () => socket.off('nova_leitura', receiveReading);
+  }, [eqId, socket]);
 
-  // ============================================================================
-  // CURA DO SISTEMA
-  // ============================================================================
-  const recuperarSistema = async () => {
-    setIsEnviando(true);
-    adicionarLog(`[RECOVERY] Inicializando protocolo de cura global...`, 'SYS');
-    try {
-      await api.put('/notificacoes/resolver-todas');
-      const alvos = targetMode === 'SINGLE' && eqId ? [equipamentos.find(e => String(e.id) === String(eqId))] : equipamentos;
-      
-      for (const eq of alvos) {
-        if (!eq) continue;
-        const tempIdeal = ((parseFloat(eq.temp_max) + parseFloat(eq.temp_min)) / 2).toFixed(1);
-        const payloadCura = {
-          equipamento_id: eq.id, temperatura: tempIdeal || '4.0', umidade: '50', alerta_forcado: 'NENHUM',
-          consumo_kwh: '0.85', motor_ligado: true, em_degelo: false, mac_address: 'RE:CO:VE:RY:00:11', sinal_wifi: -45
-        };
-        await api.post('/leituras', payloadCura);
-        adicionarLog(payloadCura, 'PATCH');
+  const selectedEquipment = useMemo(
+    () => equipamentos.find((item) => String(item.id) === String(eqId)) || null,
+    [equipamentos, eqId]
+  );
+  const selectedScenario = useMemo(
+    () => SCENARIOS.find((item) => item.id === scenario) || SCENARIOS[0],
+    [scenario]
+  );
+  const filteredEquipment = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return equipamentos;
+    return equipamentos.filter((item) => `${item.id} ${item.nome} ${item.filial} ${item.setor}`.toLowerCase().includes(term));
+  }, [equipamentos, search]);
+  const targetIds = useMemo(
+    () => targetMode === 'CLUSTER' ? equipamentos.map((item) => Number(item.id)) : (eqId ? [Number(eqId)] : []),
+    [targetMode, equipamentos, eqId]
+  );
 
-        // Manda comando de CURA pro ESP32
-        try {
-          await api.post(`/hardware/${eq.id}/comando`, { acao: 'SISTEMA_NORMALIZADO', estado: 1 });
-          adicionarLog(`[MQTT RECOVERY] Sistema restaurado no Nó ID: ${eq.id}.`, 'PATCH');
-        } catch (err) {
-          adicionarLog(`[MQTT ERROR] Falha ao restaurar o Nó ID: ${eq.id}.`, 'SYS');
-        }
-      }
-
-      setTemp('5.0'); setUmidade('60'); setAlerta('NENHUM'); setWafActive(false); 
-      showToast('Protocolo de Restauração aplicado. Gêmeo Digital e Hardware normalizados.', 'success');
-    } catch (err) { showToast('Falha ao restaurar o sistema.', 'error'); }
-    setIsEnviando(false);
+  /**
+   * Mantem o historico curto da sessao disponivel durante a navegacao.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} message - Valor de message consumido por esta rotina.
+   * @param {unknown} level - Valor de level consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const addLog = (message, level = 'info') => {
+    setLogs((current) => [...current.slice(-79), { id: `${Date.now()}-${Math.random()}`, time: formatTime(), level, message }]);
   };
 
   /**
-   * Concentra a logica de aplicar cenario para manter o restante do tela mais legivel.
+   * Carrega valores coerentes com o cenario e os limites do equipamento atual.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} nextScenario - Valor de next scenario consumido por esta rotina.
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const aplicarCenario = (tipo) => {
-    let novaTemp = temp; let novaUmid = umidade; let novoAlerta = alerta;
-    switch (tipo) {
-      case 'INCENDIO': novaTemp = '85.5'; novaUmid = '20'; novoAlerta = 'TEMPERATURA'; break;
-      case 'INVASAO': novoAlerta = 'PORTA_ABERTA'; break;
-      case 'APAGAO': novoAlerta = 'MECANICA'; novaTemp = '12.0'; break;
-      case 'OFFLINE': novoAlerta = 'REDE'; break;
-      default: break;
+  const selectScenario = (nextScenario) => {
+    const min = numberOr(selectedEquipment?.temp_min, 0);
+    const max = numberOr(selectedEquipment?.temp_max, 8);
+    const humidityMax = numberOr(selectedEquipment?.umidade_max, 75);
+    const presets = {
+      NORMAL: [((min + max) / 2).toFixed(1), '50', '0.85'],
+      TEMPERATURA: [Math.min(80, max + 8).toFixed(1), '55', '1.60'],
+      UMIDADE: [((min + max) / 2).toFixed(1), Math.min(100, humidityMax + 15).toFixed(0), '1.10'],
+      PORTA_ABERTA: [Math.min(80, max + 3).toFixed(1), '62', '1.35'],
+      MECANICA: [Math.min(80, max + 12).toFixed(1), '58', '0.20'],
+      DEGELO: [Math.min(80, max + 5).toFixed(1), '70', '1.80'],
+      REDE: [((min + max) / 2).toFixed(1), '50', '0.90']
+    };
+    const [nextTemperature, nextHumidity, nextConsumption] = presets[nextScenario];
+    setScenario(nextScenario);
+    setTemperature(nextTemperature);
+    setHumidity(nextHumidity);
+    setConsumption(nextConsumption);
+  };
+
+  /**
+   * Executa o cenario no backend e consolida o resultado por equipamento.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @returns {Promise<void>} Promise concluída quando todas as etapas assíncronas terminam.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const executeScenario = async () => {
+    if (targetIds.length === 0) {
+      showToast('Selecione um equipamento para executar o teste.', 'warning');
+      return;
     }
-    setTemp(novaTemp); setUmidade(novaUmid); setAlerta(novoAlerta);
-    showToast(`Cenário [${tipo}] carregado no buffer tático. Pressione Executar Payload.`, 'info');
+    setIsRunning(true);
+    setResults([]);
+    addLog(`Iniciando ${scenario} em ${targetIds.length} alvo(s). Hardware: ${sendHardware ? 'habilitado' : 'desabilitado'}.`, 'run');
+    try {
+      const response = await api.post('/simulador/executar', {
+        scenario,
+        equipmentIds: targetIds,
+        temperature: Number(temperature),
+        humidity: Number(humidity),
+        consumption: Number(consumption),
+        sendHardware
+      });
+      const payload = response.data || {};
+      setResults(payload.results || []);
+      setHistory((current) => [{
+        id: Date.now(), time: new Date().toISOString(), scenario, label: selectedScenario.label,
+        targets: targetIds.length, success: payload.totals?.success || 0,
+        failed: payload.totals?.failed || 0, hardware: sendHardware
+      }, ...current].slice(0, 12));
+      addLog(`Execucao concluida: ${payload.totals?.success || 0} sucesso(s), ${payload.totals?.failed || 0} falha(s).`, payload.success ? 'success' : 'warning');
+      showToast(payload.success ? 'Simulacao concluida com sucesso.' : 'Simulacao concluida com ressalvas.', payload.success ? 'success' : 'warning');
+    } catch (error) {
+      const payload = error.response?.data;
+      if (payload?.results) setResults(payload.results);
+      const message = payload?.error || 'Nao foi possivel executar a simulacao.';
+      addLog(message, 'error');
+      showToast(message, 'error');
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   /**
-   * Concentra a logica de aplicar defesa waf para manter o restante do tela mais legivel.
+   * Solicita confirmacao para operacoes amplas ou que alcancam hardware real.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; publica ou consome mensagens MQTT
+   *
+   * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
-  const aplicarDefesaWAF = () => {
-    setWafActive(true);
-    adicionarLog("[WAF] Firewall de Aplicação Web Ativado. Bloqueando injeções externas.", "PATCH");
-    showToast("Escudos Erguidos. Tráfego anômalo será mitigado.", "success");
+  const requestExecution = (event) => {
+    event?.preventDefault();
+    if (targetIds.length === 0) return executeScenario();
+    if (!setModalConfig || (!sendHardware && targetMode !== 'CLUSTER')) return executeScenario();
+    setModalConfig({
+      isOpen: true,
+      title: sendHardware ? 'Confirmar saida para hardware' : 'Confirmar simulacao em lote',
+      message: `Executar ${selectedScenario.label} em ${targetIds.length} equipamento(s)${sendHardware ? ' com comandos MQTT fisicos habilitados' : ''}?`,
+      isPrompt: false,
+      onConfirm: executeScenario
+    });
   };
+
+  /**
+   * Prepara a normalizacao apenas para os alvos atualmente selecionados.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+   *
+   * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+   *
+   * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
+  const requestRecovery = () => {
+    selectScenario('NORMAL');
+    addLog('Cenario de recuperacao carregado. Revise os alvos e execute para confirmar.', 'success');
+    showToast('Recuperacao preparada. Execute quando estiver pronto.', 'info');
+  };
+
+  const displayTemperature = liveReading?.temperatura ?? selectedEquipment?.ultima_temp ?? selectedEquipment?.temperatura ?? '--';
+  const displayHumidity = liveReading?.umidade ?? selectedEquipment?.ultima_umidade ?? '--';
 
   return (
-    <div className="simulador-wrapper anim-fade-in stagger-1">
-      <div className="caos-header">
-        <div className="caos-icon-box"><Cpu size={56} color="var(--danger)" /></div>
-        <div style={{ zIndex: 3 }}>
-          <h2 className="caos-title">Engenharia de Caos & Stress Test</h2>
-          <p className="caos-subtitle">
-            Ambiente de auditoria destrutiva. As simulações executadas aqui <strong>são transmitidas em tempo real para a placa física (ESP32) via MQTT.</strong>
-          </p>
+    <div className="simulator-page">
+      <header className="simulator-header">
+        <div className="simulator-heading">
+          <span className="simulator-heading-icon"><Cpu size={24} /></span>
+          <div><span className="simulator-kicker">Laboratorio de engenharia</span><h2>Simulador IoT</h2><p>Valide telemetria, regras de alerta e recuperacao com escopo controlado.</p></div>
         </div>
-      </div>
-      
-      <div className="caos-grid stagger-2">
-        <div className="caos-panel">
-          <div className="defcon-container">
-            <div className="defcon-status">
-              <span className={`defcon-level ${threatColor}`}>0{defcon}</span>
-              <div className="defcon-desc">
-                <span className="defcon-label">Nível de Ameaça (DEFCON)</span>
-                <span className={`defcon-text ${threatColor}`}>{threatLabel}</span>
+        <div className={`simulator-live ${socket?.connected ? 'online' : ''}`}><Radio size={16} /><span>{socket?.connected ? 'Tempo real conectado' : 'Tempo real indisponivel'}</span></div>
+      </header>
+
+      <section className="simulator-metrics" aria-label="Resumo da simulacao">
+        <div><Server size={18} /><span>Alvos</span><strong>{targetIds.length || 0}</strong></div>
+        <div><CircleGauge size={18} /><span>Cenario</span><strong>{selectedScenario.severity}</strong></div>
+        <div><Gauge size={18} /><span>Temperatura</span><strong>{temperature} C</strong></div>
+        <div><Wifi size={18} /><span>Saida fisica</span><strong className={sendHardware ? 'is-warning' : 'is-safe'}>{sendHardware ? 'Habilitada' : 'Protegida'}</strong></div>
+      </section>
+
+      <div className="simulator-layout">
+        <main className="simulator-main">
+          <section className="simulator-section simulator-targets">
+            <div className="simulator-section-title"><div><span>01</span><div><h3>Escopo do teste</h3><p>Defina onde o evento sera aplicado.</p></div></div></div>
+            <div className="simulator-segmented" role="group" aria-label="Modo de alvo">
+              <button type="button" className={targetMode === 'SINGLE' ? 'active' : ''} onClick={() => setTargetMode('SINGLE')}>Equipamento unico</button>
+              <button type="button" className={targetMode === 'CLUSTER' ? 'active' : ''} onClick={() => setTargetMode('CLUSTER')}>Todos os equipamentos</button>
+            </div>
+
+            {targetMode === 'SINGLE' ? (
+              <>
+                <label className="simulator-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, filial ou ID" /></label>
+                <div className="simulator-device-list">
+                  {filteredEquipment.slice(0, 40).map((item) => (
+                    <button key={item.id} type="button" className={String(item.id) === String(eqId) ? 'selected' : ''} onClick={() => { setEqId(String(item.id)); setLiveReading(null); }}>
+                      <span className="device-status" /><span><strong>{item.nome}</strong><small>#{item.id} · {item.filial || item.setor || 'Sem localizacao'}</small></span><ChevronRight size={17} />
+                    </button>
+                  ))}
+                  {filteredEquipment.length === 0 && <p className="simulator-empty">Nenhum equipamento encontrado.</p>}
+                </div>
+              </>
+            ) : <div className="simulator-cluster-note"><AlertTriangle size={18} /><span><strong>{equipamentos.length} equipamentos no escopo.</strong> A execucao sera processada e auditada individualmente.</span></div>}
+          </section>
+
+          <section className="simulator-section">
+            <div className="simulator-section-title"><div><span>02</span><div><h3>Cenario</h3><p>Escolha uma condicao e ajuste a telemetria.</p></div></div></div>
+            <div className="simulator-scenarios">
+              {SCENARIOS.map((item) => {
+                const Icon = item.icon;
+                return <button key={item.id} type="button" className={`${scenario === item.id ? 'selected' : ''} tone-${item.tone}`} onClick={() => selectScenario(item.id)}><Icon size={19} /><span><strong>{item.label}</strong><small>{item.description}</small></span><em>{item.severity}</em></button>;
+              })}
+            </div>
+
+            <form className="simulator-form" onSubmit={requestExecution}>
+              <label>Temperatura (C)<input type="number" min="-80" max="80" step="0.1" value={temperature} onChange={(event) => setTemperature(event.target.value)} required /></label>
+              <label>Umidade (%)<input type="number" min="0" max="100" step="0.1" value={humidity} onChange={(event) => setHumidity(event.target.value)} required /></label>
+              <label>Consumo (kWh)<input type="number" min="0" max="100000" step="0.01" value={consumption} onChange={(event) => setConsumption(event.target.value)} required /></label>
+              <label className={`simulator-hardware-toggle ${sendHardware ? 'enabled' : ''}`}>
+                <input type="checkbox" checked={sendHardware} onChange={(event) => setSendHardware(event.target.checked)} /><span className="toggle-track"><span /></span>
+                <span><strong>Enviar ao hardware fisico</strong><small>Permite MQTT apenas quando o cenario possui uma acao segura.</small></span>
+              </label>
+              <div className="simulator-actions">
+                <button type="button" className="simulator-button secondary" onClick={requestRecovery} disabled={isRunning}><RotateCcw size={17} /> Preparar recuperacao</button>
+                <button type="submit" className="simulator-button primary" disabled={isRunning || targetIds.length === 0}><Play size={17} /> {isRunning ? 'Executando...' : 'Executar simulacao'}</button>
               </div>
-            </div>
-            <div className="sla-impact">
-              <span className={`sla-value ${threatColor}`}>{slaDrop}</span>
-              <div className="sla-label">Impacto SLA (Est.)</div>
-            </div>
-          </div>
-          
-          <h3 className="caos-panel-title"><Sliders size={20} color="var(--primary)" /> Vetor de Ataque</h3>
-          <div className="target-mode-selector">
-            <button type="button" className={`target-btn ${targetMode === 'SINGLE' ? 'active' : ''}`} onClick={() => setTargetMode('SINGLE')}><Crosshair size={18} /> Nó Único</button>
-            <button type="button" className={`target-btn ${targetMode === 'CLUSTER' ? 'active' : ''}`} onClick={() => setTargetMode('CLUSTER')}><Network size={18} /> Ataque em Cluster</button>
-          </div>
-          
-          <form onSubmit={injetarDados} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <div className="caos-form-group anim-slide-up" style={{ display: targetMode === 'SINGLE' ? 'block' : 'none' }}>
-              <label>Máquina Alvo (Target Node)</label>
-              <select className="caos-input" value={eqId} onChange={e => setEqId(e.target.value)} required={targetMode === 'SINGLE'}>
-                <option value="">-- Selecione o Nó IoT na Rede --</option>
-                {equipamentos?.map(eq => ( <option key={eq.id} value={eq.id}>[{eq.id}] {eq.nome} ({eq.filial || 'Base'})</option> ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <div className="caos-form-group" style={{ flex: 1 }}><label>Modificar Temperatura (°C)</label><input type="number" step="0.1" className="caos-input" value={temp} onChange={e => setTemp(e.target.value)} required /></div>
-              <div className="caos-form-group" style={{ flex: 1 }}><label>Modificar Umidade (%)</label><input type="number" step="0.1" className="caos-input" value={umidade} onChange={e => setUmidade(e.target.value)} required /></div>
-            </div>
-            <div className="caos-form-group">
-              <label>Payload Crítico (Flag de Alerta)</label>
-              <select className="caos-input" value={alerta} onChange={e => setAlerta(e.target.value)} style={{ color: alerta !== 'NENHUM' ? 'var(--danger)' : 'var(--text-main)', fontWeight: alerta !== 'NENHUM' ? 'bold' : 'normal' }}>
-                <option value="NENHUM">Operação Normal (Standby)</option>
-                <option value="PORTA_ABERTA">Violação Física: Porta Aberta</option>
-                <option value="REDE">Forçar Queda de Sinal (Reinicia o ESP32)</option>
-                <option value="MECANICA">Forçar Parada Abrupta (Acende o LED de Alerta)</option>
-                <option value="DEGELO">Disparar Ciclo de Degelo Falso</option>
-              </select>
-            </div>
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button type="submit" className="caos-btn-submit" disabled={isEnviando || (targetMode === 'SINGLE' && !eqId) || wafActive}><Siren size={20} /> {isEnviando ? 'PROCESSANDO...' : 'EXECUTAR PAYLOAD'}</button>
-              <button type="button" className="caos-btn-recovery" disabled={isEnviando} onClick={recuperarSistema}><ShieldCheck size={20} /> INICIAR PROTOCOLO DE CURA</button>
-              <button type="button" className="btn btn-outline" onClick={aplicarDefesaWAF} disabled={wafActive} style={{ borderColor: '#3b82f6', color: '#3b82f6', padding: '14px', borderRadius: '8px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}><ShieldAlert size={20} /> {wafActive ? 'WAF ATIVADO (BLOQUEANDO)' : 'ERGUER ESCUDOS WAF'}</button>
-            </div>
-          </form>
-        </div>
-        
-        <div className="caos-panel">
-          <h3 className="caos-panel-title"><Activity size={20} color="var(--info)" /> Operações Táticas & Logs</h3>
-          <div className="cenarios-grid">
-            <button type="button" className="btn-cenario" onClick={() => aplicarCenario('INCENDIO')}><Flame size={20} color="#f97316" /> Sobreaquecimento</button>
-            <button type="button" className="btn-cenario" onClick={() => aplicarCenario('APAGAO')}><Zap size={20} color="#eab308" /> Parada do Motor</button>
-            <button type="button" className="btn-cenario" onClick={() => aplicarCenario('INVASAO')}><DoorOpen size={20} color="#ef4444" /> Violação (Porta)</button>
-            <button type="button" className="btn-cenario" onClick={() => aplicarCenario('OFFLINE')}><WifiOff size={20} color="#94a3b8" /> Queda de Rede</button>
-          </div>
-          <div className={`terminal-caos ${wafActive ? 'waf-protected' : ''}`} style={{ border: wafActive ? '2px solid #3b82f6' : '2px solid #334155', transition: '0.3s' }}>
-            <div className="terminal-header"><span className="terminal-title"><TerminalIcon size={12} style={{marginBottom: '-2px'}}/> KERNEL_STDOUT // MATRIZ</span><button onClick={limparTerminal} style={{background: 'none', border: 'none', color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold'}}>PURGE</button></div>
-            {terminalLogs.map((log, index) => (
-              <div key={index} className="log-entry">
-                <span className="log-time">[{log.time}]</span>
-                {log.tipoLog === 'SYS' ? ( <span style={{ color: '#94a3b8' }}>{log.payload}</span> ) : (
-                  <>
-                    <span className={`log-status ${log.tipoLog === 'PATCH' ? 'success' : ''} ${log.tipoLog === 'SYS' ? 'log-critical' : ''}`}>
-                      {log.tipoLog === 'POST' ? 'POST 201' : log.tipoLog === 'PATCH' ? 'PATCH 200' : 'SYSLOG'}
-                    </span>
-                    <span className="log-payload" style={{ color: log.tipoLog === 'PATCH' ? '#10b981' : log.tipoLog === 'SYS' ? '#f8fafc' : '#38bdf8' }}>{log.payload}</span>
-                  </>
-                )}
+            </form>
+          </section>
+
+          {(results.length > 0 || isRunning) && (
+            <section className="simulator-section simulator-results">
+              <div className="simulator-section-title"><div><span>03</span><div><h3>Resultado da execucao</h3><p>Status retornado para cada equipamento.</p></div></div></div>
+              {isRunning && <div className="simulator-progress"><span /></div>}
+              <div className="simulator-result-list">
+                {results.map((item) => <div key={item.id} className={item.success ? 'success' : 'failed'}>{item.success ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}<span><strong>{item.name || `Equipamento #${item.id}`}</strong><small>{item.error || `Leitura #${item.readingId} · MQTT ${item.hardware}`}</small></span><em>{item.success ? 'Concluido' : 'Falhou'}</em></div>)}
               </div>
-            ))}
-            <div ref={terminalEndRef} />
-          </div>
-        </div>
+            </section>
+          )}
+        </main>
+
+        <aside className="simulator-sidebar">
+          <section className="simulator-side-panel">
+            <div className="side-panel-title"><Activity size={17} /><h3>Estado do alvo</h3><span className="live-dot" /></div>
+            {targetMode === 'SINGLE' && selectedEquipment ? (
+              <div className="simulator-device-state">
+                <div><span>{selectedEquipment.nome}</span><small>{selectedEquipment.filial || selectedEquipment.setor || `ID ${selectedEquipment.id}`}</small></div>
+                <dl><div><dt>Temperatura</dt><dd>{displayTemperature}{displayTemperature !== '--' ? ' C' : ''}</dd></div><div><dt>Umidade</dt><dd>{displayHumidity}{displayHumidity !== '--' ? '%' : ''}</dd></div><div><dt>Motor</dt><dd>{liveReading ? (liveReading.motor_ligado ? 'Ligado' : 'Parado') : (selectedEquipment.motor_ligado ? 'Ligado' : 'Parado')}</dd></div><div><dt>Degelo</dt><dd>{liveReading ? (liveReading.em_degelo ? 'Ativo' : 'Inativo') : (selectedEquipment.em_degelo ? 'Ativo' : 'Inativo')}</dd></div></dl>
+              </div>
+            ) : <p className="simulator-empty">Selecione um equipamento para acompanhar seu estado ao vivo.</p>}
+          </section>
+
+          <section className="simulator-side-panel">
+            <div className="side-panel-title"><Terminal size={17} /><h3>Console da execucao</h3><button type="button" title="Limpar console" onClick={() => setLogs([])}><Trash2 size={15} /></button></div>
+            <div className="simulator-console">{logs.map((log) => <div key={log.id} className={`log-${log.level}`}><time>{log.time}</time><span>{log.message}</span></div>)}{logs.length === 0 && <p>Console limpo.</p>}<div ref={logEndRef} /></div>
+          </section>
+
+          <section className="simulator-side-panel">
+            <div className="side-panel-title"><History size={17} /><h3>Execucoes recentes</h3></div>
+            <div className="simulator-history">
+              {history.map((item) => <div key={item.id}><span className={item.failed ? 'failed' : 'success'}>{item.failed ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}</span><span><strong>{item.label}</strong><small>{new Date(item.time).toLocaleString('pt-BR')} · {item.targets} alvo(s)</small></span><em>{item.success}/{item.targets}</em></div>)}
+              {history.length === 0 && <p className="simulator-empty">Nenhuma execucao nesta sessao.</p>}
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

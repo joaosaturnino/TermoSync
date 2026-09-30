@@ -1,0 +1,419 @@
+/** Define o layout, os estados visuais e os breakpoints de Central Ajuda Modal. */
+
+.help-center-overlay {
+    z-index: 99999;
+    padding: 18px;
+}
+
+.help-center-modal {
+    width: min(820px, 100%);
+    max-height: min(86dvh, 780px);
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    box-shadow: 0 28px 80px rgba(2, 8, 12, .32);
+}
+
+.help-center-header {
+    min-height: 88px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: 11px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-color) 42%, var(--card-bg));
+}
+
+.help-center-heading-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    color: var(--primary);
+}
+
+.help-center-header>div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.help-center-header>div>span {
+    color: var(--primary);
+    font-size: .52rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.help-center-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1rem;
+}
+
+.help-center-header p {
+    margin: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: .57rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.help-center-header>button {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.help-center-header>button:hover {
+    color: var(--text-main);
+}
+
+.help-center-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.help-center-tabs {
+    display: inline-flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--bg-color) 58%, var(--card-bg));
+}
+
+.help-center-tabs button {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: .57rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.help-center-tabs button.active {
+    background: var(--card-bg);
+    color: var(--primary);
+    box-shadow: 0 2px 7px rgba(15, 23, 42, .08);
+}
+
+.help-center-tabs small {
+    min-width: 18px;
+    padding: 2px 4px;
+    border-radius: 7px;
+    background: color-mix(in srgb, currentColor 9%, transparent);
+    font-size: .48rem;
+    text-align: center;
+}
+
+.help-center-search {
+    width: min(310px, 44%);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-muted);
+}
+
+.help-center-search:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    color: var(--primary);
+}
+
+.help-center-search input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: .57rem;
+}
+
+.help-center-search button {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--text-muted) 9%, transparent);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.help-center-body {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 13px 14px;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-muted) 35%, transparent) transparent;
+}
+
+.help-article-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.help-article {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--card-bg) 94%, var(--bg-color));
+}
+
+.help-article header {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+.help-article header>span {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    color: var(--primary);
+}
+
+.help-article header div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.help-article header small {
+    color: var(--primary);
+    font-size: .49rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.help-article h3 {
+    margin: 0;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: .68rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.help-article p {
+    margin: 10px 0 0;
+    color: var(--text-muted);
+    font-size: .57rem;
+    line-height: 1.55;
+    white-space: pre-line;
+}
+
+.help-release-list {
+    display: grid;
+    gap: 0;
+}
+
+.help-release {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 9px;
+}
+
+.help-release-track {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.help-release-track i {
+    position: relative;
+    z-index: 1;
+    width: 9px;
+    height: 9px;
+    margin-top: 17px;
+    border: 2px solid var(--card-bg);
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+.help-release-track b {
+    position: absolute;
+    top: 25px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+}
+
+.help-release>div {
+    margin-bottom: 9px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+}
+
+.help-release header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.help-release header span,
+.help-release header time,
+.help-release>div>small {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.help-release header span {
+    color: var(--success);
+    font-size: .54rem;
+    font-weight: 900;
+}
+
+.help-release header time {
+    color: var(--text-muted);
+    font-size: .51rem;
+}
+
+.help-release h3 {
+    margin: 7px 0 4px;
+    color: var(--text-main);
+    font-size: .69rem;
+}
+
+.help-release p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: .57rem;
+    line-height: 1.5;
+}
+
+.help-release>div>small {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: .49rem;
+}
+
+.help-center-footer {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: .54rem;
+}
+
+.help-center-footer button {
+    min-height: 34px;
+    padding: 0 13px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: .57rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+@media (max-width: 700px) {
+    .help-center-overlay {
+        align-items: stretch;
+        padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+    }
+
+    .help-center-modal {
+        max-height: none;
+        height: 100%;
+    }
+
+    .help-center-header {
+        min-height: 78px;
+        padding: 11px;
+    }
+
+    .help-center-header p {
+        white-space: normal;
+    }
+
+    .help-center-controls {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 8px 10px;
+    }
+
+    .help-center-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .help-center-tabs button {
+        justify-content: center;
+    }
+
+    .help-center-search {
+        width: 100%;
+    }
+
+    .help-center-body {
+        padding: 10px;
+    }
+
+    .help-article-list {
+        grid-template-columns: 1fr;
+    }
+
+    .help-center-footer {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .help-center-modal * {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}

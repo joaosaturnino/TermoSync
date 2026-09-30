@@ -1,13 +1,24 @@
 /**
- * Configuração centralizada de API — Web + Mobile (Capacitor)
- * Detecta automaticamente o servidor ou usa configuração manual.
+ * Configuração centralizada de API — Web + Mobile (Capacitor) Detecta automaticamente o
+ * servidor ou usa configuração manual.
  */
-
 const STORAGE_KEY = 'termosync_server';
 const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT || '3001';
 
 /**
- * Remove barras finais e o sufixo /api para manter uma URL base consistente.
+ * Normaliza normalize base para evitar divergencia de formato nas comparacoes.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {unknown} url - Valor de url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function normalizeBase(url) {
   if (!url) return '';
@@ -16,6 +27,17 @@ function normalizeBase(url) {
 
 /**
  * Recupera o servidor salvo no navegador sem quebrar em ambientes sem localStorage.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: lê ou grava preferências no armazenamento do navegador
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function getStoredServer() {
   try {
@@ -27,6 +49,19 @@ function getStoredServer() {
 
 /**
  * Migra URLs antigas de desenvolvimento que ainda apontam para a porta 3000.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador
+ *
+ * @param {unknown} url - Valor de url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 function migrateLocalDevServer(url) {
   if (!url || DEFAULT_API_PORT === '3000') return url;
@@ -47,6 +82,18 @@ function migrateLocalDevServer(url) {
 
 /**
  * Persiste a URL base do backend informada manualmente pelo usuário.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; lê ou grava preferências no armazenamento do navegador
+ *
+ * @param {unknown} url - Valor de url consumido por esta rotina.
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function setServerUrl(url) {
   const base = normalizeBase(url);
@@ -60,6 +107,17 @@ export function setServerUrl(url) {
 
 /**
  * Resolve a URL base do servidor considerando env, configuração salva, web e mobile.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: interage com APIs do navegador
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function getServerUrl() {
   if (import.meta.env.VITE_API_URL) {
@@ -70,6 +128,11 @@ export function getServerUrl() {
   if (stored) return normalizeBase(stored);
 
   const { hostname, protocol } = window.location;
+
+  // O dominio local usa o proxy HTTPS do frontend para API e Socket.IO.
+  if (hostname === 'thermosync.com.br') {
+    return `${protocol}//${hostname}`;
+  }
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return `http://localhost:${DEFAULT_API_PORT}`;
@@ -89,6 +152,17 @@ export function getServerUrl() {
 
 /**
  * Monta a URL raiz da API REST a partir do servidor resolvido.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function getApiUrl() {
   return `${getServerUrl()}/api`;
@@ -96,6 +170,17 @@ export function getApiUrl() {
 
 /**
  * Retorna a URL usada pelo Socket.io, sem acrescentar o sufixo /api.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Processa os dados recebidos e entrega o resultado ao ponto que iniciou o fluxo.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {unknown} Resultado calculado para consumo do chamador.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function getSocketUrl() {
   return getServerUrl();
@@ -103,6 +188,17 @@ export function getSocketUrl() {
 
 /**
  * Detecta execução em aplicativo nativo Capacitor.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ *
+ * Efeitos colaterais: interage com APIs do navegador
+ *
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function isCapacitor() {
   try {
@@ -114,6 +210,17 @@ export function isCapacitor() {
 
 /**
  * Identifica se a interface está em contexto mobile por Capacitor ou largura de tela.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: interage com APIs do navegador
+ *
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function isMobileDevice() {
   if (isCapacitor()) return true;
@@ -125,6 +232,17 @@ export function isMobileDevice() {
 
 /**
  * Indica quando o app mobile precisa pedir a configuração manual do servidor.
+ *
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @returns {boolean} Indica se a condição avaliada foi atendida.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export function needsServerConfig() {
   if (import.meta.env.VITE_API_URL) return false;

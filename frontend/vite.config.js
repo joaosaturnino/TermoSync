@@ -1,9 +1,33 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const isCapacitorBuild = process.env.VITE_CAPACITOR === 'true'
+const certificatePath = fileURLToPath(new URL('./.cert/thermosync.pfx', import.meta.url))
+const certificatePasswordPath = fileURLToPath(new URL('./.cert/passphrase', import.meta.url))
+const hasLocalCertificate = existsSync(certificatePath) && existsSync(certificatePasswordPath)
+const securityHeaders = {
+  'Strict-Transport-Security': 'max-age=31536000',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+}
 
-export default defineConfig({
+export default defineConfig(({ command }) => {
+  if (command === 'serve' && !hasLocalCertificate) {
+    throw new Error('Certificado HTTPS ausente. Execute "npm run setup:local-domain" na raiz do projeto.')
+  }
+
+  const https = hasLocalCertificate
+    ? {
+        pfx: readFileSync(certificatePath),
+        passphrase: readFileSync(certificatePasswordPath, 'utf8').trim(),
+      }
+    : undefined
+
+  return {
   plugins: [react()],
   base: isCapacitorBuild ? './' : '/',
   build: {
@@ -27,6 +51,30 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5173,
+    port: 443,
+    strictPort: true,
+    https,
+    headers: securityHeaders,
+    allowedHosts: ['thermosync.com.br'],
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: false,
+      },
+      '/socket.io': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: false,
+        ws: true,
+      },
+    },
   },
+  preview: {
+    host: true,
+    port: 443,
+    strictPort: true,
+    https,
+    headers: securityHeaders,
+    allowedHosts: ['thermosync.com.br'],
+  },
+  }
 })

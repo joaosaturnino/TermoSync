@@ -1,0 +1,661 @@
+/** Define o layout, os estados visuais e os breakpoints de Privacidade. */
+
+.privacy-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.privacy-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.privacy-heading>div:first-child>span {
+  color: var(--primary-color);
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-heading h2 {
+  margin: 5px 0 6px;
+  font-size: 1.55rem;
+  color: var(--text-primary);
+}
+
+.privacy-heading p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.privacy-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.privacy-heading-actions>span,
+.privacy-heading-actions button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 6px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.privacy-heading-actions>span {
+  padding: 0 12px;
+  color: #178653;
+  background: rgba(23, 134, 83, .1);
+}
+
+.privacy-heading-actions button,
+.privacy-primary-action {
+  padding: 0 13px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.privacy-heading-actions button:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.privacy-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.privacy-summary>div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+}
+
+.privacy-summary>div>span {
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-color) 11%, transparent);
+  color: var(--primary-color);
+}
+
+.privacy-summary p {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.privacy-summary small {
+  color: var(--text-secondary);
+  font-size: .67rem;
+}
+
+.privacy-summary strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: .86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.privacy-workspace {
+  min-height: 470px;
+  display: grid;
+  grid-template-columns: 205px minmax(0, 1fr);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.privacy-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.privacy-tabs button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.privacy-tabs button span {
+  flex: 1;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.privacy-tabs button>svg:last-child {
+  opacity: .45;
+}
+
+.privacy-tabs button:hover,
+.privacy-tabs button.active {
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  color: var(--primary-color);
+}
+
+.privacy-content {
+  min-width: 0;
+  padding: 24px;
+}
+
+.privacy-content h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.privacy-content h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: .82rem;
+}
+
+.privacy-content p {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.privacy-overview>header {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.privacy-overview>header>span {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  color: var(--primary-color);
+}
+
+.privacy-overview>header p,
+.privacy-data-section>header p,
+.privacy-rights>header p,
+.privacy-preferences>header p {
+  margin: 5px 0 0;
+  font-size: .82rem;
+}
+
+.privacy-principles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.privacy-principles article {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+}
+
+.privacy-principles article>svg {
+  margin-bottom: 12px;
+  color: var(--primary-color);
+}
+
+.privacy-principles article p {
+  margin: 7px 0 0;
+  font-size: .76rem;
+}
+
+.privacy-callout {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-left: 3px solid var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+}
+
+.privacy-callout svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--primary-color);
+}
+
+.privacy-callout p {
+  margin: 0;
+  font-size: .78rem;
+}
+
+.privacy-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.privacy-data-grid article {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+}
+
+.privacy-data-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.privacy-data-title span {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  color: var(--primary-color);
+}
+
+.privacy-data-grid dl {
+  margin: 12px 0 0;
+}
+
+.privacy-data-grid dl>div+div {
+  margin-top: 10px;
+}
+
+.privacy-data-grid dt {
+  margin-bottom: 2px;
+  color: var(--text-secondary);
+  font-size: .65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-data-grid dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.privacy-timeline {
+  display: grid;
+  gap: 0;
+  margin: 18px 0;
+}
+
+.privacy-timeline>div {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  position: relative;
+}
+
+.privacy-timeline>div:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 30px;
+  bottom: -4px;
+  left: 17px;
+  width: 1px;
+  background: var(--border-color);
+}
+
+.privacy-timeline>div>span {
+  width: 34px;
+  height: 34px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--primary-color);
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.privacy-timeline section {
+  padding: 4px 0 18px;
+}
+
+.privacy-timeline p {
+  margin: 5px 0 0;
+  font-size: .78rem;
+}
+
+.privacy-primary-action {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.privacy-primary-action:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.privacy-preference-list {
+  margin-top: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.privacy-preference-list>div {
+  min-height: 65px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+}
+
+.privacy-preference-list>div+div {
+  border-top: 1px solid var(--border-color);
+}
+
+.privacy-preference-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.privacy-preference-list p {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.privacy-preference-list p strong {
+  color: var(--text-primary);
+  font-size: .8rem;
+}
+
+.privacy-preference-list p small {
+  margin-top: 3px;
+  font-size: .7rem;
+}
+
+.privacy-preference-list button {
+  width: 38px;
+  height: 21px;
+  flex: 0 0 38px;
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--border-color);
+  cursor: pointer;
+}
+
+.privacy-preference-list button i {
+  width: 15px;
+  height: 15px;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  border-radius: 50%;
+  background: white;
+  transition: transform .18s ease;
+}
+
+.privacy-preference-list button.enabled {
+  background: var(--primary-color);
+}
+
+.privacy-preference-list button.enabled i {
+  transform: translateX(17px);
+}
+
+.privacy-preference-list button:disabled {
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+.privacy-preferences footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.privacy-preferences footer>span {
+  color: var(--text-secondary);
+  font-size: .72rem;
+}
+
+.privacy-preferences footer button {
+  min-height: 37px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary-color);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.privacy-preferences footer button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.privacy-security-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.privacy-security-link>div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.privacy-security-link>div>span {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(23, 134, 83, .1);
+  color: #178653;
+}
+
+.privacy-security-link p {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.privacy-security-link strong {
+  color: var(--text-primary);
+  font-size: .8rem;
+}
+
+.privacy-security-link small {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: .7rem;
+}
+
+.privacy-security-link button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-color);
+  font-size: .75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 1050px) {
+  .privacy-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .privacy-principles {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .privacy-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .privacy-heading-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .privacy-heading h2 {
+    font-size: 1.25rem;
+  }
+
+  .privacy-workspace {
+    display: block;
+  }
+
+  .privacy-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-color);
+    scrollbar-width: thin;
+  }
+
+  .privacy-tabs button {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .privacy-tabs button>svg:last-child {
+    display: none;
+  }
+
+  .privacy-content {
+    padding: 18px;
+  }
+
+  .privacy-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .privacy-security-link {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .privacy-security-link button {
+    padding-left: 47px;
+  }
+}
+
+@media (max-width: 480px) {
+  .privacy-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .privacy-heading-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .privacy-heading-actions>span,
+  .privacy-heading-actions button {
+    justify-content: center;
+  }
+
+  .privacy-content {
+    padding: 15px;
+  }
+
+  .privacy-preference-list>div {
+    align-items: flex-start;
+  }
+
+  .privacy-preference-list button {
+    margin-top: 6px;
+  }
+
+  .privacy-preferences footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .privacy-preferences footer button {
+    justify-content: center;
+  }
+}

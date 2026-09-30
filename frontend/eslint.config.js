@@ -30,6 +30,36 @@ const jsxUsagePlugin = {
           }
         };
       }
+    },
+    'jsx-no-undef': {
+      create(context) {
+        const sourceCode = context.sourceCode || context.getSourceCode();
+
+        const getName = (node) => {
+          if (!node) return '';
+          if (node.type === 'JSXIdentifier') return node.name;
+          if (node.type === 'JSXMemberExpression') return getName(node.object);
+          return '';
+        };
+
+        const isDefined = (name, node) => {
+          let scope = sourceCode.getScope(node);
+          while (scope) {
+            if (scope.set?.has(name)) return true;
+            scope = scope.upper;
+          }
+          return false;
+        };
+
+        return {
+          JSXOpeningElement(node) {
+            const name = getName(node.name);
+            if (name && /^[A-Z]/.test(name) && !isDefined(name, node)) {
+              context.report({ node: node.name, message: `'${name}' is not defined.` });
+            }
+          }
+        };
+      }
     }
   }
 };
@@ -62,6 +92,7 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
       'local/jsx-uses-vars': 'warn',
+      'local/jsx-no-undef': 'error',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',

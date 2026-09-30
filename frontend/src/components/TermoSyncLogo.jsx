@@ -1,131 +1,55 @@
+/**
+ * Módulo: frontend/src/components/TermoSyncLogo.jsx
+ * Responsabilidade: Implementa o componente reutilizável Termo Sync Logo e seu contrato visual.
+ */
+
+import { useId } from 'react';
 import React from 'react';
 
 /**
- * SVG do logotipo ThermoSync
+ * Renderiza o componente Termo Sync Logo e encapsula sua interacao visual reutilizavel.
  *
- * Props:
- * - `size`: tamanho em pixels
- * - `color`: cor principal do logo
- * - `className`: classes CSS adicionais
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.size - Propriedade size usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.color - Propriedade color usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.className - Propriedade className usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function TermoSyncLogo({ size = 40, color = "currentColor", className = "" }) {
+export default function TermoSyncLogo({ size = 40, color = 'var(--brand-core, #42d9ae)', className = '' }) {
+  const gradientId = `ts-spectrum-${useId().replace(/:/g, '')}`;
+
   return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      className={`termosync-ultra-logo ${className}`} 
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      className={`termosync-logo ${className}`}
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
     >
       <defs>
-        {/* Glow Tático Cyberpunk */}
-        <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="1.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-
-        {/* Padrão de Cyber-Grid (Micro Malha dentro do Bulbo) */}
-        <pattern id="cyberGrid" width="2" height="2" patternUnits="userSpaceOnUse">
-          <circle cx="1" cy="1" r="0.5" fill={color} opacity="0.3" />
-        </pattern>
-
-        {/* Gradiente de Fluido Térmico */}
-        <linearGradient id="liquidThermo" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor={color} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.1" />
+        <linearGradient id={gradientId} x1="6" y1="8" x2="34" y2="31" gradientUnits="userSpaceOnUse">
+          <stop stopColor="var(--brand-cold, #67b7ff)" />
+          <stop offset="0.52" stopColor={color} />
+          <stop offset="1" stopColor="var(--brand-warm, #ff756d)" />
         </linearGradient>
       </defs>
 
-      <style>
-        {`
-          .ts-wave-1 { animation: pulseWave 1.8s ease-in-out infinite alternate; }
-          .ts-wave-2 { animation: pulseWave 1.8s ease-in-out infinite alternate 0.5s; }
-          .ts-core-bulb { filter: url(#neonGlow); }
-          .ts-liquid { animation: thermoRise 3.5s ease-in-out infinite alternate; }
-          .ts-data-dot { animation: dataTransfer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; filter: drop-shadow(0 0 2px ${color}); }
-          .ts-radar-ring { animation: radarPulse 3.5s ease-out infinite; transform-origin: 10px 14.76px; }
-          
-          @keyframes pulseWave {
-            0% { stroke-opacity: 0.15; stroke-width: 1.5; transform: scale(0.95); transform-origin: 15px 14px; }
-            100% { stroke-opacity: 1; stroke-width: 2.5; transform: scale(1.05); transform-origin: 15px 14px; }
-          }
-          
-          @keyframes thermoRise {
-            0% { transform: scaleY(0.85); transform-origin: bottom; }
-            100% { transform: scaleY(1.1); transform-origin: bottom; }
-          }
-
-          @keyframes dataTransfer {
-            0% { opacity: 0; transform: translateY(5px) scale(0.5); }
-            50% { opacity: 1; transform: translateY(-2px) scale(1.3); fill: #38bdf8; }
-            100% { opacity: 0; transform: translateY(-9px) scale(0.5); }
-          }
-
-          @keyframes radarPulse {
-            0% { r: 2.5; opacity: 0.7; stroke-width: 2; }
-            100% { r: 14; opacity: 0; stroke-width: 0; }
-          }
-        `}
-      </style>
-      
-      {/* Anel de Radar de Fundo (Pulse Ring) */}
-      <circle className="ts-radar-ring" cx="10" cy="14.76" r="2.5" stroke={color} fill="none" />
-
-      {/* Corpo Externo do Termómetro com Fundo de Malha Cyber */}
-      <path 
-        className="ts-core-bulb" 
-        d="M10 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" 
-        stroke={color} 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-        fill="url(#cyberGrid)"
-      />
-      
-      {/* Líquido Térmico Animado (Sobe e Desce Suavemente) */}
-      <path 
-        className="ts-liquid" 
-        d="M10 14.76V8a2.5 2.5 0 0 0-5 0v6.76a4.5 4.5 0 1 0 5 0z" 
-        fill="url(#liquidThermo)"
-      />
-      
-      {/* Nível de Marcação (Aço escovado virtual) */}
-      <path 
-        d="M7.5 13.5v-5" 
-        stroke={color} 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-        opacity="0.8"
-      />
-      
-      {/* Ondas de Transmissão IoT (Sinal Radar) */}
-      <path 
-        className="ts-wave-1" 
-        d="M15 9a5 5 0 0 1 5 5" 
-        stroke={color} 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      <path 
-        className="ts-wave-2" 
-        d="M15 5a9 9 0 0 1 9 9" 
-        stroke={color} 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-
-      {/* Ponto de Fluxo de Dados (Enviando Pacotes de Telemetria) */}
-      <circle 
-        className="ts-data-dot" 
-        cx="15" 
-        cy="9" 
-        r="1.8" 
-        fill={color} 
-      />
+      <rect x="5" y="4" width="30" height="32" rx="7" fill="var(--brand-mark-bg, rgba(8, 25, 31, .72))" stroke={`url(#${gradientId})`} strokeWidth="2" />
+      <path d="M14 5v30" stroke="var(--brand-cold, #67b7ff)" strokeWidth="1.5" opacity=".55" />
+      <path d="M8.5 23h6.2l3.1-9 4.4 15 3.6-10 2.5 4H32" stroke={`url(#${gradientId})`} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="32" cy="23" r="2.1" fill="var(--brand-warm, #ff756d)" />
+      <path d="M9 9h2.5M9 13h2.5M9 17h2.5" stroke="var(--brand-cold, #67b7ff)" strokeWidth="1.4" strokeLinecap="round" opacity=".78" />
     </svg>
   );
 }

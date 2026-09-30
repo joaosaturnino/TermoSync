@@ -1,3 +1,9 @@
+/**
+ * Módulo: frontend/src/pages/ParametrosGlobais/ParametrosGlobais.jsx
+ * Responsabilidade: Implementa a tela Parametros Globais, seus estados, interações e integrações de dados.
+ */
+
+import { Database, Gauge } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import {
   Edit, Thermometer, Droplets,
@@ -8,12 +14,29 @@ import {
 import './ParametrosGlobais.css';
 
 /**
- * Parâmetros Globais e Políticas de SLA
+ * Renderiza a tela Parametros Globais e concentra as regras de apresentacao desse modulo.
  *
- * Responsabilidades:
- * - Gerenciar catálogos de `setores` e `tipos` de refrigeração
- * - Permitir criação/edição/exclusão de políticas que afetam limites operacionais
- * - Respeitar permissões de edição por `userRole`
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+ *
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; lê ou grava preferências no armazenamento do navegador
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.showToast - Propriedade showToast usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.listaSetores - Propriedade listaSetores usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.listaTipos - Propriedade listaTipos usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarParametrosGerais - Propriedade carregarParametrosGerais usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.carregarDadosBase - Propriedade carregarDadosBase usada para configurar dados ou comportamento do componente.
+ * @param {unknown} props.setModalConfig - Propriedade setModalConfig usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
 export default function ParametrosGlobais({ 
   api, showToast, listaSetores, listaTipos, 
@@ -32,16 +55,12 @@ export default function ParametrosGlobais({
   });
 
   // ============================================================================
-  // MOTOR DE SEGURANÇA E ISOLAMENTO DE ACESSO (ATUALIZADO)
+  // MOTOR DE SEGURANÇA E ISOLAMENTO DE ACESSO
   // ============================================================================
   const roleLogada = userRole || sessionStorage.getItem('userRole') || 'LOJA';
-  
-  // Lê o cargo exato do usuário no Session Storage
-  const papelLogado = sessionStorage.getItem('papelLogado') || ''; 
-  const isGestorLoja = papelLogado.toLowerCase().includes('gerente') || papelLogado.toLowerCase().includes('coordenador');
 
-  // Permissão de Edição: ADMIN, DEV, MANUTENCAO, e GESTORES DA LOJA (Gerente/Coordenador)
-  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV' || roleLogada === 'MANUTENCAO' || (roleLogada === 'LOJA' && isGestorLoja);
+  // Parâmetros globais alteram regras de todas as unidades e seguem a API administrativa.
+  const canEdit = roleLogada === 'ADMIN' || roleLogada === 'DEV';
 
   const setoresFiltrados = useMemo(() => {
     if (!listaSetores) return [];
@@ -54,18 +73,38 @@ export default function ParametrosGlobais({
   }, [listaTipos, buscaTipo]);
 
   const kpis = useMemo(() => {
+    const tiposValidos = (listaTipos || []).filter(t => (
+      t.temp_min != null && t.temp_max != null &&
+      Number(t.temp_min) < Number(t.temp_max) &&
+      Number(t.intervalo_degelo) > 0 && Number(t.duracao_degelo) > 0
+    )).length;
     return {
       setores: listaSetores?.length || 0,
       tipos: listaTipos?.length || 0,
+      tiposValidos,
+      pendencias: Math.max(0, (listaTipos?.length || 0) - tiposValidos)
     };
   }, [listaSetores, listaTipos]);
 
-  // ============================================================================
-  // FUNÇÕES DE AÇÃO (PROTEGIDAS)
-  // ============================================================================
+  /**
+   * ============================================================================ FUNÇÕES DE AÇÃO
+   * (PROTEGIDAS) ============================================================================
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface
+   *
+   * @param {unknown} entidade - Valor de entidade consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+   */
   const abrirModalNovo = (entidade) => {
     if (!canEdit) {
-      return showToast('Apenas Gestores, Manutenção e NOC possuem privilégios para forjar regras.', 'error');
+      return showToast('Apenas administradores e desenvolvedores podem alterar parâmetros globais.', 'error');
     }
     setModalParametro({ 
       isOpen: true, entidade, id: '', nome: '', 
@@ -74,8 +113,23 @@ export default function ParametrosGlobais({
     });
   };
 
+
   /**
    * Concentra a logica de salvar parametro para manter o restante do tela mais legivel.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   * - Aguarda as operações assíncronas antes de confirmar o resultado ao chamador.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {Event} e - Evento que iniciou a interação ou mudança de estado.
+   * @returns {Promise<unknown>} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const salvarParametro = async (e) => {
     e.preventDefault();
@@ -84,12 +138,26 @@ export default function ParametrosGlobais({
       return showToast('Acesso negado. Modo de leitura ativo para o seu perfil.', 'error');
     }
 
+    const nome = String(modalParametro.nome || '').trim();
+    if (!nome) return showToast('Informe um nome para a regra.', 'warning');
+
+    const isSetor = modalParametro.entidade === 'SETOR';
+    if (!isSetor) {
+      const tempMin = Number(modalParametro.temp_min);
+      const tempMax = Number(modalParametro.temp_max);
+      const umidadeMin = Number(modalParametro.umidade_min || 0);
+      const umidadeMax = Number(modalParametro.umidade_max || 0);
+      const intervalo = Number(modalParametro.intervalo_degelo);
+      const duracao = Number(modalParametro.duracao_degelo);
+      if (![tempMin, tempMax, umidadeMin, umidadeMax, intervalo, duracao].every(Number.isFinite)) return showToast('Revise os valores numéricos da matriz.', 'warning');
+      if (tempMin >= tempMax) return showToast('A temperatura mínima deve ser menor que a máxima.', 'warning');
+      if (umidadeMin < 0 || umidadeMax > 100 || umidadeMin > umidadeMax) return showToast('A faixa de umidade deve estar entre 0% e 100%.', 'warning');
+      if (intervalo <= 0 || duracao <= 0) return showToast('O ciclo de degelo deve possuir intervalo e duração positivos.', 'warning');
+    }
+
     setIsProcessing(true);
     try {
-      const isSetor = modalParametro.entidade === 'SETOR';
-      const endpoint = isSetor ? '/setores' : '/tipos-refrigeracao';
-      
-      const payload = { nome: modalParametro.nome };
+      const payload = { nome };
       
       if (!isSetor) {
         payload.temp_min = modalParametro.temp_min;
@@ -101,10 +169,12 @@ export default function ParametrosGlobais({
       }
 
       if (modalParametro.id) {
-        await api.put(`${endpoint}/${modalParametro.id}`, payload);
+        if (isSetor) await api.put(`/setores/${modalParametro.id}`, payload);
+        else await api.put(`/tipos-refrigeracao/${modalParametro.id}`, payload);
         showToast('Política atualizada com sucesso.', 'success');
       } else {
-        await api.post(endpoint, payload);
+        if (isSetor) await api.post('/setores', payload);
+        else await api.post('/tipos-refrigeracao', payload);
         showToast('Nova regra consolidada no núcleo.', 'success');
       }
 
@@ -118,15 +188,29 @@ export default function ParametrosGlobais({
     }
   };
 
+
   /**
    * Processa a interacao de pedir exclusao parametro e atualiza a interface conforme o resultado.
+   *
+   * Responsabilidade: mantém este comportamento isolado para que validação,
+   * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+   *
+   * Fluxo principal:
+   * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+   * - Executa a operação protegida e converte falhas para o tratamento previsto pelo módulo.
+   *
+   * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API
+   *
+   * @param {string|number} id - Identificador do registro ou recurso processado.
+   * @param {unknown} nome - Valor de nome consumido por esta rotina.
+   * @param {unknown} entidade - Valor de entidade consumido por esta rotina.
+   * @returns {unknown} Resultado calculado para consumo do chamador.
+   * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
    */
   const pedirExclusaoParametro = (id, nome, entidade) => {
     if (!canEdit) return showToast('Ação bloqueada. As políticas são protegidas contra exclusão.', 'error');
 
     const isSetor = entidade === 'SETOR';
-    const endpoint = isSetor ? '/setores' : '/tipos-refrigeracao';
-    
     setModalConfig({
       isOpen: true,
       title: `Eliminar ${isSetor ? 'Zona Operacional' : 'Matriz de SLA'}`,
@@ -134,7 +218,8 @@ export default function ParametrosGlobais({
       isPrompt: false,
       onConfirm: async () => {
         try {
-          await api.delete(`${endpoint}/${id}`);
+          if (isSetor) await api.delete(`/setores/${id}`);
+          else await api.delete(`/tipos-refrigeracao/${id}`);
           showToast('Regra eliminada do sistema.', 'success');
           carregarParametrosGerais();
           carregarDadosBase();
@@ -150,12 +235,12 @@ export default function ParametrosGlobais({
       
       <div className="flex-header parametros-header-area">
         <div className="parametros-title-box">
-          <div className="icon-circle" style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--info)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <div className="icon-circle" style={{ background: 'color-mix(in srgb, var(--info) 15%, transparent)', color: 'var(--info)', border: '1px solid color-mix(in srgb, var(--info) 30%, transparent)' }}>
             <Sliders size={26} />
           </div>
           <div>
-            <h3 className="parametros-main-title">Políticas Base e Compliance</h3>
-            <span className="parametros-subtitle">Catálogo unificado de zonas e matrizes de tolerância (RDC).</span>
+            <h3 className="parametros-main-title">Parâmetros Globais</h3>
+            <span className="parametros-subtitle">Catálogos e limites que orientam alertas, equipamentos e rotinas de todas as unidades.</span>
           </div>
         </div>
 
@@ -165,7 +250,7 @@ export default function ParametrosGlobais({
               <button className="btn btn-outline zone-btn" onClick={() => abrirModalNovo('SETOR')}>
                 <LayoutGrid size={16} /> Definir Novo Setor
               </button>
-              <button className="btn btn-primary sla-btn" onClick={() => abrirModalNovo('TIPO')} style={{ boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)' }}>
+              <button className="btn btn-primary sla-btn" onClick={() => abrirModalNovo('TIPO')} style={{ boxShadow: '0 4px 15px color-mix(in srgb, var(--success) 30%, transparent)' }}>
                 <ShieldCheck size={16} /> Criar Matriz SLA
               </button>
             </>
@@ -199,6 +284,14 @@ export default function ParametrosGlobais({
             <span className="kpi-label">Motor de Regras</span>
           </div>
         </div>
+        <div className={`kpi-item ${kpis.pendencias ? 'warning' : 'success'}`}>
+          <div className="kpi-icon"><Gauge size={20}/></div>
+          <div className="kpi-data"><span className="kpi-value">{kpis.tiposValidos}/{kpis.tipos}</span><span className="kpi-label">Matrizes Completas</span></div>
+        </div>
+        <div className="kpi-item">
+          <div className="kpi-icon zone"><Database size={20}/></div>
+          <div className="kpi-data"><span className="kpi-value">{kpis.pendencias}</span><span className="kpi-label">Regras com Pendência</span></div>
+        </div>
       </div>
 
       <div className="parametros-grid stagger-3">
@@ -206,7 +299,7 @@ export default function ParametrosGlobais({
         {/* COLUNA: SETORES */}
         <div className="card policy-card">
           <div className="policy-card-header">
-            <h4 className="policy-card-title"><LayoutGrid size={18} color="var(--info)" /> Topologia de Setores</h4>
+            <h4 className="policy-card-title"><LayoutGrid size={18} color="var(--info)" /> Topologia de Setores <small>{setoresFiltrados.length}</small></h4>
             <div className="search-box-policy">
               <Search size={14} color="var(--text-muted)" />
               <input type="text" placeholder="Filtrar zona..." value={buscaSetor} onChange={e => setBuscaSetor(e.target.value)} />
@@ -245,7 +338,7 @@ export default function ParametrosGlobais({
         {/* COLUNA: MATRIZES SLA */}
         <div className="card policy-card border-green">
           <div className="policy-card-header">
-            <h4 className="policy-card-title"><ShieldCheck size={18} color="var(--success)" /> Matrizes de Compliance (SLA)</h4>
+            <h4 className="policy-card-title"><ShieldCheck size={18} color="var(--success)" /> Matrizes de Compliance (SLA) <small>{tiposFiltrados.length}</small></h4>
             <div className="search-box-policy">
               <Search size={14} color="var(--text-muted)" />
               <input type="text" placeholder="Filtrar SLA..." value={buscaTipo} onChange={e => setBuscaTipo(e.target.value)} />
@@ -260,7 +353,7 @@ export default function ParametrosGlobais({
                </div>
             ) : (
               tiposFiltrados.map(t => (
-                <div key={t.id} className="policy-list-item sla-item">
+                <div key={t.id} className={`policy-list-item sla-item ${!(t.temp_min != null && t.temp_max != null && Number(t.temp_min) < Number(t.temp_max) && Number(t.intervalo_degelo) > 0 && Number(t.duracao_degelo) > 0) ? 'policy-incomplete' : ''}`}>
                   <div className="policy-info-full">
                     <div className="sla-title-row">
                       <strong>{t.nome}</strong>
@@ -282,6 +375,9 @@ export default function ParametrosGlobais({
                       <span className="sla-tag higro" title="Controle Higrométrico"><Droplets size={12}/> {t.umidade_min || 0}% a {t.umidade_max || 0}%</span>
                       <span className="sla-tag degelo" title="Padrão de Degelo (Horas / Minutos)"><Snowflake size={12}/> A cada {t.intervalo_degelo || '--'}h ({t.duracao_degelo || '--'}m)</span>
                     </div>
+                    {!(t.temp_min != null && t.temp_max != null && Number(t.temp_min) < Number(t.temp_max) && Number(t.intervalo_degelo) > 0 && Number(t.duracao_degelo) > 0) && (
+                      <span className="policy-validation-warning"><AlertTriangle size={13}/> Revise limites térmicos e ciclo de degelo.</span>
+                    )}
                   </div>
                 </div>
               ))
@@ -362,6 +458,14 @@ export default function ParametrosGlobais({
                     </div>
                   </div>
                 </>
+              )}
+
+              {modalParametro.entidade === 'TIPO' && (
+                <div className="policy-live-preview">
+                  <span>Prévia da matriz</span>
+                  <strong>{modalParametro.nome || 'Nova matriz'}</strong>
+                  <div><span><Thermometer size={13}/> {modalParametro.temp_min || '--'}°C a {modalParametro.temp_max || '--'}°C</span><span><Droplets size={13}/> {modalParametro.umidade_min || 0}% a {modalParametro.umidade_max || 0}%</span><span><Snowflake size={13}/> {modalParametro.intervalo_degelo || '--'}h / {modalParametro.duracao_degelo || '--'}min</span></div>
+                </div>
               )}
               
               <div className="policy-modal-actions">

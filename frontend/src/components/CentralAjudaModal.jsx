@@ -1,148 +1,113 @@
+/**
+ * Módulo: frontend/src/components/CentralAjudaModal.jsx
+ * Responsabilidade: Implementa o componente reutilizável Central Ajuda Modal e seu contrato visual.
+ */
+
+import { useMemo } from 'react';
+import { CalendarDays, FileText, Loader, UserRound } from 'lucide-react';
+import EmptyState from './EmptyState';
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Sparkles, X, Search } from 'lucide-react';
+import './CentralAjudaModal.css';
 
 /**
- * Modal de Ajuda / Central de Conhecimento
+ * Renderiza o componente Central Ajuda Modal e encapsula sua interacao visual reutilizavel.
  *
- * Responsabilidades:
- * - Buscar e exibir artigos operacionais e changelog do sistema
- * - Permitir pesquisa e navegação entre abas de artigo/changelog
+ * Responsabilidade: mantém este comportamento isolado para que validação,
+ * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
  *
- * Props: `isOpen`, `onClose`, `api`, `isDarkMode`
+ * Fluxo principal:
+ * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+ * - Transforma ou filtra a coleção sem alterar diretamente os dados recebidos.
+ * - Monta a árvore visual conforme o estado e as permissões disponíveis.
+ *
+ * Efeitos colaterais: atualiza estado reativo da interface; consulta ou altera dados pela API; interage com APIs do navegador; registra ou remove listeners de eventos
+ *
+ * @param {object} props - Configurações e dados necessários para executar este bloco.
+ * @param {boolean} props.isOpen - Sinalizador isOpen que controla este comportamento visual.
+ * @param {Function} props.onClose - Callback onClose fornecido pelo componente responsável.
+ * @param {unknown} props.api - Propriedade api usada para configurar dados ou comportamento do componente.
+ * @returns {React.ReactElement} Árvore de elementos que representa o componente na interface.
+ * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
  */
-export default function CentralAjudaModal({ isOpen, onClose, api, isDarkMode: _isDarkMode }) {
-  const [aba, setAba] = useState('artigos'); // 'artigos' ou 'changelog'
-  const [artigos, setArtigos] = useState([]);
+export default function CentralAjudaModal({ isOpen, onClose, api }) {
+  const [tab, setTab] = useState('articles');
+  const [articles, setArticles] = useState([]);
   const [changelog, setChangelog] = useState([]);
-  const [busca, setBusca] = useState('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return undefined;
     let active = true;
-
-    const timerId = window.setTimeout(() => {
+    const requestTimer = window.setTimeout(() => {
       setLoading(true);
-
       Promise.all([
         api.get('/suporte/artigos').catch(() => ({ data: [] })),
         api.get('/system/changelog').catch(() => ({ data: [] }))
-      ]).then(([resArtigos, resChangelog]) => {
+      ]).then(([articleResponse, changelogResponse]) => {
         if (!active) return;
-        setArtigos(Array.isArray(resArtigos.data) ? resArtigos.data : []);
-        setChangelog(Array.isArray(resChangelog.data) ? resChangelog.data : []);
-      }).finally(() => {
-        if (active) setLoading(false);
-      });
+        setArticles(Array.isArray(articleResponse.data) ? articleResponse.data : []);
+        setChangelog(Array.isArray(changelogResponse.data) ? changelogResponse.data : []);
+      }).finally(() => { if (active) setLoading(false); });
     }, 0);
 
-    return () => {
-      active = false;
-      window.clearTimeout(timerId);
-    };
-  }, [isOpen, api]);
+
+    /**
+     * Renderiza o componente handle Escape e encapsula sua interacao visual reutilizavel.
+     *
+     * Responsabilidade: mantém este comportamento isolado para que validação,
+     * atualização de estado e integração possam evoluir sem duplicação em outros blocos.
+     *
+     * Fluxo principal:
+     * - Valida as condições de entrada e interrompe caminhos que não podem prosseguir.
+     *
+     * Efeitos colaterais: não possui efeitos externos identificados; opera apenas sobre os valores recebidos.
+     *
+     * @param {Event} event - Evento que iniciou a interação ou mudança de estado.
+     * @returns {void} Não devolve valor; comunica o resultado por estado, evento ou efeito colateral.
+     * @maintenance-generated v3 - Comentário gerado a partir da assinatura e das integrações locais.
+     */
+    const handleEscape = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEscape);
+    return () => { active = false; window.clearTimeout(requestTimer); window.removeEventListener('keydown', handleEscape); };
+  }, [api, isOpen, onClose]);
+
+  const filteredArticles = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase('pt-BR');
+    if (!term) return articles;
+    return articles.filter((article) => `${article.titulo || ''} ${article.conteudo || ''} ${article.categoria || ''}`.toLocaleLowerCase('pt-BR').includes(term));
+  }, [articles, search]);
 
   if (!isOpen) return null;
 
-  const artigosFiltrados = artigos.filter(a => 
-    a.titulo.toLowerCase().includes(busca.toLowerCase()) || 
-    a.conteudo.toLowerCase().includes(busca.toLowerCase())
-  );
-
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 99999 }}>
-      <div 
-        className="modal-content anim-slide-up" 
-        onClick={e => e.stopPropagation()}
-        style={{ maxWidth: '680px', width: '100%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-      >
-        {/* CABEÇALHO */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BookOpen size={22} color="#38bdf8" />
-            <div>
-              <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem' }}>Central de Conhecimento</h3>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Artigos operacionais & Histórico de atualizações do ThermoSync</span>
-            </div>
+    <div className="modal-overlay help-center-overlay" onClick={onClose}>
+      <section className="help-center-modal" role="dialog" aria-modal="true" aria-labelledby="help-center-title" onClick={(event) => event.stopPropagation()}>
+        <header className="help-center-header">
+          <span className="help-center-heading-icon"><BookOpen size={20} /></span>
+          <div><span>Suporte e documentação</span><h2 id="help-center-title">Central de Conhecimento</h2><p>Procedimentos operacionais e histórico de evolução da plataforma.</p></div>
+          <button type="button" onClick={onClose} title="Fechar central" aria-label="Fechar central"><X size={18} /></button>
+        </header>
+
+        <div className="help-center-controls">
+          <div className="help-center-tabs" role="tablist" aria-label="Conteúdo da central">
+            <button type="button" role="tab" aria-selected={tab === 'articles'} className={tab === 'articles' ? 'active' : ''} onClick={() => setTab('articles')}><FileText size={15} /><span>Artigos</span><small>{articles.length}</small></button>
+            <button type="button" role="tab" aria-selected={tab === 'changelog'} className={tab === 'changelog' ? 'active' : ''} onClick={() => setTab('changelog')}><History size={15} /><span>Notas de versão</span><small>{changelog.length}</small></button>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20}/></button>
+          {tab === 'articles' && <label className="help-center-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar título, categoria ou conteúdo" />{search && <button type="button" onClick={() => setSearch('')} title="Limpar pesquisa"><X size={13} /></button>}</label>}
         </div>
 
-        {/* ABAS */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.8rem' }}>
-          <button 
-            onClick={() => setAba('artigos')} 
-            className={`btn ${aba === 'artigos' ? 'btn-primary' : 'btn-outline'}`}
-            style={{ padding: '6px 14px', fontSize: '0.8rem' }}
-          >
-            Base de Ajuda ({artigos.length})
-          </button>
-          <button 
-            onClick={() => setAba('changelog')} 
-            className={`btn ${aba === 'changelog' ? 'btn-primary' : 'btn-outline'}`}
-            style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Sparkles size={14} /> Notas de Versão ({changelog.length})
-          </button>
-        </div>
-
-        {/* CONTEÚDO SCROLLÁVEL */}
-        <div style={{ overflowY: 'auto', padding: '1rem 0', flex: 1 }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Carregando dados...</div>
-          ) : aba === 'artigos' ? (
-            <div>
-              <div className="input-wrapper" style={{ marginBottom: '1rem' }}>
-                <Search size={16} className="input-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar artigos de ajuda..." 
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                  style={{ paddingLeft: '38px', width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px 10px 10px 38px', color: 'white' }}
-                />
-              </div>
-
-              {artigosFiltrados.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>Nenhum artigo encontrado.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {artigosFiltrados.map(art => (
-                    <div key={art.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>{art.titulo}</strong>
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', color: '#94a3b8' }}>{art.categoria}</span>
-                      </div>
-                      <p style={{ margin: 0, color: '#e2e8f0', fontSize: '0.85rem', lineHeight: '1.5' }}>{art.conteudo}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        <div className="help-center-body">
+          {loading ? <Loader message="Carregando base de conhecimento..." size={42} /> : tab === 'articles' ? (
+            filteredArticles.length ? <div className="help-article-list">{filteredArticles.map((article) => <article className="help-article" key={article.id}><header><span><FileText size={15} /></span><div><small>{article.categoria || 'Geral'}</small><h3>{article.titulo || 'Artigo sem título'}</h3></div></header><p>{article.conteudo || 'Conteúdo não informado.'}</p></article>)}</div> : <EmptyState icon={Search} title="Nenhum artigo encontrado" description="Revise os termos da pesquisa ou consulte outra categoria da central." actionLabel={search ? 'Limpar pesquisa' : ''} onAction={() => setSearch('')} />
           ) : (
-            /* CHANGELOG DA TABELA system_changelog */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {changelog.map(log => (
-                <div key={log.id} style={{ background: 'rgba(0,0,0,0.3)', borderLeft: '4px solid #10b981', padding: '14px', borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>
-                      {log.version}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{new Date(log.date).toLocaleDateString()}</span>
-                  </div>
-                  <strong style={{ color: '#f8fafc', fontSize: '0.95rem', display: 'block', marginBottom: '6px' }}>{log.title}</strong>
-                  <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.85rem', lineHeight: '1.5' }}>{log.desc_text}</p>
-                  <div style={{ marginTop: '8px', fontSize: '0.7rem', color: '#64748b' }}>Autor: {log.author}</div>
-                </div>
-              ))}
-            </div>
+            changelog.length ? <div className="help-release-list">{changelog.map((release, index) => <article className="help-release" key={release.id}><span className="help-release-track"><i />{index < changelog.length - 1 && <b />}</span><div><header><span><Sparkles size={13} />{release.version || 'Versão'}</span><time><CalendarDays size={13} />{release.date ? new Date(release.date).toLocaleDateString('pt-BR') : 'Data não informada'}</time></header><h3>{release.title || 'Atualização da plataforma'}</h3><p>{release.desc_text || 'Sem detalhes adicionais.'}</p><small><UserRound size={12} />{release.author || 'Equipe ThermoSync'}</small></div></article>)}</div> : <EmptyState icon={History} title="Histórico ainda vazio" description="As próximas publicações de versão aparecerão neste espaço." />
           )}
         </div>
 
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.8rem', textAlign: 'right' }}>
-          <button className="btn btn-outline" onClick={onClose} style={{ padding: '6px 18px' }}>Fechar</button>
-        </div>
-      </div>
+        <footer className="help-center-footer"><span>{tab === 'articles' ? `${filteredArticles.length} artigo(s) disponível(is)` : `${changelog.length} versão(ões) publicada(s)`}</span><button type="button" onClick={onClose}>Fechar</button></footer>
+      </section>
     </div>
   );
 }
